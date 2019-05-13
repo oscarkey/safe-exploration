@@ -48,14 +48,14 @@ class CautiousMPC:
         A linear transformation of the GP input. Possible application: E.g. to turn off
         a particular dimension that is invariant (e.g. cart position in cart pole
         system)
-    perf_trajectory: SX.Function
-        The uncertainty propagation technique. E.g. Taylor approximation of the GP
-        posterior under uncertaint inputs ( see https://arxiv.org/abs/1705.10702 for an
-        overview)
+    perf_trajectory: str
+        The name of the uncertainty propagation technique, one of 'mean_equivalent' or 'taylor'
+        E.g. Taylor approximation of the GP posterior under uncertaint inputs
+        (see https://arxiv.org/abs/1705.10702 for an overview)
     """
 
     def __init__(self, T, gp, env_options, beta_safety,
-                 lin_trafo_gp_input=None, perf_trajectory="mean_equivalent",
+                 lin_trafo_gp_input=None, perf_trajectory: str = "mean_equivalent",
                  k_fb=None):
         self.T = T
         self.gp = gp
@@ -63,7 +63,7 @@ class CautiousMPC:
         self.n_u = gp.n_u
         self.n_fail = T - 1
         self.beta_safety = beta_safety
-        self.perf_trajectory = perf_trajectory
+        self._set_perf_trajectory(perf_trajectory)
         self.opt_x0 = False
 
         self.cost_func = None
