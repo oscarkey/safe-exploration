@@ -172,4 +172,5 @@ class DefaultConfigEpisode(DefaultConfig):
             else:
                 self.save_dir = self.solver_type + "_" + self.env_name + "_T=" + str(self.T) + "_beta_safety=" + str(
                     self.beta_safety).replace(".", "_")
+            self.save_dir = self.save_dir + '_' + datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%S")
 
