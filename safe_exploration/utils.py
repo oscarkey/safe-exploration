@@ -583,6 +583,10 @@ class unavailable:
         f_spec = inspect.getargspec(func)
         f_vars = f_spec.args
         f_defaults = f_spec.defaults
+
+        if f_defaults is None:
+            return {}
+
         n_kwargs = len(f_defaults)
         def_kwargs = dict()
         for i in range(n_kwargs):
