@@ -178,7 +178,9 @@ class TestMultiOutputGP(object):
 
         # Combined GP
         likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=2)
-        gp = MultiOutputGP(train_x, train_y, kernel, likelihood, mean=mean)
+        gp = MultiOutputGP(torch.rand_like(train_x), torch.rand_like(train_y), kernel, likelihood, mean=mean)
+        # We initialized with random training data so we can test set_train_data here.
+        gp.set_train_data(train_x, train_y)
 
         # Individual GPs
         likelihood1 = gpytorch.likelihoods.GaussianLikelihood()
