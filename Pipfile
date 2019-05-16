@@ -6,7 +6,9 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-safe-exploration = {editable = true,path = "."}
+safe-exploration = {editable = true,extras = ["ssm_gpy", "ssm_pytorch", "test", "visualization"],path = "."}
+matplotlib = "*"
+ipykernel = "*"
 
 [requires]
 python_version = "3.7"
