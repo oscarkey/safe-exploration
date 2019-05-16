@@ -151,9 +151,18 @@ class MultiOutputGP(gpytorch.models.ExactGP):
     """
 
     def __init__(self, train_x, train_y, kernel, likelihood, mean=None):
+        train_x, train_y = self._process_training_data(train_x, train_y)
+
+        super(MultiOutputGP, self).__init__(train_x, train_y, likelihood)
+
         if mean is None:
             mean = gpytorch.means.ZeroMean()
 
+        self.mean = mean
+        self.kernel = kernel
+
+    @staticmethod
+    def _process_training_data(train_x, train_y):
         if train_y.dim() > 1:
             # Try to remove the first data row if it's empty
             train_y = train_y.squeeze(0)
@@ -161,10 +170,7 @@ class MultiOutputGP(gpytorch.models.ExactGP):
         if train_y.dim() > 1:
             train_x = train_x.expand(len(train_y), *train_x.shape)
 
-        super(MultiOutputGP, self).__init__(train_x, train_y, likelihood)
-
-        self.mean = mean
-        self.kernel = kernel
+        return train_x, train_y
 
     @property
     def batch_size(self):
@@ -173,7 +179,8 @@ class MultiOutputGP(gpytorch.models.ExactGP):
 
     def set_train_data(self, inputs=None, targets=None, strict=True):
         """Set the GP training data."""
-        raise NotImplementedError('TODO')
+        train_x, train_y = self._process_training_data(inputs, targets)
+        super().set_train_data(train_x, train_y, strict)
 
     def loss(self, mml):
         """Return the negative log-likelihood of the model.
