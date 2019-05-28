@@ -851,6 +851,7 @@ class CartPole(Environment):
                          4)
 
         pygame.display.flip()
+        pygame.event.get()
 
     def _get_step_cost(self, state, u):
         """Return the cost of the current step as a function of distance to target."""
