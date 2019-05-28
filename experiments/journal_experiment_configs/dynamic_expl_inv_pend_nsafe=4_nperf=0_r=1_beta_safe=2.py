@@ -12,7 +12,7 @@ class Config(DefaultConfigExploration):
     Options class for the exploration setting
     """
     verbose = 2
-    static_exploration = False 
+    static_exploration = False
 
     # safempc
     beta_safety = 2.0
@@ -23,6 +23,3 @@ class Config(DefaultConfigExploration):
     def __init__(self):
         """ """
         super(Config, self).__init__(__file__)
-        
-            
-            

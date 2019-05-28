@@ -17,8 +17,8 @@ class Config(DefaultConfigEpisode):
     n_safe = 2
     n_perf = 10
     r = 1
-    
-    #rl cost function
+
+    # rl cost function
     cost = None
     ilqr_init = False
 

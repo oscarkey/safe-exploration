@@ -12,19 +12,16 @@ class Config(DefaultConfigEpisode):
     Options class for the exploration setting
     """
 
-
-    
     # environment
 
-    
     # safempc
     verbosity = 2
     beta_safety = 2.0
     n_safe = 2
     n_perf = 5
     r = 1
-    
-    #rl cost function
+
+    # rl cost function
     cost = None
     ilqr_init = False
 

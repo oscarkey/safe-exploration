@@ -4,12 +4,14 @@ Created on Tue Nov 21 18:09:14 2017
 
 @author: tkoller
 """
-from .default_config import DefaultConfig
-from safe_exploration.utils_casadi import trig_aug, generic_cost, loss_sat, loss_quadratic, cost_dev_safe_perf
-from casadi import mtimes, SX
-import numpy as np
-import sys
 import datetime
+
+import numpy as np
+from casadi import SX
+
+from safe_exploration.utils_casadi import trig_aug, generic_cost, loss_sat
+from .default_config import DefaultConfig
+
 
 class DefaultConfigEpisode(DefaultConfig):
     """
@@ -37,7 +39,7 @@ class DefaultConfigEpisode(DefaultConfig):
     Z = None  # np.random.randn(m,gp_ns_in+gp_nu)*z_std + z_m
 
     kern_types = ["lin_mat52", "lin_mat52", "lin_mat52", "lin_mat52"]  # kernel type
-    #kern_types = ["rbf","rbf","rbf","rbf"]
+    # kern_types = ["rbf","rbf","rbf","rbf"]
     gp_dict_path = None
     gp_hyp = None
     train_gp = True
@@ -47,7 +49,7 @@ class DefaultConfigEpisode(DefaultConfig):
     init_std_initial_data = [1., 1.5, 0.2, 0.8]
     init_m_initial_data = [-1.0, 0., 0.0, 0.]
     rl_immediate_cost = None
-    #env_name = "InvertedPendulum"
+    # env_name = "InvertedPendulum"
     env_name = "CartPole"
     env_options = dict()
     init_std = np.array([.1, .1, 0.1, 0.1])
@@ -58,13 +60,14 @@ class DefaultConfigEpisode(DefaultConfig):
     env_options["verbosity"] = 2
     env_options["norm_x"] = np.array([1., 1., 1., 1.])
     env_options["norm_u"] = np.array([1.])
-    env_options["plant_noise"] =np.array([0.02, 0.05, 0.02, 0.05]) ** 2
+    env_options["plant_noise"] = np.array([0.02, 0.05, 0.02, 0.05]) ** 2
 
     ##safempc
     beta_safety = 2.0
     n_safe = 1
     n_perf = 0
-    lqr_wx_cost = np.diag([2, 6, 12, 4])  # # old working version however with problems in staying in x direction: np.diag([4, 8, 12, 2])
+    lqr_wx_cost = np.diag(
+        [2, 6, 12, 4])  # # old working version however with problems in staying in x direction: np.diag([4, 8, 12, 2])
     lqr_wu_cost = 40 * np.eye(1)  # old working version: 80*np.eye(1)
     lin_prior = True
 
@@ -93,7 +96,7 @@ class DefaultConfigEpisode(DefaultConfig):
     n_steps = 50
     n_steps_init = 8
     n_rollouts_init = 5  # 5
-    n_scenarios = 6 # 10
+    n_scenarios = 6  # 10
 
     obs_frequency = 1  # Only take an observation every k-th time step (k = obs_frequency)
 
@@ -107,7 +110,7 @@ class DefaultConfigEpisode(DefaultConfig):
     save_vis = True
     save_dir = None  # the directory such that the overall save location is save_path_base/save_dir/
     time_string = datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%S")
-    save_path_base = "results_journal/results_rl"#_{time_string}"  # the directory such that the overall save location is save_path_base/save_dir/
+    save_path_base = "results_journal/results_rl"  # _{time_string}"  # the directory such that the overall save location is save_path_base/save_dir/
     data_savepath = "gp_data"
     save_name_results = None
 
@@ -131,15 +134,14 @@ class DefaultConfigEpisode(DefaultConfig):
         m_cas = SX.sym("mean", (5, 1))
         v_cas = SX.sym("var", (5, 5))
 
-
         loss_sat_func = loss_sat(m_cas, v_cas, z_target, W_target)
 
         cost_stage = lambda m, v, u: loss_sat_func(m, v)
         terminal_cost = lambda m, v: loss_sat_func(m, v)
 
         ## Quadratic cost functions (standard)
-        #cost_stage = lambda m,v,u: loss_quadratic(m,z_target,v,W_target) + 10*mtimes(u.T, u)
-        #terminal_cost = lambda m,v: loss_quadratic(m,z_target,v,W_target)
+        # cost_stage = lambda m,v,u: loss_quadratic(m,z_target,v,W_target) + 10*mtimes(u.T, u)
+        # terminal_cost = lambda m,v: loss_quadratic(m,z_target,v,W_target)
 
         # cost = lambda p_0,u_0,p_all,q_all,mu_perf,sigma_perf,k_ff_all,k_fb_ctrl,k_fb_perf,k_ff_perf:  \
         #                 generic_cost(mu_perf,sigma_perf,k_ff_perf,cost_stage,terminal_cost,state_trafo = trigon_augm)
@@ -148,18 +150,19 @@ class DefaultConfigEpisode(DefaultConfig):
         self.rl_immediate_cost = lambda state: w_rl_cost * (state[0] - x_target) ** 2
 
         if self.n_perf > 0:
-            cost = lambda p_0, u_0, p_all, q_all, k_ff_safe, k_fb_safe, \
-                                        sigma_safe, mu_perf, sigma_perf, \
-                                        gp_pred_sigma_perf, k_fb_perf, k_ff_perf: \
-                generic_cost(mu_perf, sigma_perf, k_ff_perf, cost_stage, terminal_cost, state_trafo=trigon_augm)  # + \
-            # cost_dev_safe_perf(p_all,mu_perf)
+            cost = lambda p_0, u_0, p_all, q_all, k_ff_safe, k_fb_safe, sigma_safe, mu_perf, sigma_perf, \
+                          gp_pred_sigma_perf, k_fb_perf, k_ff_perf: generic_cost(mu_perf, sigma_perf, k_ff_perf,
+                                                                                 cost_stage, terminal_cost,
+                                                                                 state_trafo=trigon_augm)  # + \  # cost_dev_safe_perf(p_all,mu_perf)
 
         else:
             cost_stage = lambda m, v, u: loss_sat_func(m, v)
             terminal_cost = lambda m, v: loss_sat_func(m, v)
 
-            cost = lambda p_0, u_0, p_all, q_all, k_ff_safe, k_fb_safe, sigma_safe: \
-                generic_cost(p_all, q_all, k_ff_safe, cost_stage, terminal_cost, state_trafo=trigon_augm)
+            cost = lambda p_0, u_0, p_all, q_all, k_ff_safe, k_fb_safe, sigma_safe: generic_cost(p_all, q_all,
+                                                                                                 k_ff_safe, cost_stage,
+                                                                                                 terminal_cost,
+                                                                                                 state_trafo=trigon_augm)
 
         return cost
 
@@ -173,4 +176,3 @@ class DefaultConfigEpisode(DefaultConfig):
                 self.save_dir = self.solver_type + "_" + self.env_name + "_T=" + str(self.T) + "_beta_safety=" + str(
                     self.beta_safety).replace(".", "_")
             self.save_dir = self.save_dir + '_' + datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%S")
-

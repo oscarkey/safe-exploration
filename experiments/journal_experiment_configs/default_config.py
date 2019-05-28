@@ -4,26 +4,26 @@ Created on Tue Nov 21 18:09:14 2017
 
 @author: tkoller
 """
-import warnings
 import datetime
-
-from os.path import basename, splitext,dirname
-from os import makedirs, getcwd
+import warnings
+from os import makedirs
+from os.path import basename, splitext, dirname
 from shutil import copy
+
 
 class DefaultConfig(object):
     """
     Options class for the exploration setting
     """
-    #the verbosity level 
+    # the verbosity level
     verbosity = 2
     ilqr_init = True
 
     type_perf_traj = 'taylor'
     r = 1
     perf_has_fb = True
-    
-    env_options=dict()
+
+    env_options = dict()
 
     def create_savedirs(self, file_path):
         """ """
@@ -33,7 +33,7 @@ class DefaultConfig(object):
         if self.save_results:
             if self.save_dir is None:
                 time_string = datetime.datetime.now().strftime("%d-%m-%y-%H-%M-%S")
-                res_path = "{}/res_{}_{}".format(self.save_path_base,conf_name,time_string)
+                res_path = "{}/res_{}_{}".format(self.save_path_base, conf_name, time_string)
             else:
                 res_path = f"{self.save_path_base}/{self.save_dir}"
 
@@ -43,8 +43,6 @@ class DefaultConfig(object):
                 warnings.warn(e)
 
             self.save_path = res_path
-            #copy config file into results folder
+            # copy config file into results folder
             dirname_conf = dirname(file_path)
-            copy("{}/{}.py".format(dirname_conf,conf_name),"{}/".format(res_path))
-
-            
+            copy("{}/{}.py".format(dirname_conf, conf_name), "{}/".format(res_path))
