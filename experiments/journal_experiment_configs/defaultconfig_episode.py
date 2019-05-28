@@ -98,7 +98,7 @@ class DefaultConfigEpisode(DefaultConfig):
     obs_frequency = 1  # Only take an observation every k-th time step (k = obs_frequency)
 
     # general options
-    render = False
+    render = True
     visualize = True
     plot_ellipsoids = False
     plot_trajectory = False
