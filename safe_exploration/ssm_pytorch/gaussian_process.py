@@ -410,3 +410,22 @@ class GPyTorchSSM(StateSpaceModel):
         grad_action = inp_grad[0, self.num_states:].detach().numpy()[:, None]
 
         return grad_state, grad_action
+
+    def update_model(self, x, y, opt_hyp=False, replace_old=True, noise_diag=1e-5,
+                     choose_data=True):
+        # Randomly select some training points (or all of them if not enough)
+        m = 150  # Copied from some config file
+        if replace_old:
+            x_new = x
+            y_new = y
+        else:
+            x_new = np.vstack((self.pytorch_gp.train_inputs, x))
+            y_new = np.vstack((self.pytorch_gp.train_targets, y))
+
+        if choose_data:
+            pass
+
+        if opt_hyp:
+            raise NotImplementedError
+
+        self.pytorch_gp.set_train_data(x_new, y_new)
