@@ -7,7 +7,6 @@ verify_ssl = true
 
 [packages]
 safe-exploration = {editable = true,extras = ["ssm_gpy", "ssm_pytorch", "test", "visualization"],path = "."}
-matplotlib = "*"
 ipykernel = "*"
 
 [requires]
