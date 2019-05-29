@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/experiments" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/safe_exploration" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/scripts" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/constrained-cem-mpc/constrained_cem_mpc" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
