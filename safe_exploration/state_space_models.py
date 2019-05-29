@@ -4,14 +4,16 @@ Created on Wed Sep 20 10:37:51 2017
 
 @author: tkoller
 """
-import numpy as np
-import casadi as cas
 import copy
+from abc import ABC, abstractmethod
+
+import casadi as cas
+import numpy as np
 
 from .utils import reshape_derivatives_3d_to_2d
 
 
-class StateSpaceModel(object):
+class StateSpaceModel(ABC):
     """A state space model including uncertainty information.
 
     x_{t+1} = f(x_t, u_t)
@@ -71,6 +73,7 @@ class StateSpaceModel(object):
         """
         return self.predict(states, actions, True, False)
 
+    @abstractmethod
     def predict(self, states, actions, jacobians=False, full_cov=False):
         """Predict the next states and uncertainty.
 
@@ -99,9 +102,6 @@ class StateSpaceModel(object):
             Only supported without the full_cov flag.
         """
         raise NotImplementedError("Need to implement this in a subclass!")
-
-        if jacobians and full_cov:
-            raise NotImplementedError('Jacobians of full covariance not supported.')
 
     def linearize_predict(self, states, actions, jacobians=False, full_cov=False):
         """Predict the next states and uncertainty.
@@ -189,8 +189,10 @@ class StateSpaceModel(object):
             forward pass and stored.
 
         """
-        raise NotImplementedError("Need to implement this in a sublass when providing reverse AD for linearized forward")
+        raise NotImplementedError(
+            "Need to implement this in a sublass when providing reverse AD for linearized forward")
 
+    @abstractmethod
     def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
         """ Update the state space model
 
@@ -221,8 +223,7 @@ class CasadiSSMEvaluator(cas.Callback):
 
     """
 
-    def __init__(self, ssm, linearize_mu=True, has_jacobian=True,
-                 has_reverse=False, opts={}):
+    def __init__(self, ssm, linearize_mu=True, has_jacobian=True, has_reverse=False, opts={}):
         """
 
           Parameters
