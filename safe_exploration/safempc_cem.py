@@ -1,6 +1,7 @@
 from abc import abstractmethod
 
 import numpy as np
+from constrained_cem_mpc import ConstrainedCemMpc
 
 from .state_space_models import StateSpaceModel
 
@@ -48,4 +49,20 @@ class FakeCemSSM(CemSSM):
         raise NotImplementedError
 
     def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
+        raise NotImplementedError
+
+
+class CemSafeMPC:
+
+    def __init__(self, state_dimen: int, action_dimen: int) -> None:
+        super().__init__()
+        self._mpc = ConstrainedCemMpc(_dynamics_func, _objective_func, constraints=None, state_dimen=state_dimen,
+                                      action_dimen=action_dimen, time_horizon=5, num_rollouts=20, num_elites=3,
+                                      num_iterations=1, num_workers=0)
+
+    def init_solver(self, cost_func=None):
+        pass
+
+    def get_action(self, state: np.ndarray):
+        # state: [state_dimen]
         raise NotImplementedError

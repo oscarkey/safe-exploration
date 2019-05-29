@@ -168,7 +168,7 @@ class DefaultConfigEpisode(DefaultConfig):
 
     def _generate_save_dir_string(self):
         if self.save_dir is None:
-            if self.solver_type == "safempc":
+            if self.solver_type in ("safempc", "safempc_cem"):
                 self.save_dir = self.solver_type + "_" + self.env_name + "_nsafe=" + str(self.n_safe) + "_nperf=" + str(
                     self.n_perf) + "_r=" + str(self.r) + "_beta_safety=" + str(self.beta_safety).replace(".", "_")
                 print(self.save_dir)

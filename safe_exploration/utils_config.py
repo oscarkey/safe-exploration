@@ -9,6 +9,8 @@ import numpy as np
 
 from importlib import import_module
 from os.path import abspath, exists, split
+
+from .safempc_cem import CemSafeMPC
 from .cautious_mpc import CautiousMPC
 from .environments import InvertedPendulum, CartPole
 from .safempc_simple import SimpleSafeMPC
@@ -89,6 +91,8 @@ def create_solver(conf, env):
 
         solver = CautiousMPC(T, gp, env_opts_safempc, conf.beta_safety,
                              lin_trafo_gp_input=lin_trafo_gp_input, perf_trajectory=conf.type_perf_traj, k_fb=k_fb)
+    elif conf.solver_type == "safempc_cem":
+        solver = CemSafeMPC(state_dimen=env.n_s, action_dimen=env.n_u)
     else:
         raise ValueError("Unknown solver type: {}".format(conf.solver_type))
 
