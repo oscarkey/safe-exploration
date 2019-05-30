@@ -491,3 +491,6 @@ class DummySSM(StateSpaceModel):
                 self.num_states + self.num_actions)
         return np.random.randn(self.num_states, 1), np.zeros((self.num_states, 1)), np.random.randn(
                 self.num_states, self.num_states + self.num_actions)
+
+    def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
+        raise NotImplementedError

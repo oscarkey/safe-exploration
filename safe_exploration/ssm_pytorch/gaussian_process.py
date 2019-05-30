@@ -403,3 +403,6 @@ class GPyTorchSSM(StateSpaceModel):
         grad_action = inp_grad[0, self.num_states:].detach().numpy()[:, None]
 
         return grad_state, grad_action
+
+    def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
+        raise NotImplementedError

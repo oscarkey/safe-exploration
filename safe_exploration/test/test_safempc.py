@@ -99,6 +99,9 @@ class DummySSM(StateSpaceModel):
                 self.num_states + self.num_actions)
         return np.random.randn(self.num_states, 1), np.ones((self.num_states, 1))
 
+    def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
+        raise NotImplementedError
+
 
 def get_gpytorch_ssm(path,n_s,n_u):
     kernel = BatchKernel([gpytorch.kernels.RBFKernel()]*n_s)
