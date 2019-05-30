@@ -5,7 +5,7 @@ Created on Tue Nov 21 18:09:14 2017
 @author: tkoller
 """
 
-from journal_experiment_configs.defaultconfig_episode import DefaultConfigEpisode
+from .defaultconfig_episode import DefaultConfigEpisode
 
 
 class Config(DefaultConfigEpisode):
