@@ -17,13 +17,25 @@ def _objective_func(states, actions):
 class CemSSM(StateSpaceModel):
     """State Space Model interface for use with CEM MPC."""
 
+    def __init__(self, state_dimen: int, action_dimen: int):
+        super().__init__(state_dimen, action_dimen, has_jacobian=False, has_reverse=False)
+
     def predict(self, states, actions, jacobians=False, full_cov=False):
+        if full_cov:
+            raise ValueError('CEM MPC does not support full covariance at the moment')
+
         if jacobians:
-            raise ValueError('CEM MPC does not require/support jacobians')
-        self._predict(states, actions, full_cov)
+            return self._predict_with_jacobians(states, actions)
+        else:
+            return self._predict_without_jacobians(states, actions)
 
     @abstractmethod
-    def _predict(self, states: np.ndarray, actions: np.ndarray, full_cov: bool):
+    def _predict_with_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (
+            np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+        pass
+
+    @abstractmethod
+    def _predict_without_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (np.ndarray, np.ndarray):
         pass
 
     def linearize_predict(self, states, actions, jacobians=False, full_cov=False):
@@ -45,8 +57,21 @@ class CemSSM(StateSpaceModel):
 class FakeCemSSM(CemSSM):
     """Fake state space model for use during development."""
 
-    def _predict(self, states: np.ndarray, actions: np.ndarray, full_cov: bool) -> (np.ndarray, np.ndarray):
-        raise NotImplementedError
+    def _predict(self, states: np.ndarray, actions: np.ndarray) -> (np.ndarray, np.ndarray):
+        means = np.zeros_like(states)
+        vares = np.ones_like(states)
+
+        # Why do we transpose here?
+        return means.T, vares.T
+
+    def _predict_with_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (
+            np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+        means, vares = self._predict(states, actions)
+        jacobians = np.zeros((self.num_states, self.num_states + self.num_actions))
+        return means, vares, jacobians
+
+    def _predict_without_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (np.ndarray, np.ndarray):
+        return self._predict(states, actions)
 
     def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
         raise NotImplementedError
