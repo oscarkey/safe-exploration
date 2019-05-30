@@ -10,7 +10,7 @@ from .defaultconfig_episode import DefaultConfigEpisode
 
 class Config(DefaultConfigEpisode):
     """
-    Options class for the exploration setting
+    Cartpole in the episodic setting, using CEM MPC (rather than Casadi).
     """
 
     # environment
