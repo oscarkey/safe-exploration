@@ -276,7 +276,7 @@ class StaticSafeMPCExploration:
             if self.T > 1:
                 u_0 = self.env.random_action()[:, None]
 
-                k_fb_lqr = self.safempc.get_lqr_feedback()
+                k_fb_lqr = self.safempc.lqr_controller.get_control_matrix()
                 k_ff_0 = np.zeros((self.T - 1, self.n_u))
                 for j in range(self.T - 1):
                     k_ff_0[j, :] = self.env.random_action()

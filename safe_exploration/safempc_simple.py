@@ -126,8 +126,6 @@ class SimpleSafeMPC:
 
         self.wx_cost = wx_cost
         self.wu_cost = wu_cost
-        self.wx_feedback = wx_cost
-        self.wu_feedback = 1 * wu_cost
 
         self.do_shift_solution = True
         self.solver_initialized = False
@@ -137,16 +135,21 @@ class SimpleSafeMPC:
 
         # SET ALL ATTRIBUTES FOR THE ENVIRONMENT
 
-        self.lin_prior = False
         self.a = np.eye(self.n_s)
         self.b = np.zeros((self.n_s, self.n_u))
         if not self.lin_model is None:
             self.a, self.b = self.lin_model
-            self.lin_prior = True
+
+            self.lqr_controller = LqrFeedbackController(wx_feedback_cost=wx_cost, wu_feedback_cost=1 * wu_cost,
+                                                        n_s=self.n_s, n_u=self.n_u, linearized_model_a=self.a,
+                                                        linearized_model_b=self.b)
+
             if self.safe_policy is None:
                 # no safe policy specified? Use lqr as safe policy
-                K = self.get_lqr_feedback()
+                K = self.lqr_controller.get_control_matrix()
                 self.safe_policy = lambda x: np.dot(K, x)
+        else:
+            raise NotImplementedError("Cannot compute feed-back matrices without prior model")
 
         # if self.performance_trajectory is None:
         #    self.performance_trajectory = mean_equivalent
@@ -1005,7 +1008,7 @@ class SimpleSafeMPC:
 
         u_perf_0 = None
         k_fb_perf_0 = None
-        k_fb_lqr = self.get_lqr_feedback()
+        k_fb_lqr = self.lqr_controller.get_control_matrix()
 
         if self.do_shift_solution and self.n_fail == 0:
             if self.n_safe > 1:
@@ -1101,3 +1104,22 @@ class SimpleSafeMPC:
         else:
             warnings.warn("""Updating gp without reinitializing the solver! \n
                 This is potentially dangerous, since the new GP is not incorporated in the MPC""")
+
+
+class LqrFeedbackController:
+
+    def __init__(self, wx_feedback_cost, wu_feedback_cost, n_s: int, n_u: int, linearized_model_a, linearized_model_b):
+        self._wx_feedback_cost = wx_feedback_cost
+        self._wu_feedback_cost = wu_feedback_cost
+        self._n_s = n_s
+        self._n_u = n_u
+        self._linearized_model_a = linearized_model_a
+        self._linearized_model_b = linearized_model_b
+
+    def get_control_matrix(self):
+        """ Get the initial feedback controller k_fb"""
+        k_lqr, _, _ = dlqr(a=self._linearized_model_a, b=self._linearized_model_b, q=self._wx_feedback_cost,
+                           r=self._wu_feedback_cost)
+        k_fb = -k_lqr
+
+        return k_fb.reshape((1, self._n_s * self._n_u))
