@@ -73,6 +73,7 @@ class Environment(metaclass=abc.ABCMeta):
         self.plant_noise = plant_noise
         self.target = target
         self.verbosity = verbosity
+        self._render_initialized = False
 
         if p_origin is None:
             self.p_origin = np.zeros((n_s,))
@@ -121,6 +122,26 @@ class Environment(metaclass=abc.ABCMeta):
     def render(self):
         """ Render the visualization """
         print("No rendering implemented")
+
+    def _init_render(self):
+        if self._render_initialized:
+            return
+
+        screen_width = 400
+        screen_height = 300
+        axis = [-3.0, 3.0, -2.0, 2.0]
+
+        self.screen = pygame.display.set_mode((screen_width, screen_height))
+        self.axis = axis
+        self.display_width = screen_width
+        self.display_height = screen_height
+
+        self.clock = pygame.time.Clock()
+
+        self._render_initialized = True
+
+    def _delay_render(self):
+        self.clock.tick(self.delay)
 
     def _sample_start_state(self, mean=None, std=None, n_samples=1):
         """ """
@@ -731,9 +752,6 @@ class CartPole(Environment):
         self.odesolver = ode(self._dynamics)
         self.name = name
 
-    def delay_vis(self):
-        self.clock.tick(self.delay)
-
     def state_to_obs(self, state, add_noise=False):
         """ Normalize the state and add observation noise"""
 
@@ -794,25 +812,10 @@ class CartPole(Environment):
 
     @unavailable(not _has_pygame, "pygame")
     def render(self):
-        if not self._vis_initialized:
-            self._init_vis()
+        self._init_render()
 
         self._draw_cartpole()
-        self.delay_vis()
-
-    def _init_vis(self):
-        screen_width = 400
-        screen_height = 300
-        axis = [-3.0, 3.0, -2.0, 2.0]
-
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
-        self.axis = axis
-        self.display_width = screen_width
-        self.display_height = screen_height
-
-        self.clock = pygame.time.Clock()
-
-        self._vis_initialized = True
+        self._delay_render()
 
     def _draw_cartpole(self):
         """ Draw the screen for the cart pole environment."""
