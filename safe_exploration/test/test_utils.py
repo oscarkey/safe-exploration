@@ -5,8 +5,9 @@ Created on Sat Dec  2 18:20:28 2017
 @author: tkoller
 """
 import numpy as np
+import pytest
 
-from ..utils import sample_inside_polytope
+from ..utils import sample_inside_polytope, assert_shape
 
 
 def test_sample_inside_polytope():
@@ -27,3 +28,21 @@ def test_sample_inside_polytope():
 
     assert np.all(
         res == res_expect), "Are the right samples inside/outside the polyope?"
+
+
+def test___assert_shape__correct__does_nothing():
+    assert_shape(np.zeros((10, 20, 30)), (10, 20, 30))
+
+
+def test__assert_shape__incorrect__throws():
+    with pytest.raises(ValueError):
+        assert_shape(np.zeros((10, 20, 30)), (10, 20, 31))
+
+
+def test__assert_shape__none_but_ignore_true__does_nothing():
+    assert_shape(None, (), ignore_if_none=True)
+
+
+def test__assert_shape__none_and_ignore_false__throws():
+    with pytest.raises(ValueError):
+        assert_shape(None, (), ignore_if_none=False)

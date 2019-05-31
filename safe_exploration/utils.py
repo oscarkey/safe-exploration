@@ -593,3 +593,14 @@ class unavailable:
             def_kwargs[f_vars[-i]] = f_defaults[-i]
 
         return def_kwargs
+
+
+def assert_shape(x, shape: tuple, ignore_if_none=False) -> None:
+    if x is None:
+        if ignore_if_none:
+            return
+        else:
+            raise ValueError(f'Wanted shape {shape}, got None')
+
+    if x.shape != shape:
+        raise ValueError(f'Wanted shape {shape}, got {x.shape}')
