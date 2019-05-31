@@ -1,7 +1,11 @@
 from abc import abstractmethod
+from typing import Optional
 
 import numpy as np
+import torch
 from constrained_cem_mpc import ConstrainedCemMpc
+from constrained_cem_mpc.utils import assert_shape
+from torch import Tensor
 
 from .state_space_models import StateSpaceModel
 
@@ -75,6 +79,38 @@ class FakeCemSSM(CemSSM):
 
     def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
         raise NotImplementedError
+
+
+class PQFlattener:
+    def __init__(self, state_dimen: int):
+        self._state_dimen = state_dimen
+
+    def flatten(self, p: np.ndarray, q: Optional[np.ndarray]):
+        if q is None:
+            q = np.zeros((self._state_dimen, self._state_dimen))
+
+        assert_shape(p, (self._state_dimen,))
+        assert_shape(q, (self._state_dimen, self._state_dimen))
+        flat = np.hstack((p.reshape(-1), q.reshape(-1)))
+        return torch.tensor(flat)
+
+    def unflatten(self, flat: Tensor) -> (np.ndarray, Optional[np.ndarray]):
+        assert_shape(flat, (self.get_flat_state_dimen(),))
+        p = flat[0:self._state_dimen].numpy()
+        q = flat[self._state_dimen:].view(self._state_dimen, self._state_dimen).numpy()
+
+        # If q is all zeros, we treat this as None.
+        if not q.any():
+            q = None
+
+        return p, q
+
+    def get_flat_state_dimen(self):
+        return self._state_dimen + (self._state_dimen * self._state_dimen)
+
+
+def _objective_func(states, actions):
+    return 0
 
 
 class CemSafeMPC:
