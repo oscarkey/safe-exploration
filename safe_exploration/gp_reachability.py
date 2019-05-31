@@ -10,8 +10,8 @@ Created on Wed Sep 20 11:13:29 2017
 import numpy as np
 from numpy import zeros, diag
 
-from .utils import compute_remainder_overapproximations, print_ellipsoid, feedback_ctrl, \
-    sample_inside_polytope
+from .utils import compute_remainder_overapproximations, print_ellipsoid, feedback_ctrl, sample_inside_polytope, \
+    assert_shape
 from .utils_ellipsoid import ellipsoid_from_rectangle, sum_two_ellipsoids, \
     sample_inside_ellipsoid
 
@@ -55,6 +55,15 @@ def onestep_reachability(p_center, ssm, k_ff, l_mu, l_sigma, q_shape=None, k_fb=
         Q_new: np.ndarray[float], array of shape n_s x n_s
             Shape matrix of the overapproximated next state ellipsoid
     """
+    assert_shape(p_center, (ssm.num_states, 1))
+    assert_shape(k_ff, (1, ssm.num_actions))
+    assert_shape(l_mu, (ssm.num_states,))
+    assert_shape(l_sigma, (ssm.num_states,))
+    assert_shape(q_shape, (ssm.num_states, ssm.num_states), ignore_if_none=True)
+    assert_shape(k_fb, (1, ssm.num_states), ignore_if_none=True)
+    assert_shape(a, (ssm.num_states, ssm.num_states), ignore_if_none=True)
+    assert_shape(b, (ssm.num_states, 1), ignore_if_none=True)
+
     n_s = np.shape(p_center)[0]
     n_u = np.shape(k_ff)[0]
 
