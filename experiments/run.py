@@ -51,7 +51,7 @@ def check_config_conflicts(conf):
 
     has_conflict = False
     conflict_str = ""
-    if conf.task == "exploration" and not conf.solver_type == "safempc":
+    if conf.task == "exploration" and not conf.solver_type in ("safempc", "safempc_cem"):
         return True, "Exploration task only allowed with safempc solver"
     elif conf.task == "uncertainty_propagation" and not conf.solver_type == "safempc":
         return True, "Uncertainty propagation task only allowed with safempc solver"

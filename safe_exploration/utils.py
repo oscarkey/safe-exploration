@@ -131,6 +131,11 @@ def compute_remainder_overapproximations(q, k_fb, l_mu, l_sigma):
     b = np.dot(s, s.T)
     qb = np.dot(q, b)
     evals, _ = sLa.eig(qb)
+
+    # It's pretty suspicious that eig returns complex numbers with no complex part...
+    assert not np.imag(evals).any()
+    evals = np.real(evals)
+
     r_sqr = np.max(evals)
     # This is equivalent to:
     # q_inv = sLA.inv(q)
@@ -140,7 +145,7 @@ def compute_remainder_overapproximations(q, k_fb, l_mu, l_sigma):
 
     u_mu = l_mu * r_sqr
     u_sigma = l_sigma * np.sqrt(r_sqr)
-
+    assert u_mu.dtype != np.complex128
     return u_mu, u_sigma
 
 

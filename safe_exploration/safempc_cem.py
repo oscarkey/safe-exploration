@@ -7,15 +7,9 @@ from constrained_cem_mpc import ConstrainedCemMpc
 from constrained_cem_mpc.utils import assert_shape
 from torch import Tensor
 
+from . import gp_reachability
+from .safempc_simple import LqrFeedbackController
 from .state_space_models import StateSpaceModel
-
-
-def _dynamics_func(state, action):
-    raise NotImplementedError
-
-
-def _objective_func(states, actions):
-    raise NotImplementedError
 
 
 class CemSSM(StateSpaceModel):
@@ -115,15 +109,43 @@ def _objective_func(states, actions):
 
 class CemSafeMPC:
 
-    def __init__(self, state_dimen: int, action_dimen: int) -> None:
+    def __init__(self, state_dimen: int, action_dimen: int, opt_env, wx_feedback_cost, wu_feedback_cost) -> None:
         super().__init__()
-        self._mpc = ConstrainedCemMpc(_dynamics_func, _objective_func, constraints=None, state_dimen=state_dimen,
-                                      action_dimen=action_dimen, time_horizon=5, num_rollouts=20, num_elites=3,
-                                      num_iterations=1, num_workers=0)
+        self._state_dimen = state_dimen
+        self._action_dimen = action_dimen
+        self._pq_flattener = PQFlattener(state_dimen)
+        self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=[],
+                                      state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=action_dimen,
+                                      time_horizon=5, num_rollouts=20, num_elites=3, num_iterations=1, num_workers=0)
+        self._ssm = FakeCemSSM(state_dimen, action_dimen)
+
+        # TODO: read l_mu and l_sigma from the config
+        self._l_mu = np.array([0.05, 0.05, 0.05, 0.05])
+        self._l_sigma = np.array([0.05, 0.05, 0.05, 0.05])
+
+        self._linearized_model_a, self._linearized_model_b = opt_env['lin_model']
+        self._lqr_controller = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, state_dimen, action_dimen,
+                                                     self._linearized_model_a, self._linearized_model_b)
 
     def init_solver(self, cost_func=None):
         pass
 
     def get_action(self, state: np.ndarray):
-        # state: [state_dimen]
+        assert_shape(state, (self._state_dimen,))
+        actions = self._mpc.get_actions(self._pq_flattener.flatten(state, None))
+        success = True
+        return actions[0].numpy(), success
+
+    def _dynamics_func(self, state, action):
+        p, q = self._pq_flattener.unflatten(state)
+        p = np.expand_dims(p, 1)
+
+        k_ff = np.expand_dims(action.numpy(), 1)
+        p_next, q_next = gp_reachability.onestep_reachability(p, self._ssm, k_ff, self._l_mu, self._l_sigma, q,
+                                                              k_fb=self._lqr_controller.get_control_matrix(),
+                                                              a=self._linearized_model_a, b=self._linearized_model_b,
+                                                              verbose=0)
+        return self._pq_flattener.flatten(np.squeeze(p_next), q_next)
+
+    def _get_safe_action(self, state):
         raise NotImplementedError
