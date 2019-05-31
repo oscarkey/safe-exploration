@@ -128,13 +128,21 @@ class CemSafeMPC:
                                                      self._linearized_model_a, self._linearized_model_b)
 
     def init_solver(self, cost_func=None):
+        # TODO: attach the cost function to the mpc.
         pass
 
     def get_action(self, state: np.ndarray):
         assert_shape(state, (self._state_dimen,))
         actions = self._mpc.get_actions(self._pq_flattener.flatten(state, None))
-        success = True
-        return actions[0].numpy(), success
+        # TODO: Need to maintain a queue of previously safe actions.
+        if actions is None:
+            success = True
+            action = actions[0].numpy()
+        else:
+            success = False
+            action = self._get_safe_controller_action(state)
+
+        return action, success
 
     def _dynamics_func(self, state, action):
         p, q = self._pq_flattener.unflatten(state)
@@ -147,5 +155,9 @@ class CemSafeMPC:
                                                               verbose=0)
         return self._pq_flattener.flatten(np.squeeze(p_next), q_next)
 
-    def _get_safe_action(self, state):
+    def _get_safe_controller_action(self, state):
+        # TODO: Use the safe policy from the config (though I think this is actually always just lqr)
+        return np.dot(self._lqr_controller.get_control_matrix(), state)
+
+    def update_model(self, x, y, opt_hyp=False, replace_old=True, reinitialize_solver=True):
         raise NotImplementedError
