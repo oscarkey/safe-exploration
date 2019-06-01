@@ -86,10 +86,10 @@ def plot_ellipsoid_2D(p, q, ax, n_points=100, color="r"):
         The Ax containing the ellipsoid
     """
     plt.sca(ax)
-    r = nLa.cholesky(q).T;  # checks spd inside the function
-    t = np.linspace(0, 2 * np.pi, n_points);
-    z = [np.cos(t), np.sin(t)];
-    ellipse = np.dot(r, z) + p;
+    r = nLa.cholesky(q).T  # checks spd inside the function
+    t = np.linspace(0, 2 * np.pi, n_points)
+    z = [np.cos(t), np.sin(t)]
+    ellipse = np.dot(r, z).T + p
     handle, = ax.plot(ellipse[0, :], ellipse[1, :], color)
 
     return ax, handle
