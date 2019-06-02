@@ -1,15 +1,19 @@
 from abc import abstractmethod
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from constrained_cem_mpc import ConstrainedCemMpc
+from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint
 from constrained_cem_mpc.utils import assert_shape
+from polytope import Polytope
 from torch import Tensor
 
 from . import gp_reachability
+from .environments import Environment
 from .safempc_simple import LqrFeedbackController
 from .state_space_models import StateSpaceModel
+from .visualization import utils_visualization
 
 
 class CemSSM(StateSpaceModel):
@@ -103,20 +107,61 @@ class PQFlattener:
         return self._state_dimen + (self._state_dimen * self._state_dimen)
 
 
+def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs):
+    ax = plt.axes()
+    Polytope(h_mat_obs[:, [0, 2]], h_obs).plot(ax=ax, color='blue')
+    Polytope(h_mat_safe[:, [0, 2]], h_safe).plot(ax=ax, color='red')
+    utils_visualization.plot_ellipsoid_2D(np.array([[0, 0]]).T, np.array([[0.1, 0.01], [0.01, 0.01]]), ax,
+                                          color='green')
+    ax.set_xticks(range(-12, 7))
+    ax.set_xlabel('cart x position')
+    ax.set_yticks(range(-1, 3))
+    ax.set_ylabel('pendulum angle')
+
+
+def _plot_ellipsoids_in_2d(p, q):
+    utils_visualization.plot_ellipsoid_2D(p[[0, 2], :], np.delete(np.delete(q, [1, 2], 0), [1, 2], 1), ax=plt.gca(),
+                                          color='orange', n_points=50)
+
+
+class EllipsoidTerminalConstraint(Constraint):
+
+    def __init__(self, state_dimen: int, safe_polytope_a, safe_polytope_b):
+        self._pq_flattener = PQFlattener(state_dimen)
+        self._polytope_a = safe_polytope_a
+        self._polytope_b = safe_polytope_b
+
+    def __call__(self, trajectory, actions) -> float:
+        p, q = self._pq_flattener.unflatten(trajectory[-1])
+        p = np.expand_dims(p, 1)
+        if gp_reachability.is_ellipsoid_inside_polytope(p, q, self._polytope_a, self._polytope_b):
+            return 0
+        else:
+            return 10
+
+
 def _objective_func(states, actions):
     return 0
 
 
+def construct_constraints(env: Environment):
+    """Creates the polytopic constraints for the MPC problem from the values in the config file."""
+    h_mat_safe, h_safe, h_mat_obs, h_obs = env.get_safety_constraints(normalize=True)
+    return [ActionConstraint(box2torchpoly([[env.u_min.item(), env.u_max.item()], ])),  #
+            EllipsoidTerminalConstraint(env.n_s, h_mat_safe, h_safe)]
+
+
 class CemSafeMPC:
 
-    def __init__(self, state_dimen: int, action_dimen: int, opt_env, wx_feedback_cost, wu_feedback_cost) -> None:
+    def __init__(self, state_dimen: int, action_dimen: int, constraints: [Constraint], opt_env, wx_feedback_cost,
+                 wu_feedback_cost) -> None:
         super().__init__()
         self._state_dimen = state_dimen
         self._action_dimen = action_dimen
         self._pq_flattener = PQFlattener(state_dimen)
-        self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=[],
+        self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=action_dimen,
-                                      time_horizon=5, num_rollouts=20, num_elites=3, num_iterations=1, num_workers=0)
+                                      time_horizon=1, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
         self._ssm = FakeCemSSM(state_dimen, action_dimen)
 
         # TODO: read l_mu and l_sigma from the config
@@ -135,10 +180,12 @@ class CemSafeMPC:
         assert_shape(state, (self._state_dimen,))
         actions = self._mpc.get_actions(self._pq_flattener.flatten(state, None))
         # TODO: Need to maintain a queue of previously safe actions.
-        if actions is None:
+        if actions is not None:
+            print('Found solution')
             success = True
             action = actions[0].numpy()
         else:
+            print('No solution, using safe controller')
             success = False
             action = self._get_safe_controller_action(state)
 

@@ -5,14 +5,15 @@ Created on Tue Nov 21 09:44:58 2017
 @author: tkoller
 """
 import warnings
-import numpy as np
-
 from importlib import import_module
 from os.path import abspath, exists, split
 
-from .safempc_cem import CemSafeMPC
+import numpy as np
+
+from . import safempc_cem
 from .cautious_mpc import CautiousMPC
-from .environments import InvertedPendulum, CartPole
+from .environments import InvertedPendulum, CartPole, Environment
+from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .utils import dlqr, unavailable
 
@@ -24,7 +25,7 @@ except:
 
 
 @unavailable(not _has_ssm_gpy, "ssm_gpy")
-def create_solver(conf, env):
+def create_solver(conf, env: Environment):
     """ Create a solver from a set of options and environment information"""
     lin_model = None
     lin_trafo_gp_input = conf.lin_trafo_gp_input
@@ -70,8 +71,6 @@ def create_solver(conf, env):
 
     if conf.solver_type == "safempc":
         # the environment options needed for the safempc algorithm
-        n_safe = conf.n_safe
-
         env_opts_safempc["l_mu"] = env.l_mu
         env_opts_safempc["l_sigma"] = env.l_sigm
 
@@ -86,6 +85,10 @@ def create_solver(conf, env):
                                safe_policy=safe_policy,
                                opt_perf_trajectory=perf_opts_safempc,
                                lin_trafo_gp_input=lin_trafo_gp_input, verbosity=conf.verbose)
+    elif conf.solver_type == "safempc_cem":
+        constraints = safempc_cem.construct_constraints(env)
+        solver = CemSafeMPC(state_dimen=env.n_s, action_dimen=env.n_u, constraints=constraints,
+                            opt_env=env_opts_safempc, wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost)
     elif conf.solver_type == "cautious_mpc":
         T = conf.T
 
