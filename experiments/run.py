@@ -8,6 +8,8 @@ Created on Wed Sep 20 10:03:14 2017
 
 import argparse
 
+import torch
+
 from safe_exploration.utils_config import loadConfig, create_env, create_solver, get_model_options_from_conf
 from safe_exploration.exploration_runner import run_exploration
 from safe_exploration.episode_runner import run_episodic
@@ -67,6 +69,8 @@ def run_scenario(args):
     args:
         The parsed arguments (see create_parser for details)
     """
+    torch.set_default_dtype(torch.double)
+
     config_path = args.scenario_config
     conf = loadConfig(config_path)
 
