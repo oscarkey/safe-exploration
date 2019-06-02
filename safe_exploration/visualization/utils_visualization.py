@@ -8,7 +8,8 @@ Created on Thu Sep 21 15:49:49 2017
 import numpy as np
 import numpy.linalg as nLa
 
-from ..utils import unavailable
+from ..utils import unavailable, assert_shape
+
 try:
     import matplotlib.pyplot as plt
     _has_matplotlib = True
@@ -73,9 +74,9 @@ def plot_ellipsoid_2D(p, q, ax, n_points=100, color="r"):
 
     Parameters
     ----------
-    p: 3x1 array[float]
+    p: 2x1 array[float]
         Center of the ellipsoid
-    q: 3x3 array[float]
+    q: 2x2 array[float]
         Shape matrix of the ellipsoid
     ax: matplotlib.Axes object
         Ax on which to plot the ellipsoid
@@ -85,11 +86,13 @@ def plot_ellipsoid_2D(p, q, ax, n_points=100, color="r"):
     ax: matplotlib.Axes object
         The Ax containing the ellipsoid
     """
+    assert_shape(p, (2, 1))
+    assert_shape(q, (2, 2))
     plt.sca(ax)
     r = nLa.cholesky(q).T  # checks spd inside the function
     t = np.linspace(0, 2 * np.pi, n_points)
     z = [np.cos(t), np.sin(t)]
-    ellipse = np.dot(r, z).T + p
+    ellipse = np.dot(r, z) + p
     handle, = ax.plot(ellipse[0, :], ellipse[1, :], color)
 
     return ax, handle
