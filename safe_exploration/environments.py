@@ -119,6 +119,28 @@ class Environment(metaclass=abc.ABCMeta):
         """ Check the constraints """
         pass
 
+    def get_safety_constraints(self, normalize=True):
+        """ Return the safety constraints
+
+        Parameters
+        ----------
+        normalize: boolean, optional
+            If TRUE: Returns normalized constraints
+
+        Returns
+        -------
+        h_mat_safe: m_safe x n_x np.ndarray[float]
+            The constraint matrix of the safety polytope
+        h_safe: m_safe x 1 np.ndarray[float]
+            The constraint vector of the safety polytope
+        h_mat_obs: m_obs x n_x np.ndarray[float]
+            The constraint matrix of the state constraint polytope
+        h_obs: m_obs x 1 np.ndarray[float]
+            The constraint vector of the state constraint polytope
+
+        """
+        pass
+
     def render(self):
         """ Render the visualization """
         print("No rendering implemented")
