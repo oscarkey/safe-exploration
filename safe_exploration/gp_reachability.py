@@ -221,7 +221,7 @@ def multistep_reachability(p_0, gp, k_fb, k_ff, L_mu, L_sigm, q_0=None, c_safety
     return p_new, q_new, p_all, q_all
 
 
-def lin_ellipsoid_safety_distance(p_center, q_shape, h_mat, h_vec, c_safety=1.0):
+def lin_ellipsoid_safety_distance(p_center, q_shape, h_mat, h_vec, c_safety=1.0) -> np.ndarray:
     """ Compute the distance between eLlipsoid and polytope
 
     Evaluate the distance of an  ellipsoid E(p_center,q_shape), to a polytopic set
@@ -249,7 +249,7 @@ def lin_ellipsoid_safety_distance(p_center, q_shape, h_mat, h_vec, c_safety=1.0)
     m, n_s = np.shape(h_mat)
     assert np.shape(p_center) == (n_s, 1), "p_center has to have shape n_s x 1"
     assert np.shape(q_shape) == (n_s, n_s), "q_shape has to have shape n_s x n_s"
-    assert np.shape(h_vec) == (m, 1), "q_shape has to have shape m x 1"
+    assert np.shape(h_vec) == (m, 1), "h_vec has to have shape m x 1"
 
     d_center = np.dot(h_mat, p_center)
     d_shape = c_safety * np.sqrt(
@@ -257,6 +257,16 @@ def lin_ellipsoid_safety_distance(p_center, q_shape, h_mat, h_vec, c_safety=1.0)
     d_safety = d_center + d_shape - h_vec
 
     return d_safety
+
+
+def is_ellipsoid_inside_polytope(p_center, q_shape, h_mat, h_vec) -> bool:
+    """Returns True if the ellipsoid with center p and shape q is inside the polytope, otherwise False.
+
+    The polytope is of the form  h_mat * x <= h_vec.
+    """
+    d_safety = lin_ellipsoid_safety_distance(p_center, q_shape, h_mat, h_vec)
+    # The ellipsoid is safely inside if none of the values of d_safety are >= 0.
+    return not (d_safety >= 0).any()
 
 
 def simulate_trajectory(env, p_0, k_fb, k_ff, p_ctrl):
