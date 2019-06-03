@@ -2,7 +2,8 @@
 
 
 import pytest
-import numpy as np
+
+from ..ssm_pytorch.gaussian_process import ZeroMeanWithGrad
 
 try:
     import torch
@@ -139,6 +140,21 @@ try: # This requires the ssm_pytorch dependencies and throws an error.
             return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 except:
     pass
+
+
+class TestZeroMeanWithGrad:
+    def test__forward__returns_zero(self):
+        mean = ZeroMeanWithGrad()
+        output = mean(torch.tensor([0, 10]))
+        assert torch.all(torch.eq(output, torch.tensor([0, 0])))
+
+    def test__forward__maintains_type_and_grad_of_input(self):
+        mean = ZeroMeanWithGrad()
+
+        output = mean(torch.tensor([100, 50], dtype=torch.double, requires_grad=True))
+
+        assert output.dtype == torch.double
+        assert output.requires_grad is True
 
 
 class TestMultiOutputGP(object):

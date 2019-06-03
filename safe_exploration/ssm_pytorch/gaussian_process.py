@@ -1,15 +1,16 @@
 """Gaussian process utlilities for gpytorch."""
 
 
-import torch
-import hessian
 import gpytorch
+import hessian
 import numpy as np
-
-from torch.nn import ModuleList
+import torch
 from gpytorch.distributions import MultivariateNormal
-from safe_exploration.state_space_models import StateSpaceModel
+from gpytorch.means import Mean
+from torch import Tensor
+from torch.nn import ModuleList
 
+from safe_exploration.state_space_models import StateSpaceModel
 from .utilities import compute_jacobian
 
 __all__ = ['BatchMean', 'BatchKernel', 'LinearMean', 'MultiOutputGP', 'GPyTorchSSM']
@@ -130,6 +131,16 @@ class WrappedNormal(object):
         return res
 
 
+class ZeroMeanWithGrad(Mean):
+    """A zero mean like gpytorch.means.ZeroMean, but maintains the requires_grad state of the input.
+
+    This is because we often want to compute the jacobian of the output of the GP. This requires the output, and thus
+    the mean, to have a gradient.
+    """
+    def forward(self, x: Tensor) -> Tensor:
+        return torch.zeros((x.size(0), x.size(1)), dtype=x.dtype, device=x.device, requires_grad=x.requires_grad)
+
+
 class MultiOutputGP(gpytorch.models.ExactGP):
     """A GP model that uses the gpytorch batch mode for multi-output predictions.
     The main difference to simple batch mode, is that the model assumes that all GPs
@@ -156,7 +167,7 @@ class MultiOutputGP(gpytorch.models.ExactGP):
         super(MultiOutputGP, self).__init__(train_x, train_y, likelihood)
 
         if mean is None:
-            mean = gpytorch.means.ZeroMean()
+            mean = ZeroMeanWithGrad()
 
         self.mean = mean
         self.kernel = kernel
