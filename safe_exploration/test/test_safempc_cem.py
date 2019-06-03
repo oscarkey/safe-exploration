@@ -1,6 +1,9 @@
 import numpy as np
+from constrained_cem_mpc import ActionConstraint
 
-from ..safempc_cem import CemSafeMPC, PQFlattener
+from .. import safempc_cem
+from ..environments import CartPole
+from ..safempc_cem import PQFlattener, EllipsoidTerminalConstraint
 
 
 class TestPQFlattener:
@@ -25,6 +28,15 @@ class TestPQFlattener:
         assert flattener.get_flat_state_dimen() == 5 + 5 * 5
 
 
-class TestCemSafeMPC:
-    def test__init__does_not_crash(self):
-        CemSafeMPC(state_dimen=2, action_dimen=2)
+def test__construct_constraints__contains_one_terminal_constraint():
+    # TODO: check constraint is actually correct.
+    env = CartPole()
+    constraints = safempc_cem.construct_constraints(env)
+    assert len([c for c in constraints if isinstance(c, EllipsoidTerminalConstraint)]) == 1
+
+
+def test__construct_constraints__contains_one_action_constraint():
+    # TODO: check constraint is actually correct.
+    env = CartPole()
+    constraints = safempc_cem.construct_constraints(env)
+    assert len([c for c in constraints if isinstance(c, ActionConstraint)]) == 1
