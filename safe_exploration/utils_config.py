@@ -80,7 +80,7 @@ def create_solver(conf, env: Environment):
         perf_opts_safempc["r"] = conf.r
         perf_opts_safempc["perf_has_fb"] = conf.perf_has_fb
 
-        solver = SimpleSafeMPC(n_safe, gp, env_opts_safempc, wx_cost, wu_cost,
+        solver = SimpleSafeMPC(conf.n_safe, gp, env_opts_safempc, wx_cost, wu_cost,
                                beta_safety=conf.beta_safety,
                                safe_policy=safe_policy,
                                opt_perf_trajectory=perf_opts_safempc,
