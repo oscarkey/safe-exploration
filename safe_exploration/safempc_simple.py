@@ -5,6 +5,8 @@ Created on Thu Sep 28 09:28:15 2017
 @author: tkoller
 """
 import warnings
+from functools import lru_cache
+
 import casadi as cas
 import numpy as np
 from casadi import MX, mtimes, vertcat, sum2, sqrt
@@ -1116,6 +1118,8 @@ class LqrFeedbackController:
         self._linearized_model_a = linearized_model_a
         self._linearized_model_b = linearized_model_b
 
+    # dlqr() has to solve some linear equations, thus we cache the result.
+    @lru_cache()
     def get_control_matrix(self):
         """ Get the initial feedback controller k_fb"""
         k_lqr, _, _ = dlqr(a=self._linearized_model_a, b=self._linearized_model_b, q=self._wx_feedback_cost,
