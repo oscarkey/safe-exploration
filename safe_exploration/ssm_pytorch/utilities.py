@@ -43,7 +43,10 @@ def compute_jacobian(f, x):
     # Iterate over all elements in f
     for index in itertools.product(*map(range, f.shape)):
         grad_output[index] = 1
-        jacobian[index] = grad(f, x, grad_outputs=grad_output, retain_graph=True)[0]
+        g = grad(f, x, grad_outputs=grad_output, retain_graph=True, allow_unused=True)[0]
+        # If there is no connection between f and x then g will be None, thus we leave it as 0.
+        if g is not None:
+            jacobian[index] = g
         grad_output[index] = 0
 
     return jacobian
