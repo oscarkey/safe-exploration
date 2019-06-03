@@ -105,4 +105,8 @@ class GpCemSSM(CemSSM):
         if opt_hyp:
             raise NotImplementedError
 
-        self._gp.set_train_data(x_new, y_new)
+        # Hack because set_train_data() does not work if there was no previous data.
+        self._gp.train_inputs = []
+        self._gp.train_targets = torch.zeros((0))
+
+        self._gp.set_train_data(x_new, y_new, strict=False)

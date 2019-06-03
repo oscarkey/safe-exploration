@@ -187,4 +187,5 @@ class CemSafeMPC:
         return np.dot(self._lqr_controller.get_control_matrix(), state)
 
     def update_model(self, x, y, opt_hyp=False, replace_old=True, reinitialize_solver=True):
-        raise NotImplementedError
+        # TODO: support optimising
+        self._ssm.update_model(x, y, opt_hyp=False, replace_old=replace_old)
