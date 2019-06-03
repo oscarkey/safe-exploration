@@ -80,10 +80,16 @@ class FakeCemSSM(CemSSM):
 
 
 class PQFlattener:
+    """Hack which converts the p and q matrices which make up the state to a flat state vector, and vice versa.
+
+    As each state is an ellipsoid it has both a centre (p) and a shape (q). However, constrained-cem-mpc currently
+    requires the state to be a single vector, so this class handles the conversion between the two.
+    """
+
     def __init__(self, state_dimen: int):
         self._state_dimen = state_dimen
 
-    def flatten(self, p: np.ndarray, q: Optional[np.ndarray]):
+    def flatten(self, p: np.ndarray, q: Optional[np.ndarray]) -> Tensor:
         if q is None:
             q = np.zeros((self._state_dimen, self._state_dimen))
 
@@ -125,6 +131,7 @@ def _plot_ellipsoids_in_2d(p, q):
 
 
 class EllipsoidTerminalConstraint(Constraint):
+    """Represents the terminal constraint of the MPC problem, for ellipsoid states and a polytopic constraint."""
 
     def __init__(self, state_dimen: int, safe_polytope_a, safe_polytope_b):
         self._pq_flattener = PQFlattener(state_dimen)
@@ -152,6 +159,7 @@ def construct_constraints(env: Environment):
 
 
 class CemSafeMPC:
+    """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
     def __init__(self, state_dimen: int, action_dimen: int, constraints: [Constraint], opt_env, wx_feedback_cost,
                  wu_feedback_cost) -> None:
@@ -176,7 +184,7 @@ class CemSafeMPC:
         # TODO: attach the cost function to the mpc.
         pass
 
-    def get_action(self, state: np.ndarray):
+    def get_action(self, state: np.ndarray) -> (np.ndarray, bool):
         assert_shape(state, (self._state_dimen,))
         actions = self._mpc.get_actions(self._pq_flattener.flatten(state, None))
         # TODO: Need to maintain a queue of previously safe actions.
