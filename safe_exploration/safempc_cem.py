@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -12,71 +11,44 @@ from torch import Tensor
 from . import gp_reachability
 from .environments import Environment
 from .safempc_simple import LqrFeedbackController
+from .ssm_cem import GpCemSSM
 from .state_space_models import StateSpaceModel
 from .visualization import utils_visualization
 
 
-class CemSSM(StateSpaceModel):
-    """State Space Model interface for use with CEM MPC."""
+class GpCemSSMNumpyWrapper(StateSpaceModel):
+    """Temporary wrapper around GpCemSSM to convert between PyTorch and NumPy, so we can use it as a StateSpaceModel."""
 
     def __init__(self, state_dimen: int, action_dimen: int):
-        super().__init__(state_dimen, action_dimen, has_jacobian=False, has_reverse=False)
+        super().__init__(state_dimen, action_dimen)
+        self._ssm = GpCemSSM(state_dimen, action_dimen)
 
     def predict(self, states, actions, jacobians=False, full_cov=False):
         if full_cov:
-            raise ValueError('CEM MPC does not support full covariance at the moment')
+            raise NotImplementedError
 
         if jacobians:
-            return self._predict_with_jacobians(states, actions)
+            results = self._ssm.predict_with_jacobians(torch.tensor(states), torch.tensor(actions))
         else:
-            return self._predict_without_jacobians(states, actions)
+            results = self._ssm.predict_without_jacobians(torch.tensor(states), torch.tensor(actions))
 
-    @abstractmethod
-    def _predict_with_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (
-            np.ndarray, np.ndarray, np.ndarray, np.ndarray):
-        pass
+        return self._convert_to_numpy(results)
 
-    @abstractmethod
-    def _predict_without_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (np.ndarray, np.ndarray):
-        pass
+    @staticmethod
+    def _convert_to_numpy(xs):
+        return [x.detach().numpy() for x in xs]
 
     def linearize_predict(self, states, actions, jacobians=False, full_cov=False):
-        raise AttributeError('Not required for CEM MPC')
+        raise NotImplementedError
 
     def get_reverse(self, seed):
-        raise AttributeError('Not required for CEM MPC')
+        raise NotImplementedError
 
     def get_linearize_reverse(self, seed):
-        raise AttributeError('Not required for CEM MPC')
-
-    def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
         raise NotImplementedError
 
-    def get_forward_model_casadi(self, linearize_mu=True):
-        raise AttributeError('Not required for CEM MPC')
-
-
-class FakeCemSSM(CemSSM):
-    """Fake state space model for use during development."""
-
-    def _predict(self, states: np.ndarray, actions: np.ndarray) -> (np.ndarray, np.ndarray):
-        means = np.zeros_like(states)
-        vares = np.ones_like(states)
-
-        # Why do we transpose here?
-        return means.T, vares.T
-
-    def _predict_with_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (
-            np.ndarray, np.ndarray, np.ndarray, np.ndarray):
-        means, vares = self._predict(states, actions)
-        jacobians = np.zeros((self.num_states, self.num_states + self.num_actions))
-        return means, vares, jacobians
-
-    def _predict_without_jacobians(self, states: np.ndarray, actions: np.ndarray) -> (np.ndarray, np.ndarray):
-        return self._predict(states, actions)
-
     def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
-        raise NotImplementedError
+        self._ssm.update_model(torch.tensor(train_x), torch.tensor(train_y), opt_hyp, replace_old)
 
 
 class PQFlattener:
@@ -170,7 +142,7 @@ class CemSafeMPC:
         self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=action_dimen,
                                       time_horizon=1, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
-        self._ssm = FakeCemSSM(state_dimen, action_dimen)
+        self._ssm = GpCemSSMNumpyWrapper(state_dimen, action_dimen)
 
         # TODO: read l_mu and l_sigma from the config
         self._l_mu = np.array([0.05, 0.05, 0.05, 0.05])
