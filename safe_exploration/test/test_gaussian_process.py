@@ -219,6 +219,23 @@ class TestMultiOutputGP(object):
 
         optimizer.step()
 
+    def test__init__training_data_none__does_not_crash(self):
+        state_dimen = 2
+        kernel = BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen)
+        likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
+
+        MultiOutputGP(train_x=None, train_y=None, kernel=kernel, likelihood=likelihood)
+
+    def test__set_train_data__training_data_none__does_not_crash(self):
+        state_dimen = 2
+        kernel = BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen)
+        likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
+        train_x = torch.tensor([[1, 2], [3, 4]])
+        train_y = torch.tensor([10, 11])
+        gp = MultiOutputGP(train_x, train_y, kernel, likelihood)
+
+        gp.set_train_data(None, None)
+
 @pytest.fixture()
 def before_test_gpytorchssm(check_has_ssm_pytorch):
 

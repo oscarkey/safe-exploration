@@ -163,6 +163,9 @@ class MultiOutputGP(gpytorch.models.ExactGP):
 
     @staticmethod
     def _process_training_data(train_x, train_y):
+        if train_x is None or train_y is None:
+            return None, None
+
         if train_y.dim() > 1:
             # Try to remove the first data row if it's empty
             train_y = train_y.squeeze(0)
