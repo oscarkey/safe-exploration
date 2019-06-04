@@ -75,7 +75,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         if verbose > 0:
             print_ellipsoid(p_1, q_1, text="uncertainty first state")
 
-        return p_1, q_1
+        return p_1.detach(), q_1.detach()
     else:
         # The state is a (ellipsoid) set.
         if verbose > 0:
@@ -133,7 +133,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print("volume of ellipsoid summed individually")
             print((torch.det(torch.cholesky(q_1))))
 
-        return p_1, q_1
+        return p_1.detach(), q_1.detach()
 
 
 def lin_ellipsoid_safety_distance(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor,
