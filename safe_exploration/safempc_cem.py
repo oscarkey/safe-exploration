@@ -112,6 +112,7 @@ class CemSafeMPC:
         self._l_sigma = torch.tensor([0.05, 0.05, 0.05, 0.05])
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
+        self.lin_model = opt_env['lin_model']
         self._linearized_model_a = torch.tensor(linearized_model_a)
         self._linearized_model_b = torch.tensor(linearized_model_b)
         self._lqr_controller = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, state_dimen, action_dimen,
