@@ -48,7 +48,7 @@ class PQFlattener:
         return self._state_dimen + (self._state_dimen * self._state_dimen)
 
 
-def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs):
+def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs) -> None:
     ax = plt.axes()
     Polytope(h_mat_obs[:, [0, 2]], h_obs).plot(ax=ax, color='blue')
     Polytope(h_mat_safe[:, [0, 2]], h_safe).plot(ax=ax, color='red')
@@ -60,7 +60,9 @@ def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs):
     ax.set_ylabel('pendulum angle')
 
 
-def _plot_ellipsoids_in_2d(p, q):
+def _plot_ellipsoids_in_2d(p: Tensor, q: Tensor) -> None:
+    p = p.detach().numpy()
+    q = q.detach().numpy()
     utils_visualization.plot_ellipsoid_2D(p[[0, 2], :], np.delete(np.delete(q, [1, 2], 0), [1, 2], 1), ax=plt.gca(),
                                           color='orange', n_points=50)
 
