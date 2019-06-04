@@ -11,17 +11,17 @@ from torch import Tensor
 from . import gp_reachability
 from .environments import Environment
 from .safempc_simple import LqrFeedbackController
-from .ssm_cem import GpCemSSM
+from .ssm_cem import GpCemSSM, CemSSM
 from .state_space_models import StateSpaceModel
 from .visualization import utils_visualization
 
 
-class GpCemSSMNumpyWrapper(StateSpaceModel):
+class CemSSMNumpyWrapper(StateSpaceModel):
     """Temporary wrapper around GpCemSSM to convert between PyTorch and NumPy, so we can use it as a StateSpaceModel."""
 
-    def __init__(self, state_dimen: int, action_dimen: int):
+    def __init__(self, state_dimen: int, action_dimen: int, ssm: CemSSM):
         super().__init__(state_dimen, action_dimen)
-        self._ssm = GpCemSSM(state_dimen, action_dimen)
+        self._ssm = ssm
 
     def predict(self, states, actions, jacobians=False, full_cov=False):
         if full_cov:
@@ -142,7 +142,7 @@ class CemSafeMPC:
         self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=action_dimen,
                                       time_horizon=1, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
-        self._ssm = GpCemSSMNumpyWrapper(state_dimen, action_dimen)
+        self._ssm = CemSSMNumpyWrapper(state_dimen, action_dimen, GpCemSSM(state_dimen, action_dimen))
 
         # TODO: read l_mu and l_sigma from the config
         self._l_mu = np.array([0.05, 0.05, 0.05, 0.05])
