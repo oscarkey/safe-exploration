@@ -3,6 +3,7 @@ import os.path
 import numpy as np
 import pytest
 import torch
+from polytope import polytope
 
 from .. import gp_reachability as gp_reachability_numpy
 from .. import gp_reachability_pytorch
@@ -65,3 +66,30 @@ def test__onestep_reachability__returns_the_same_as_numpy_impl(before_test_onest
 
     assert np.allclose(p_pytorch.detach().numpy(), p_numpy), "Centers of the next states should be the same"
     assert np.allclose(q_pytorch.detach().numpy(), q_numpy), "Shapes of the next states should be the same"
+
+
+def test__is_ellipsoid_inside_polytope__inside__returns_true():
+    poly = polytope.box2poly(([[0., 10.], [0., 10.]]))
+    A = torch.tensor(poly.A)
+    b = torch.tensor(poly.b).unsqueeze(1)
+    p = torch.tensor([[5., 5.]]).transpose(0, 1)
+    q = torch.tensor([[2., 1.], [1., 2.]])
+    assert gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, A, b) is True
+
+
+def test__is_ellipsoid_inside_polytope__partially_out__returns_false():
+    poly = polytope.box2poly(([[0., 10.], [0., 10.]]))
+    A = torch.tensor(poly.A)
+    b = torch.tensor(poly.b).unsqueeze(1)
+    p = torch.tensor([[0., 0.]]).transpose(0, 1)
+    q = torch.tensor([[2., 1.], [1., 2.]])
+    assert gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, A, b) is False
+
+
+def test__is_ellipsoid_inside_polytope__outside__returns_false():
+    poly = polytope.box2poly(([[0., 10.], [0., 10.]]))
+    A = torch.tensor(poly.A)
+    b = torch.tensor(poly.b).unsqueeze(1)
+    p = torch.tensor([[20., 20.]]).transpose(0, 1)
+    q = torch.tensor([[2., 1.], [1., 2.]])
+    assert gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, A, b) is False
