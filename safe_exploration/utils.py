@@ -173,7 +173,7 @@ def compute_remainder_overapproximations_pytorch(q: Tensor, k_fb: Tensor, l_mu: 
     """
     n_u, n_s = k_fb.shape
     s = torch.cat((torch.eye(n_s), k_fb.transpose(0, 1)), dim=1)
-    b = torch.mm(s, s.T)
+    b = torch.mm(s, s.transpose(0, 1))
     qb = torch.mm(q, b)
     evals, _ = torch.eig(qb)
 

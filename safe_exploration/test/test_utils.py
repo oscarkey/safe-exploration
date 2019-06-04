@@ -32,13 +32,13 @@ def test_sample_inside_polytope():
 
 
 def test__compute_remainder_overapproximations_pytorch__returns_same_as_numpy_impl():
-    p = torch.tensor([0.0, 1.0])
-    k_fb = torch.tensor([[1.0, 5.0]])
+    q = torch.tensor([[2.0, 1.0], [1.0, 3.0]])
+    k_fb = torch.tensor([[1.0, 5.0], [5.0, 9.0]])
     l_mu = torch.tensor([0.01, 0.05])
     l_sigma = torch.tensor([0.02, 0.03])
 
-    u_numpy, sigma_numpy = compute_remainder_overapproximations(p.numpy(), k_fb.numpy(), l_mu.numpy(), l_sigma.numpy())
-    u_pytorch, sigma_pytorch = compute_remainder_overapproximations_pytorch(p, k_fb, l_mu, l_sigma)
+    u_numpy, sigma_numpy = compute_remainder_overapproximations(q.numpy(), k_fb.numpy(), l_mu.numpy(), l_sigma.numpy())
+    u_pytorch, sigma_pytorch = compute_remainder_overapproximations_pytorch(q, k_fb, l_mu, l_sigma)
 
     assert np.allclose(u_numpy, u_pytorch.numpy())
     assert np.allclose(sigma_numpy, sigma_pytorch.numpy())
