@@ -104,7 +104,7 @@ class CemSafeMPC:
         self._pq_flattener = PQFlattener(state_dimen)
         self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=action_dimen,
-                                      time_horizon=1, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
+                                      time_horizon=5, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
         self._ssm = GpCemSSM(state_dimen, action_dimen)
 
         # TODO: read l_mu and l_sigma from the config
@@ -115,8 +115,8 @@ class CemSafeMPC:
         self.lin_model = opt_env['lin_model']
         self._linearized_model_a = torch.tensor(linearized_model_a)
         self._linearized_model_b = torch.tensor(linearized_model_b)
-        self._lqr_controller = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, state_dimen, action_dimen,
-                                                     linearized_model_a, linearized_model_b)
+        self._lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, state_dimen, action_dimen,
+                                          linearized_model_a, linearized_model_b)
 
     def init_solver(self, cost_func=None):
         # TODO: attach the cost function to the mpc.
@@ -143,14 +143,14 @@ class CemSafeMPC:
 
         k_ff = action.unsqueeze(1)
         p_next, q_next = gp_reachability_pytorch.onestep_reachability(p, self._ssm, k_ff, self._l_mu, self._l_sigma, q,
-                                                                      k_fb=self._lqr_controller.get_control_matrix(),
+                                                                      k_fb=self._lqr.get_control_matrix_pytorch(),
                                                                       a=self._linearized_model_a,
                                                                       b=self._linearized_model_b, verbose=0)
         return self._pq_flattener.flatten(p_next.squeeze(), q_next)
 
     def _get_safe_controller_action(self, state):
         # TODO: Use the safe policy from the config (though I think this is actually always just lqr)
-        return np.dot(self._lqr_controller.get_control_matrix(), state)
+        return np.dot(self._lqr.get_control_matrix(), state)
 
     def update_model(self, x, y, opt_hyp=False, replace_old=True, reinitialize_solver=True):
         # TODO: support optimising

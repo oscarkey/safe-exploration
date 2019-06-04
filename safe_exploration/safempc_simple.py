@@ -9,6 +9,7 @@ from functools import lru_cache
 
 import casadi as cas
 import numpy as np
+import torch
 from casadi import MX, mtimes, vertcat, sum2, sqrt
 from casadi import reshape as cas_reshape
 from .gp_reachability_casadi import lin_ellipsoid_safety_distance
@@ -1127,3 +1128,7 @@ class LqrFeedbackController:
         k_fb = -k_lqr
 
         return k_fb.reshape((1, self._n_s * self._n_u))
+
+    @lru_cache()
+    def get_control_matrix_pytorch(self):
+        return torch.tensor(self.get_control_matrix())
