@@ -4,17 +4,20 @@ Created on Wed Sep 20 10:43:16 2017
 
 @author: tkoller
 """
-import inspect
 import functools
-import warnings
+import inspect
 import itertools
+import warnings
+from typing import Tuple
 
 import numpy as np
 import scipy.linalg as sLa
+import torch
 from casadi import reshape as cas_reshape
 from numpy import diag, eye
 from numpy.linalg import solve, norm
 from numpy.matlib import repmat
+from torch import Tensor
 
 
 def dlqr(a, b, q, r):
@@ -74,8 +77,7 @@ def compute_bounding_box_lagrangian(q, L, K, k, order=2, verbose=0):
 
     SUPPORTED_TAYLOR_ORDER = [1, 2]
     if not (order in SUPPORTED_TAYLOR_ORDER):
-        raise ValueError(
-            "Cannot compute lagrangian remainder bounds for the given order")
+        raise ValueError("Cannot compute lagrangian remainder bounds for the given order")
 
     if order == 2:
         s_max = norm(q, ord=2)
@@ -99,8 +101,7 @@ def compute_bounding_box_lagrangian(q, L, K, k, order=2, verbose=0):
 
     if verbose > 0:
         print(("\n=== bounding-box approximation of order {} ===".format(order)))
-        print(("largest eigenvalue of Q: {} \nlargest eigenvalue of KQK^T: {}".format(
-            s_max, sk_max)))
+        print(("largest eigenvalue of Q: {} \nlargest eigenvalue of KQK^T: {}".format(s_max, sk_max)))
 
     return box_lower, box_upper
 
@@ -145,7 +146,46 @@ def compute_remainder_overapproximations(q, k_fb, l_mu, l_sigma):
 
     u_mu = l_mu * r_sqr
     u_sigma = l_sigma * np.sqrt(r_sqr)
-    assert u_mu.dtype != np.complex128
+    return u_mu, u_sigma
+
+
+def compute_remainder_overapproximations_pytorch(q: Tensor, k_fb: Tensor, l_mu: Tensor, l_sigma: Tensor) -> Tuple[
+    Tensor, Tensor]:
+    """ Compute the (hyper-)rectangle over-approximating the lagrangians of mu and sigma
+
+    Parameters
+    ----------
+    q: n_s x n_s Tensor[float]
+        The shape matrix of the current state ellipsoid
+    k_fb: n_u x n_s Tensor[float]
+        The linear feedback term
+    l_mu: n x 0 numpy Tensor[float]
+        The lipschitz constants for the gradients of the predictive mean
+    l_sigma n x 0 numpy Tensor[float]
+        The lipschitz constans on the predictive variance
+
+    Returns
+    -------
+    u_mu: n_s x 0 numpy Tensor[float]
+        The upper bound of the over-approximation of the mean lagrangian remainder
+    u_sigma: n_s x 0 numpy Tensor[float]
+        The upper bound of the over-approximation of the variance lagrangian remainder
+    """
+    n_u, n_s = k_fb.shape
+    s = torch.cat((torch.eye(n_s), k_fb.transpose(0, 1)), dim=1)
+    b = torch.mm(s, s.T)
+    qb = torch.mm(q, b)
+    evals, _ = torch.eig(qb)
+
+    r_sqr = torch.max(evals)
+    # This is equivalent to:
+    # q_inv = sLA.inv(q)
+    # evals,_,_ = sLA.eig(b,q_inv)
+    # however we prefer to avoid the inversion
+    # and breaking the symmetry of b and q
+
+    u_mu = l_mu * r_sqr
+    u_sigma = l_sigma * torch.sqrt(r_sqr)
     return u_mu, u_sigma
 
 
@@ -419,13 +459,10 @@ def generate_initial_samples(env, conf, relative_dynamics, solver, safe_policy):
 
     if conf.init_mode == "random_rollouts":
 
-        X, y, _, _ = do_rollout(env, conf.n_steps_init,
-                                plot_trajectory=conf.plot_trajectory,
-                                render=conf.render, mean=mean, std=std)
+        X, y, _, _ = do_rollout(env, conf.n_steps_init, plot_trajectory=conf.plot_trajectory, render=conf.render,
+                                mean=mean, std=std)
         for i in range(1, conf.n_rollouts_init):
-            xx, yy, _, _ = do_rollout(env, conf.n_steps_init,
-                                      plot_trajectory=conf.plot_trajectory,
-                                      render=conf.render)
+            xx, yy, _, _ = do_rollout(env, conf.n_steps_init, plot_trajectory=conf.plot_trajectory, render=conf.render)
             X = np.vstack((X, xx))
             y = np.vstack((y, yy))
 
@@ -439,8 +476,7 @@ def generate_initial_samples(env, conf, relative_dynamics, solver, safe_policy):
 
         h_mat_safe, h_safe, _, _ = env.get_safety_constraints(normalize=True)
 
-        bool_mask_inside = np.argwhere(
-            sample_inside_polytope(states_probing, solver.h_mat_safe, solver.h_safe))
+        bool_mask_inside = np.argwhere(sample_inside_polytope(states_probing, solver.h_mat_safe, solver.h_safe))
         states_probing_inside = states_probing[bool_mask_inside, :]
 
         n_inside_first = np.shape(states_probing_inside)[0]
@@ -474,12 +510,8 @@ def generate_initial_samples(env, conf, relative_dynamics, solver, safe_policy):
 
         if conf.verbose > 1:
             print("==== Safety controller evaluation ====")
-            print((
-                "Ratio sample / inside safe set: {} / {}".format(n_inside_first,
-                                                                 n_max)))
-            print((
-                "Ratio next state inside safe set / intial state in safe set: {} / {}".format(
-                    n_success, i)))
+            print(("Ratio sample / inside safe set: {} / {}".format(n_inside_first, n_max)))
+            print(("Ratio next state inside safe set / intial state in safe set: {} / {}".format(n_success, i)))
 
         X = X[1:, :]
         y = y[1:, :]
@@ -487,8 +519,7 @@ def generate_initial_samples(env, conf, relative_dynamics, solver, safe_policy):
         return X, y
 
     else:
-        raise NotImplementedError(
-            "Unknown option initialization mode: {}".format(conf.init_mode))
+        raise NotImplementedError("Unknown option initialization mode: {}".format(conf.init_mode))
 
     return X, y
 

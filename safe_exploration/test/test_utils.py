@@ -6,8 +6,9 @@ Created on Sat Dec  2 18:20:28 2017
 """
 import numpy as np
 import pytest
+import torch
 
-from ..utils import sample_inside_polytope, assert_shape
+from ..utils import sample_inside_polytope, assert_shape, compute_remainder_overapproximations, compute_remainder_overapproximations_pytorch
 
 
 def test_sample_inside_polytope():
@@ -28,6 +29,19 @@ def test_sample_inside_polytope():
 
     assert np.all(
         res == res_expect), "Are the right samples inside/outside the polyope?"
+
+
+def test__compute_remainder_overapproximations_pytorch__returns_same_as_numpy_impl():
+    p = torch.tensor([0.0, 1.0])
+    k_fb = torch.tensor([[1.0, 5.0]])
+    l_mu = torch.tensor([0.01, 0.05])
+    l_sigma = torch.tensor([0.02, 0.03])
+
+    u_numpy, sigma_numpy = compute_remainder_overapproximations(p.numpy(), k_fb.numpy(), l_mu.numpy(), l_sigma.numpy())
+    u_pytorch, sigma_pytorch = compute_remainder_overapproximations_pytorch(p, k_fb, l_mu, l_sigma)
+
+    assert np.allclose(u_numpy, u_pytorch.numpy())
+    assert np.allclose(sigma_numpy, sigma_pytorch.numpy())
 
 
 def test___assert_shape__correct__does_nothing():
