@@ -7,6 +7,7 @@ Created on Wed Sep 20 10:34:16 2017
 
 import itertools
 import warnings
+from typing import Tuple
 
 import numpy as np
 import scipy.linalg as sLa
@@ -96,7 +97,8 @@ def sum_two_ellipsoids(p_1, q_1, p_2, q_2, c=None):
     return p_new, q_new
 
 
-def sum_two_ellipsoids_pytorch(p_1: Tensor, q_1: Tensor, p_2: Tensor, q_2: Tensor, c: float = None) -> (Tensor, Tensor):
+def sum_two_ellipsoids_pytorch(p_1: Tensor, q_1: Tensor, p_2: Tensor, q_2: Tensor, c: float = None) -> Tuple[
+    Tensor, Tensor]:
     """  Sum of two ellipsoids
 
     Computes the ellipsoidal overapproximation of the sum of two n-dimensional
