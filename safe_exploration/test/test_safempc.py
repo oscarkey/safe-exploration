@@ -53,6 +53,11 @@ OPTS_SOLVER = {'error_on_fail': False,
                              "acceptable_iter": 8}}
 
 
+def setup_module():
+    if _has_ssm_gpytorch:
+        torch.set_default_dtype(torch.float)
+
+
 def get_gpy_ssm(path,n_s,n_u):
 
     train_data = dict(list(np.load(path).items()))
