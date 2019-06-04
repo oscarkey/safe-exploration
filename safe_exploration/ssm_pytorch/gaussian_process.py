@@ -178,7 +178,7 @@ class MultiOutputGP(gpytorch.models.ExactGP):
             return None, None
 
         assert (train_y.dim() == 1 and train_x.shape[0] == train_y.shape[0]) or train_x.shape[0] == train_y.shape[1], (
-            "We require x:[N x n] y:[N] or x:[N x n] y:[n x N]"
+            f"We require x:[N x n] y:[N] or x:[N x n] y:[n x N]. We got x:{train_x.shape} y:{train_y.shape}"
         )
 
         if train_y.dim() > 1:

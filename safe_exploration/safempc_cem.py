@@ -8,7 +8,7 @@ from constrained_cem_mpc.utils import assert_shape
 from polytope import Polytope
 from torch import Tensor
 
-from . import gp_reachability
+from . import gp_reachability_pytorch
 from .environments import Environment
 from .safempc_simple import LqrFeedbackController
 from .ssm_cem import GpCemSSM, CemSSM
@@ -61,22 +61,21 @@ class PQFlattener:
     def __init__(self, state_dimen: int):
         self._state_dimen = state_dimen
 
-    def flatten(self, p: np.ndarray, q: Optional[np.ndarray]) -> Tensor:
+    def flatten(self, p: Tensor, q: Optional[Tensor]) -> Tensor:
         if q is None:
-            q = np.zeros((self._state_dimen, self._state_dimen))
+            q = torch.zeros((self._state_dimen, self._state_dimen), dtype=p.dtype, device=p.device)
 
         assert_shape(p, (self._state_dimen,))
         assert_shape(q, (self._state_dimen, self._state_dimen))
-        flat = np.hstack((p.reshape(-1), q.reshape(-1)))
-        return torch.tensor(flat)
+        return torch.cat((p.reshape(-1), q.reshape(-1)))
 
-    def unflatten(self, flat: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    def unflatten(self, flat: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
         assert_shape(flat, (self.get_flat_state_dimen(),))
-        p = flat[0:self._state_dimen].numpy()
-        q = flat[self._state_dimen:].view(self._state_dimen, self._state_dimen).numpy()
+        p = flat[0:self._state_dimen]
+        q = flat[self._state_dimen:].view(self._state_dimen, self._state_dimen)
 
         # If q is all zeros, we treat this as None.
-        if not q.any():
+        if len(q.nonzero()) == 0:
             q = None
 
         return p, q
@@ -105,15 +104,15 @@ def _plot_ellipsoids_in_2d(p, q):
 class EllipsoidTerminalConstraint(Constraint):
     """Represents the terminal constraint of the MPC problem, for ellipsoid states and a polytopic constraint."""
 
-    def __init__(self, state_dimen: int, safe_polytope_a, safe_polytope_b):
+    def __init__(self, state_dimen: int, safe_polytope_a: np.ndarray, safe_polytope_b: np.ndarray):
         self._pq_flattener = PQFlattener(state_dimen)
-        self._polytope_a = safe_polytope_a
-        self._polytope_b = safe_polytope_b
+        self._polytope_a = torch.tensor(safe_polytope_a)
+        self._polytope_b = torch.tensor(safe_polytope_b)
 
     def __call__(self, trajectory, actions) -> float:
         p, q = self._pq_flattener.unflatten(trajectory[-1])
-        p = np.expand_dims(p, 1)
-        if gp_reachability.is_ellipsoid_inside_polytope(p, q, self._polytope_a, self._polytope_b):
+        p = p.unsqueeze(1)
+        if gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, self._polytope_a, self._polytope_b):
             return 0
         else:
             return 10
@@ -142,15 +141,17 @@ class CemSafeMPC:
         self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=action_dimen,
                                       time_horizon=1, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
-        self._ssm = CemSSMNumpyWrapper(state_dimen, action_dimen, GpCemSSM(state_dimen, action_dimen))
+        self._ssm = GpCemSSM(state_dimen, action_dimen)
 
         # TODO: read l_mu and l_sigma from the config
-        self._l_mu = np.array([0.05, 0.05, 0.05, 0.05])
-        self._l_sigma = np.array([0.05, 0.05, 0.05, 0.05])
+        self._l_mu = torch.tensor([0.05, 0.05, 0.05, 0.05])
+        self._l_sigma = torch.tensor([0.05, 0.05, 0.05, 0.05])
 
-        self._linearized_model_a, self._linearized_model_b = opt_env['lin_model']
+        linearized_model_a, linearized_model_b = opt_env['lin_model']
+        self._linearized_model_a = torch.tensor(linearized_model_a)
+        self._linearized_model_b = torch.tensor(linearized_model_b)
         self._lqr_controller = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, state_dimen, action_dimen,
-                                                     self._linearized_model_a, self._linearized_model_b)
+                                                     linearized_model_a, linearized_model_b)
 
     def init_solver(self, cost_func=None):
         # TODO: attach the cost function to the mpc.
@@ -158,7 +159,7 @@ class CemSafeMPC:
 
     def get_action(self, state: np.ndarray) -> Tuple[np.ndarray, bool]:
         assert_shape(state, (self._state_dimen,))
-        actions = self._mpc.get_actions(self._pq_flattener.flatten(state, None))
+        actions = self._mpc.get_actions(self._pq_flattener.flatten(torch.tensor(state), None))
         # TODO: Need to maintain a queue of previously safe actions.
         if actions is not None:
             print('Found solution')
@@ -173,14 +174,14 @@ class CemSafeMPC:
 
     def _dynamics_func(self, state, action):
         p, q = self._pq_flattener.unflatten(state)
-        p = np.expand_dims(p, 1)
+        p = p.unsqueeze(1)
 
-        k_ff = np.expand_dims(action.numpy(), 1)
-        p_next, q_next = gp_reachability.onestep_reachability(p, self._ssm, k_ff, self._l_mu, self._l_sigma, q,
-                                                              k_fb=self._lqr_controller.get_control_matrix(),
-                                                              a=self._linearized_model_a, b=self._linearized_model_b,
-                                                              verbose=0)
-        return self._pq_flattener.flatten(np.squeeze(p_next), q_next)
+        k_ff = action.unsqueeze(1)
+        p_next, q_next = gp_reachability_pytorch.onestep_reachability(p, self._ssm, k_ff, self._l_mu, self._l_sigma, q,
+                                                                      k_fb=self._lqr_controller.get_control_matrix(),
+                                                                      a=self._linearized_model_a,
+                                                                      b=self._linearized_model_b, verbose=0)
+        return self._pq_flattener.flatten(p_next.squeeze(), q_next)
 
     def _get_safe_controller_action(self, state):
         # TODO: Use the safe policy from the config (though I think this is actually always just lqr)

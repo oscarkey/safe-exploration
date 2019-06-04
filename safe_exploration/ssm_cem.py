@@ -97,8 +97,8 @@ class GpCemSSM(CemSSM):
     def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
         # TODO: select datapoints by highest variance.
         if replace_old:
-            x_new = train_x
-            y_new = train_y
+            x_new = torch.tensor(train_x)
+            y_new = torch.tensor(train_y)
         else:
             x_new = torch.cat((self._gp.train_inputs, train_x), dim=0)
             y_new = torch.cat((self._gp.train_targets, train_y), dim=0)
@@ -110,4 +110,4 @@ class GpCemSSM(CemSSM):
         self._gp.train_inputs = []
         self._gp.train_targets = torch.zeros((0))
 
-        self._gp.set_train_data(x_new, y_new, strict=False)
+        self._gp.set_train_data(x_new, y_new.transpose(0, 1), strict=False)
