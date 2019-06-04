@@ -1,5 +1,6 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
 from abc import abstractmethod
+from typing import Tuple
 
 import gpytorch
 import torch
@@ -21,7 +22,7 @@ class CemSSM:
         self.num_actions = num_actions
 
     @abstractmethod
-    def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> (Tensor, Tensor, Tensor):
+    def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Predict the next states and uncertainties, along with the jacobian of the state means.
 
         Currently only supports a single state action pair.
@@ -34,7 +35,7 @@ class CemSSM:
         pass
 
     @abstractmethod
-    def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> (Tensor, Tensor):
+    def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         """Predict the next states and uncertainties.
 
         Currently only supports a single state action pair.
@@ -72,7 +73,7 @@ class GpCemSSM(CemSSM):
                                  likelihood=gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen))
         self._gp.eval()
 
-    def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> (Tensor, Tensor, Tensor):
+    def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         x = self._join_states_actions(states, actions)
 
         # We need the gradient to compute the jacobians.
@@ -83,7 +84,7 @@ class GpCemSSM(CemSSM):
 
         return pred.mean, pred.variance, jac_mean
 
-    def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> (Tensor, Tensor):
+    def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         x = self._join_states_actions(states, actions)
         pred = self._gp(x)
         return pred.mean, pred.variance

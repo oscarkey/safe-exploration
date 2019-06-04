@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -70,7 +70,7 @@ class PQFlattener:
         flat = np.hstack((p.reshape(-1), q.reshape(-1)))
         return torch.tensor(flat)
 
-    def unflatten(self, flat: Tensor) -> (np.ndarray, Optional[np.ndarray]):
+    def unflatten(self, flat: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         assert_shape(flat, (self.get_flat_state_dimen(),))
         p = flat[0:self._state_dimen].numpy()
         q = flat[self._state_dimen:].view(self._state_dimen, self._state_dimen).numpy()
@@ -156,7 +156,7 @@ class CemSafeMPC:
         # TODO: attach the cost function to the mpc.
         pass
 
-    def get_action(self, state: np.ndarray) -> (np.ndarray, bool):
+    def get_action(self, state: np.ndarray) -> Tuple[np.ndarray, bool]:
         assert_shape(state, (self._state_dimen,))
         actions = self._mpc.get_actions(self._pq_flattener.flatten(state, None))
         # TODO: Need to maintain a queue of previously safe actions.
