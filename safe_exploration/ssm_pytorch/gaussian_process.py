@@ -177,6 +177,10 @@ class MultiOutputGP(gpytorch.models.ExactGP):
         if train_x is None or train_y is None:
             return None, None
 
+        assert (train_y.dim() == 1 and train_x.shape[0] == train_y.shape[0]) or train_x.shape[0] == train_y.shape[1], (
+            "We require x:[N x n] y:[N] or x:[N x n] y:[n x N]"
+        )
+
         if train_y.dim() > 1:
             # Try to remove the first data row if it's empty
             train_y = train_y.squeeze(0)
