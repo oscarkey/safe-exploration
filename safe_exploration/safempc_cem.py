@@ -11,44 +11,8 @@ from torch import Tensor
 from . import gp_reachability_pytorch
 from .environments import Environment
 from .safempc_simple import LqrFeedbackController
-from .ssm_cem import GpCemSSM, CemSSM
-from .state_space_models import StateSpaceModel
+from .ssm_cem import GpCemSSM
 from .visualization import utils_visualization
-
-
-class CemSSMNumpyWrapper(StateSpaceModel):
-    """Temporary wrapper around GpCemSSM to convert between PyTorch and NumPy, so we can use it as a StateSpaceModel."""
-
-    def __init__(self, state_dimen: int, action_dimen: int, ssm: CemSSM):
-        super().__init__(state_dimen, action_dimen)
-        self._ssm = ssm
-
-    def predict(self, states, actions, jacobians=False, full_cov=False):
-        if full_cov:
-            raise NotImplementedError
-
-        if jacobians:
-            results = self._ssm.predict_with_jacobians(torch.tensor(states), torch.tensor(actions))
-        else:
-            results = self._ssm.predict_without_jacobians(torch.tensor(states), torch.tensor(actions))
-
-        return self._convert_to_numpy(results)
-
-    @staticmethod
-    def _convert_to_numpy(xs):
-        return [x.detach().numpy() for x in xs]
-
-    def linearize_predict(self, states, actions, jacobians=False, full_cov=False):
-        raise NotImplementedError
-
-    def get_reverse(self, seed):
-        raise NotImplementedError
-
-    def get_linearize_reverse(self, seed):
-        raise NotImplementedError
-
-    def update_model(self, train_x, train_y, opt_hyp=False, replace_old=False):
-        self._ssm.update_model(torch.tensor(train_x), torch.tensor(train_y), opt_hyp, replace_old)
 
 
 class PQFlattener:
