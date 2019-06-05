@@ -1,9 +1,9 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint
+from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint, Rollout
 from constrained_cem_mpc.utils import assert_shape
 from polytope import Polytope
 from torch import Tensor
@@ -16,7 +16,7 @@ from .visualization import utils_visualization
 
 
 class PQFlattener:
-    """Hack which converts the p and q matrices which make up the state to a flat state vector, and vice versa.
+    """Converts ellipsoid p and q matrices to a flat state vector, and vice versa.
 
     As each state is an ellipsoid it has both a centre (p) and a shape (q). However, constrained-cem-mpc currently
     requires the state to be a single vector, so this class handles the conversion between the two.
@@ -50,22 +50,28 @@ class PQFlattener:
 
 def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs) -> None:
     ax = plt.axes()
-    # Hacky way to test if cartpole or pendulum
-    if h_mat_safe.shape[1] == 4:
+    # Hacky way to test if cartpole or pendulum.
+    num_cartpole_states = 4
+    if h_mat_safe.shape[1] == num_cartpole_states:
         Polytope(h_mat_obs[:, [0, 2]], h_obs).plot(ax=ax, color='blue')
         Polytope(h_mat_safe[:, [0, 2]], h_safe).plot(ax=ax, color='red')
     else:
-        Polytope(h_mat_safe, h_safe).plot(ax=ax, color='red')
+        Polytope(h_mat_safe, h_safe).plot(ax=ax, color='grey')
 
     ax.set_xticks(range(-12, 7))
     ax.set_yticks(range(-1, 3))
 
 
-def _plot_ellipsoids_in_2d(p: Tensor, q: Tensor) -> None:
+def _plot_ellipsoids_in_2d(p: Tensor, q: Tensor, color: Union[str, Tuple[float, float, float]] = 'orange') -> None:
     p = p.detach().numpy()
     q = q.detach().numpy()
-    utils_visualization.plot_ellipsoid_2D(p[[0, 2], :], np.delete(np.delete(q, [1, 2], 0), [1, 2], 1), ax=plt.gca(),
-                                          color='orange', n_points=50)
+    # Hacky way to test if cartpole or pendulum.
+    num_cartpole_states = 4
+    if p.shape[0] == num_cartpole_states:
+        utils_visualization.plot_ellipsoid_2D(p[[0, 2], :], np.delete(np.delete(q, [1, 2], 0), [1, 2], 1), ax=plt.gca(),
+                                              color=color, n_points=50)
+    else:
+        utils_visualization.plot_ellipsoid_2D(p, q, ax=plt.gca(), color=color, n_points=50)
 
 
 class EllipsoidTerminalConstraint(Constraint):
@@ -102,16 +108,14 @@ class CemSafeMPC:
     def __init__(self, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost,
                  wu_feedback_cost) -> None:
         super().__init__()
+
         self._state_dimen = env.n_s
         self._action_dimen = env.n_u
-        self._pq_flattener = PQFlattener(env.n_s)
-        # TODO: Load these params from config.
-        self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
-                                      state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
-                                      time_horizon=1, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
-        self._ssm = GpCemSSM(env.n_s, env.n_u)
         self._l_mu = torch.tensor(env.l_mu)
         self._l_sigma = torch.tensor(env.l_sigm)
+        self._get_random_action = env.random_action
+        self._pq_flattener = PQFlattener(env.n_s)
+        self._ssm = GpCemSSM(env.n_s, env.n_u)
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
@@ -120,6 +124,12 @@ class CemSafeMPC:
         self._lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, env.n_s, env.n_u, linearized_model_a,
                                           linearized_model_b)
 
+        # TODO: Load params for CEM from config.
+        self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
+                                      state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
+                                      time_horizon=2, num_rollouts=20, num_elites=3, num_iterations=8, num_workers=0)
+
+        self._has_training_data = False
 
     def init_solver(self, cost_func=None):
         # TODO: attach the cost function to the mpc.
@@ -127,18 +137,49 @@ class CemSafeMPC:
 
     def get_action(self, state: np.ndarray) -> Tuple[np.ndarray, bool]:
         assert_shape(state, (self._state_dimen,))
-        actions = self._mpc.get_actions(self._pq_flattener.flatten(torch.tensor(state), None))
-        # TODO: Need to maintain a queue of previously safe actions.
+
+        # If we don't have training data we skip solving the mpc as it won't be any use.
+        # This makes the first episode much faster (during which we gather training data).
+        if self._has_training_data:
+            actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(torch.tensor(state), None))
+            self._plot_rollouts(rollouts)
+        else:
+            actions = None
+
+        # TODO: Need to maintain a queue of previously safe actions to fully implement SafeMPC.
+
         if actions is not None:
             print('Found solution')
             success = True
             action = actions[0].numpy()
+        elif np.random.rand() < 0.2:
+            # This is a temporary epsilon-greedy like exploration policy to help gather data for the GP.
+            # Obviously taking random actions isn't actually safe, but it's useful for debugging.
+            print('No solution, taking random action')
+            success = False
+            action = self._get_random_action()
         else:
             print('No solution, using safe controller')
             success = False
             action = self._get_safe_controller_action(state)
 
         return action, success
+
+    def _plot_rollouts(self, rollouts: List[List[Rollout]]):
+        """Plots the constraint, and the terminal states of the rollouts through the optimisation process."""
+        tc = self._mpc._rollout_function._constraints[1]
+        _plot_constraints_in_2d(tc._polytope_a.detach().numpy(), tc._polytope_b.detach().numpy(), None, None)
+        for i in range(len(rollouts)):
+            for j in range(len(rollouts[i])):
+                t = rollouts[i][j].trajectory[-1]
+                p, q = self._pq_flattener.unflatten(t)
+                red = hex(round(255.0 / self._mpc._num_iterations * i))[2:]
+                if red == '0':
+                    red = '00'
+                color = f'#{red}0000'
+                _plot_ellipsoids_in_2d(p.unsqueeze(1), q, color=color)
+
+        plt.show()
 
     def _dynamics_func(self, state, action):
         p, q = self._pq_flattener.unflatten(state)
@@ -157,4 +198,4 @@ class CemSafeMPC:
 
     def update_model(self, x, y, opt_hyp=False, replace_old=True, reinitialize_solver=True):
         self._ssm.update_model(x, y, opt_hyp, replace_old)
-        self._mpc._rollout_function._constraints[1]._should_plot = True
+        self._has_training_data = True
