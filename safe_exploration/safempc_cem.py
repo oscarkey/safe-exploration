@@ -58,9 +58,6 @@ def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs) -> None:
     else:
         Polytope(h_mat_safe, h_safe).plot(ax=ax, color='grey')
 
-    ax.set_xticks(range(-12, 7))
-    ax.set_yticks(range(-1, 3))
-
 
 def _plot_ellipsoids_in_2d(p: Tensor, q: Tensor, color: Union[str, Tuple[float, float, float]] = 'orange') -> None:
     p = p.detach().numpy()
