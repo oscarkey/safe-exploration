@@ -124,6 +124,8 @@ class GpCemSSM(CemSSM):
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self._likelihood, self._model)
 
         training_iter = 200
+        print(f'Training GP for {training_iter} iterations...')
+        losses = []
         for i in range(training_iter):
             # Zero gradients from previous iteration
             optimizer.zero_grad()
@@ -132,8 +134,9 @@ class GpCemSSM(CemSSM):
             # Calc loss and backprop gradients
             loss = -mll(output, train_y.transpose(0, 1)).sum()
             loss.backward()
-            print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iter, loss.item()))
+            losses.append(loss.item())
             optimizer.step()
+        print(f'Training complete. Final losses: {losses[-4]:.2f} {losses[-3]:.2f} {losses[-2]:.2f} {losses[-1]:.2f}')
 
         self._model.eval()
         self._likelihood.eval()
