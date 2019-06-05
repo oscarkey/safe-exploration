@@ -5,6 +5,7 @@ Created on Mon Sep 25 17:16:45 2017
 @author: tkoller
 """
 import abc
+import math
 import warnings
 import numpy as np
 
@@ -74,6 +75,7 @@ class Environment(metaclass=abc.ABCMeta):
         self.target = target
         self.verbosity = verbosity
         self._render_initialized = False
+        self.delay = 20.0  # fps
 
         if p_origin is None:
             self.p_origin = np.zeros((n_s,))
@@ -153,6 +155,8 @@ class Environment(metaclass=abc.ABCMeta):
 
         self._init_render()
         self._render_env(self.screen, self.axis, self.display_width, self.display_height)
+        pygame.display.flip()
+        pygame.event.get()
         self._delay_render()
 
     def _init_render(self):
@@ -710,6 +714,22 @@ class InvertedPendulum(Environment):
 
         return h_mat_safe, self.h_safe, self.h_mat_obs, self.h_obs
 
+    def _render_env(self, screen, axis: [float], display_width: int, display_height: int):
+        # Clear screen to black.
+        screen.fill((0, 0, 0))
+
+        center_x = display_width / 2
+        center_y = display_height / 2
+
+        length = min(display_width, display_height) / 3
+
+        theta = self.current_state[1]
+        end_x = center_x - length * math.sin(theta)
+        end_y = center_y - length * math.cos(theta)
+
+        pygame.draw.circle(screen, (255, 255, 255), (center_x, center_y), 10)
+        pygame.draw.line(screen, (255, 255, 255), (center_x, center_y), (end_x, end_y), width=3)
+
 
 class CartPole(Environment):
     """ The classic CartPole swing-up Task
@@ -765,8 +785,6 @@ class CartPole(Environment):
         self.obs_angles_cos = np.array([4])
 
         self.target_ilqr = init_m
-
-        self.delay = 20.0  # fps
 
         self.D_cost = np.array([40, 20, 40])
         self.R_cost = np.array([1.0])
@@ -869,7 +887,7 @@ class CartPole(Environment):
 
         cart_color = (255, 255, 0)
 
-        self.screen.fill(cart_color, pygame.Rect(tuple(img_coords_cart)))
+        screen.fill(cart_color, pygame.Rect(tuple(img_coords_cart)))
 
         cart_coords = (cart_x, 0.0)
         img_coords_pole_0 = self.convert_coords(cart_coords)
@@ -877,9 +895,6 @@ class CartPole(Environment):
 
         pole_color = (0, 255, 255)
         pygame.draw.line(screen, pole_color, img_coords_pole_0, img_coords_pole_1, 4)
-
-        pygame.display.flip()
-        pygame.event.get()
 
     def _get_step_cost(self, state, u):
         """Return the cost of the current step as a function of distance to target."""
