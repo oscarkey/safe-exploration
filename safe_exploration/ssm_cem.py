@@ -68,10 +68,11 @@ class GpCemSSM(CemSSM):
     def __init__(self, state_dimen: int, action_dimen: int):
         super().__init__(state_dimen, action_dimen)
 
-        self._gp = MultiOutputGP(train_x=None, train_y=None,
-                                 kernel=BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen),
-                                 likelihood=gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen))
-        self._gp.eval()
+        self._likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
+        self._model = MultiOutputGP(train_x=None, train_y=None,
+                                    kernel=BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen),
+                                    likelihood=self._likelihood)
+        self._model.eval()
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         x = self._join_states_actions(states, actions)
@@ -79,14 +80,14 @@ class GpCemSSM(CemSSM):
         # We need the gradient to compute the jacobians.
         x.requires_grad = True
 
-        pred = self._gp(x)
+        pred = self._model(x)
         jac_mean = utilities.compute_jacobian(pred.mean, x).squeeze()
 
         return pred.mean, pred.variance, jac_mean
 
     def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         x = self._join_states_actions(states, actions)
-        pred = self._gp(x)
+        pred = self._model(x)
         return pred.mean, pred.variance
 
     def _join_states_actions(self, states: Tensor, actions: Tensor) -> Tensor:
@@ -96,18 +97,43 @@ class GpCemSSM(CemSSM):
 
     def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
         # TODO: select datapoints by highest variance.
-        if replace_old:
+        if replace_old or self._model.train_inputs is None or self._model.train_targets is None:
             x_new = torch.tensor(train_x)
             y_new = torch.tensor(train_y)
         else:
-            x_new = torch.cat((self._gp.train_inputs, train_x), dim=0)
-            y_new = torch.cat((self._gp.train_targets, train_y), dim=0)
+            x_new = torch.cat((self._model.train_inputs, train_x), dim=0)
+            y_new = torch.cat((self._model.train_targets, train_y), dim=0)
+
+        # Hack because set_train_data() does not work if previous data was None.
+        self._model.train_inputs = []
+        self._model.train_targets = torch.zeros((0))
+
+        self._model.set_train_data(x_new, y_new.transpose(0, 1), strict=False)
 
         if opt_hyp:
-            raise NotImplementedError
+            self._run_optimisation(x_new, y_new)
 
-        # Hack because set_train_data() does not work if there was no previous data.
-        self._gp.train_inputs = []
-        self._gp.train_targets = torch.zeros((0))
+    def _run_optimisation(self, train_x: Tensor, train_y: Tensor):
+        self._model.train()
+        self._likelihood.train()
 
-        self._gp.set_train_data(x_new, y_new.transpose(0, 1), strict=False)
+        # self._model.parameters() includes GaussianLikelihood parameters
+        optimizer = torch.optim.Adam([{'params': self._model.parameters()}, ], lr=0.1)
+
+        # "Loss" for GPs - the marginal log likelihood
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(self._likelihood, self._model)
+
+        training_iter = 200
+        for i in range(training_iter):
+            # Zero gradients from previous iteration
+            optimizer.zero_grad()
+            # Output from model
+            output = self._model(train_x)
+            # Calc loss and backprop gradients
+            loss = -mll(output, train_y.transpose(0, 1)).sum()
+            loss.backward()
+            print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iter, loss.item()))
+            optimizer.step()
+
+        self._model.eval()
+        self._likelihood.eval()

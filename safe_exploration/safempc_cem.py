@@ -156,5 +156,5 @@ class CemSafeMPC:
         return np.dot(self._lqr.get_control_matrix(), state)
 
     def update_model(self, x, y, opt_hyp=False, replace_old=True, reinitialize_solver=True):
-        # TODO: support optimising
-        self._ssm.update_model(x, y, opt_hyp=False, replace_old=replace_old)
+        self._ssm.update_model(x, y, opt_hyp, replace_old)
+        self._mpc._rollout_function._constraints[1]._should_plot = True
