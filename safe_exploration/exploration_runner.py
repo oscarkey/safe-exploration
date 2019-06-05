@@ -99,7 +99,7 @@ def run_exploration(conf, visualize=False):
             fig, ax = env.plot_safety_bounds(color="b")
 
             # plot the initial train set
-            x_train_init = exploration_module.safempc.ssm.x_train
+            x_train_init = exploration_module.x_train
             c_black = (0., 0., 0.)
             n_train, _ = np.shape(x_train_init)
             for i in range(n_train):
@@ -121,8 +121,8 @@ def run_exploration(conf, visualize=False):
             # find the most informative sample
 
             if verify_safety:
-                x_i, u_i, feasible, k_fb_all, k_ff_all, p_ctrl, q_all = exploration_module.find_max_variance(
-                    x_i, sol_verbose=True)
+                x_i, u_i, feasible, k_fb_all, k_ff_all, p_ctrl, q_all = exploration_module.find_max_variance_verbose(x_i
+                                                                                                                     )
 
                 if feasible:
                     h_m_safe_norm, h_safe_norm, h_m_obs_norm, h_obs_norm = env.get_safety_constraints(
@@ -176,7 +176,7 @@ def run_exploration(conf, visualize=False):
             # gather some information
             z_i = np.vstack((x_i, u_i)).T
             z_all[i] = z_i.squeeze()
-            mu_next, s2_next = exploration_module.safempc.ssm.predict(z_i)
+            mu_next, s2_next = exploration_module.ssm_predict(z_i)
             pred_conf = np.sqrt(s2_next)
             sigm[i] = pred_conf.squeeze()
             x_next_prior[i, :] = safempc.eval_prior(x_i.T, u_i.T).squeeze()
@@ -201,10 +201,8 @@ def run_exploration(conf, visualize=False):
         l_gp_dict += [safempc.ssm.to_dict()]
 
         if not save_path is None:
-            results_dict = save_results(save_path, l_sigm_sum, l_sigm, l_inf_gain,
-                                        l_z_all, \
-                                        l_x_next_obs_all, l_x_next_pred, x_next_prior, \
-                                        safempc.ssm, safety_all, x_train_init)
+            save_results(save_path, l_sigm_sum, l_sigm, l_inf_gain, l_z_all, l_x_next_obs_all, l_x_next_pred,
+                         x_next_prior, safempc.ssm, safety_all, x_train_init)
 
 
 def save_results(save_path, sigm_sum, sigm, inf_gain, z_all, x_next_obs_all,

@@ -7,9 +7,12 @@ Created on Tue Nov 14 10:08:45 2017
 
 @author: tkoller
 """
+from abc import ABC, abstractmethod
+from typing import Tuple, List, Union
 
 import casadi as cas
 import numpy as np
+from numpy import ndarray
 from casadi import reshape as cas_reshape
 from casadi import sum1, sum2, MX, vertcat, mtimes
 
@@ -17,7 +20,37 @@ from .gp_reachability_casadi import lin_ellipsoid_safety_distance
 from .gp_reachability_casadi import multi_step_reachability as cas_multistep
 
 
-class StaticSafeMPCExploration:
+class ExplorationModule(ABC):
+    """Interface for modules which manage the MPC in the exploration task. (?)"""
+
+    @property
+    @abstractmethod
+    def x_train(self) -> ndarray:
+        pass
+
+    @abstractmethod
+    def find_max_variance(self, x_0: ndarray, sol_verbose: bool = False) -> Tuple[ndarray, ndarray]:
+        pass
+
+    @abstractmethod
+    def find_max_variance_verbose(self, x_0: ndarray, sol_verbose: bool = False) -> Tuple[ndarray, bool, bool, ndarray,
+                                                                                          ndarray, ndarray, ndarray]:
+        pass
+
+    @abstractmethod
+    def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
+        pass
+
+    @abstractmethod
+    def update_model(self, train_x: ndarray, train_y: ndarray, opt_hyp=False, replace_old=False) -> None:
+        pass
+
+    @abstractmethod
+    def get_information_gain(self) -> Union[ndarray, List[None]]:
+        pass
+
+
+class StaticSafeMPCExploration(ExplorationModule):
     """ Oracle which finds informative samples
     similar with safety constraint and MPC setting.
 
@@ -241,28 +274,8 @@ class StaticSafeMPCExploration:
 
         return g, [-cas.inf] * 2 * n_u, [0] * 2 * n_u
 
-    def find_max_variance(self, x0,
-                          sol_verbose=False):
-        """ Find the most informative sample in the space constrained by the mpc structure
-
-        Parameters
-        ----------
-        n_restarts: int, optional
-            The number of random initializations of the optimization problem
-        ilqr_init: bool, optional
-            initialize the state feedback terms with the ilqr feedback law
-        sample_mean: n_s x 1 np.ndarray[float], optional
-            The mean of the gaussian initial state-action distribution
-        sample_var: n_s x n_s np.ndarray[float], optional
-            The variance of the gaussian initial state-action distribution
-
-        Returns
-        -------
-        x_opt:
-        u_opt:
-        sigm_opt:
-
-        """
+    def find_max_variance(self, x0, sol_verbose=False):
+        """Find the most informative sample in the space constrained by the mpc structure."""
 
         sigma_best = 0
         x_best = None
@@ -296,8 +309,7 @@ class StaticSafeMPCExploration:
             if sigm_i > sigma_best:  # check if solution would improve upon current best
                 g_sol = np.array(sol["g"]).squeeze()
 
-                if self._is_feasible(g_sol, np.array(self.lbg), np.array(
-                        self.ubg)):  # check if solution is feasible
+                if self._is_feasible(g_sol, np.array(self.lbg), np.array(self.ubg)):  # check if solution is feasible
                     w_sol = sol["x"]
                     x_best = np.array(w_sol[:self.n_s])
                     u_best = np.array(w_sol[self.n_s:self.n_s + self.n_u])
@@ -313,6 +325,14 @@ class StaticSafeMPCExploration:
 
         return x_best, u_best
 
+    @staticmethod
+    def _is_feasible(g, lbg, ubg, feas_tol=1e-7):
+        return np.all(g > lbg - feas_tol) and np.all(g < ubg + feas_tol)
+
+    def find_max_variance_verbose(self, x_0: ndarray, sol_verbose: bool = False) -> Tuple[ndarray, bool, bool, ndarray,
+                                                                                          ndarray, ndarray, ndarray]:
+        raise NotImplementedError
+
     def update_model(self, x, y, train=False, replace_old=False):
         """ Simple wrapper around the update_model function of SafeMPC"""
         self.safempc.update_model(x, y, train, replace_old)
@@ -322,13 +342,15 @@ class StaticSafeMPCExploration:
     def get_information_gain(self):
         return self.safempc.ssm.information_gain()
 
-    def _is_feasible(self, g, lbg, ubg, feas_tol=1e-7):
-        """ """
-        return np.all(g > lbg - feas_tol) and np.all(g < ubg + feas_tol)
+    @property
+    def x_train(self) -> ndarray:
+        return self.safempc.ssm.x_train
+
+    def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
+        return self.safempc.ssm.predict(z)
 
 
-class DynamicSafeMPCExploration:
-    """ """
+class DynamicSafeMPCExploration(ExplorationModule):
 
     def __init__(self, safempc, env):
         """ Initialize with a pre-defined safempc object"""
@@ -344,15 +366,13 @@ class DynamicSafeMPCExploration:
         self.safempc.init_solver(cost)
 
     def find_max_variance(self, x_0, sol_verbose=False):
-        if sol_verbose:
-            u_apply, feasible, _, k_fb, k_ff, p_ctrl, q_all, _ = self.safempc.get_action(
-                x_0, sol_verbose=True)
+        u_apply, _ = self.safempc.get_action(x_0)
+        return x_0[:, None], u_apply[:, None]
 
-            return x_0[:,
-                   None], u_apply, feasible, k_fb, k_ff, p_ctrl, q_all
-        else:
-            u_apply, _ = self.safempc.get_action(x_0)
-            return x_0[:, None], u_apply[:, None]
+    def find_max_variance_verbose(self, x_0: ndarray, sol_verbose: bool = False) -> Tuple[ndarray, bool, bool, ndarray,
+                                                                                          ndarray, ndarray, ndarray]:
+        u_apply, feasible, _, k_fb, k_ff, p_ctrl, q_all, _ = self.safempc.get_action(x_0, sol_verbose=True)
+        return x_0[:, None], u_apply, feasible, k_fb, k_ff, p_ctrl, q_all
 
     def update_model(self, x, y, train=False, replace_old=False):
         """ Simple wrapper around the update_model function of SafeMPC"""
@@ -360,3 +380,10 @@ class DynamicSafeMPCExploration:
 
     def get_information_gain(self):
         return self.safempc.ssm.information_gain()
+
+    @property
+    def x_train(self) -> ndarray:
+        return self.safempc.ssm.x_train
+
+    def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
+        return self.safempc.ssm.predict(z)
