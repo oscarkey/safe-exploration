@@ -87,16 +87,13 @@ def create_solver(conf, env: Environment):
                                lin_trafo_gp_input=lin_trafo_gp_input, verbosity=conf.verbose)
     elif conf.solver_type == "safempc_cem":
         constraints = safempc_cem.construct_constraints(env)
-        solver = CemSafeMPC(state_dimen=env.n_s, action_dimen=env.n_u, constraints=constraints,
-                            opt_env=env_opts_safempc, wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost)
+        solver = CemSafeMPC(constraints=constraints, env=env, opt_env=env_opts_safempc, wx_feedback_cost=wx_cost,
+                            wu_feedback_cost=wu_cost)
     elif conf.solver_type == "cautious_mpc":
         T = conf.T
 
         solver = CautiousMPC(T, gp, env_opts_safempc, conf.beta_safety,
                              lin_trafo_gp_input=lin_trafo_gp_input, perf_trajectory=conf.type_perf_traj, k_fb=k_fb)
-    elif conf.solver_type == "safempc_cem":
-        solver = CemSafeMPC(state_dimen=env.n_s, action_dimen=env.n_u, opt_env=env_opts_safempc,
-                            wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost)
     else:
         raise ValueError("Unknown solver type: {}".format(conf.solver_type))
 

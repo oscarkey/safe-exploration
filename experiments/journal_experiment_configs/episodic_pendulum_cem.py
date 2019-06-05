@@ -9,16 +9,13 @@ from .defaultconfig_episode import DefaultConfigEpisode
 import numpy as np
 
 
-class Config(DefaultConfigExploration):
+class Config(DefaultConfigEpisode):
     """
     Pendulum in the episodic setting, using CEM MPC (rather than Casadi).
 
     Use the DefaultConfigExploration rather than DefaultConfigEpisode, because the former is set up for pendulum and the
     latter is set up for cart pole. This means we have to override a load of exploration config values.
     """
-
-    task = "episode_setting"
-
     verbose = 0
 
     n_ep = 8
@@ -34,18 +31,19 @@ class Config(DefaultConfigExploration):
 
     solver_type = "safempc_cem"
 
-    # safempc
-    beta_safety = 2.0
-    n_safe = 5
-    n_perf = 0
-    r = 1
+    lqr_wx_cost = np.diag([1., 2.])
+    lqr_wu_cost = 25 * np.eye(1)
 
-    # lqr_wx_cost = np.diag([1., 2.])
-    # lqr_wu_cost = 25 * np.eye(1)
+    lin_prior = True
+    prior_model = dict()
+    prior_m = .1
+    prior_b = 0.0
+    prior_model["m"] = prior_m
+    prior_model["b"] = prior_b
 
-    # rl cost function
-    cost = None
-    ilqr_init = False
+    env_options = dict()
+    init_std = np.array([.05, .05])
+    env_options["init_std"] = init_std
 
     render = True
     visualize = True

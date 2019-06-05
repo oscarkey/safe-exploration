@@ -50,14 +50,15 @@ class PQFlattener:
 
 def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs) -> None:
     ax = plt.axes()
-    Polytope(h_mat_obs[:, [0, 2]], h_obs).plot(ax=ax, color='blue')
-    Polytope(h_mat_safe[:, [0, 2]], h_safe).plot(ax=ax, color='red')
-    utils_visualization.plot_ellipsoid_2D(np.array([[0, 0]]).T, np.array([[0.1, 0.01], [0.01, 0.01]]), ax,
-                                          color='green')
+    # Hacky way to test if cartpole or pendulum
+    if h_mat_safe.shape[1] == 4:
+        Polytope(h_mat_obs[:, [0, 2]], h_obs).plot(ax=ax, color='blue')
+        Polytope(h_mat_safe[:, [0, 2]], h_safe).plot(ax=ax, color='red')
+    else:
+        Polytope(h_mat_safe, h_safe).plot(ax=ax, color='red')
+
     ax.set_xticks(range(-12, 7))
-    ax.set_xlabel('cart x position')
     ax.set_yticks(range(-1, 3))
-    ax.set_ylabel('pendulum angle')
 
 
 def _plot_ellipsoids_in_2d(p: Tensor, q: Tensor) -> None:
@@ -98,27 +99,27 @@ def construct_constraints(env: Environment):
 class CemSafeMPC:
     """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
-    def __init__(self, state_dimen: int, action_dimen: int, constraints: [Constraint], opt_env, wx_feedback_cost,
+    def __init__(self, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost,
                  wu_feedback_cost) -> None:
         super().__init__()
-        self._state_dimen = state_dimen
-        self._action_dimen = action_dimen
-        self._pq_flattener = PQFlattener(state_dimen)
+        self._state_dimen = env.n_s
+        self._action_dimen = env.n_u
+        self._pq_flattener = PQFlattener(env.n_s)
+        # TODO: Load these params from config.
         self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
-                                      state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=action_dimen,
-                                      time_horizon=5, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
-        self._ssm = GpCemSSM(state_dimen, action_dimen)
-
-        # TODO: read l_mu and l_sigma from the config
-        self._l_mu = torch.tensor([0.05, 0.05, 0.05, 0.05])
-        self._l_sigma = torch.tensor([0.05, 0.05, 0.05, 0.05])
+                                      state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
+                                      time_horizon=1, num_rollouts=20, num_elites=3, num_iterations=10, num_workers=0)
+        self._ssm = GpCemSSM(env.n_s, env.n_u)
+        self._l_mu = torch.tensor(env.l_mu)
+        self._l_sigma = torch.tensor(env.l_sigm)
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
         self._linearized_model_a = torch.tensor(linearized_model_a)
         self._linearized_model_b = torch.tensor(linearized_model_b)
-        self._lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, state_dimen, action_dimen,
-                                          linearized_model_a, linearized_model_b)
+        self._lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, env.n_s, env.n_u, linearized_model_a,
+                                          linearized_model_b)
+
 
     def init_solver(self, cost_func=None):
         # TODO: attach the cost function to the mpc.
