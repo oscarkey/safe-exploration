@@ -141,9 +141,19 @@ class Environment(metaclass=abc.ABCMeta):
         """
         pass
 
+    @unavailable(not _has_pygame, "pygame")
     def render(self):
-        """ Render the visualization """
-        print("No rendering implemented")
+        """ Render the environment.
+
+        Any environment should implement _render_env() to perform the actual rendering.
+        """
+        if '_render_env' not in self.__class__.__dict__:
+            print("No rendering implemented")
+            return
+
+        self._init_render()
+        self._render_env(self.screen, self.axis, self.display_width, self.display_height)
+        self._delay_render()
 
     def _init_render(self):
         if self._render_initialized:
@@ -164,6 +174,10 @@ class Environment(metaclass=abc.ABCMeta):
 
     def _delay_render(self):
         self.clock.tick(self.delay)
+
+    def _render_env(self, screen, axis: [float], display_width: int, display_height: int):
+        """Subclasses should implement this method to render the environment."""
+        pass
 
     def _sample_start_state(self, mean=None, std=None, n_samples=1):
         """ """
@@ -832,34 +846,25 @@ class CartPole(Environment):
 
         return sat, failure_code
 
-    @unavailable(not _has_pygame, "pygame")
-    def render(self):
-        self._init_render()
-
-        self._draw_cartpole()
-        self._delay_render()
-
-    def _draw_cartpole(self):
-        """ Draw the screen for the cart pole environment."""
-
+    def _render_env(self, screen, axis: [float], display_width: int, display_height: int):
         # blacken screen
-        self.screen.fill((0, 0, 0))
+        screen.fill((0, 0, 0))
         # get the cart box coordinates
-        scrwidt = self.display_width
-        scrhght = self.display_height
+        scrwidt = display_width
+        scrhght = display_height
         cart_x = self.current_state[0]
         cart_coords = (cart_x - 0.2, cart_x + 0.2, -0.1, 0.1)
 
         cart_height = float(((cart_coords[3] - cart_coords[2]) / float(
-            self.axis[3] - self.axis[2])) * float(scrhght))
+            axis[3] - axis[2])) * float(scrhght))
         # cart rectangle image coords
         img_coords_cart = [0, 0, 0, 0]
-        img_coords_cart[0] = float(((cart_coords[0] - self.axis[0]) / float(
-            self.axis[1] - self.axis[0])) * float(scrwidt))  # left side x coordinate
-        img_coords_cart[1] = scrhght - cart_height - float(((cart_coords[3] - self.axis[
-            2]) / float(self.axis[3] - self.axis[2])) * float(scrhght))  # top y coord
+        img_coords_cart[0] = float(((cart_coords[0] - axis[0]) / float(
+            axis[1] - axis[0])) * float(scrwidt))  # left side x coordinate
+        img_coords_cart[1] = scrhght - cart_height - float(((cart_coords[3] - axis[
+            2]) / float(axis[3] - axis[2])) * float(scrhght))  # top y coord
         img_coords_cart[2] = float(((cart_coords[1] - cart_coords[0]) / float(
-            self.axis[1] - self.axis[0])) * float(scrwidt))  # width
+            axis[1] - axis[0])) * float(scrwidt))  # width
         img_coords_cart[3] = cart_height  # height
 
         cart_color = (255, 255, 0)
@@ -868,12 +873,10 @@ class CartPole(Environment):
 
         cart_coords = (cart_x, 0.0)
         img_coords_pole_0 = self.convert_coords(cart_coords)
-        img_coords_pole_1 = self.convert_coords(
-            self._single_pend_top_pos(self.current_state))
+        img_coords_pole_1 = self.convert_coords(self._single_pend_top_pos(self.current_state))
 
         pole_color = (0, 255, 255)
-        pygame.draw.line(self.screen, pole_color, img_coords_pole_0, img_coords_pole_1,
-                         4)
+        pygame.draw.line(screen, pole_color, img_coords_pole_0, img_coords_pole_1, 4)
 
         pygame.display.flip()
         pygame.event.get()
