@@ -1,5 +1,5 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Tuple, Optional
 
 import gpytorch
@@ -10,7 +10,7 @@ from .ssm_pytorch import BatchKernel, MultiOutputGP, utilities
 from .utils import assert_shape
 
 
-class CemSSM:
+class CemSSM(ABC):
     """State space model interface for use with CEM MPC.
 
     Unlike StateSpaceModel it uses Tensors rather than NumPy arrays. It also does not specify the methods required only
@@ -20,6 +20,11 @@ class CemSSM:
     def __init__(self, num_states: int, num_actions: int):
         self.num_states = num_states
         self.num_actions = num_actions
+
+    @property
+    @abstractmethod
+    def x_train(self) -> Optional[Tensor]:
+        pass
 
     @abstractmethod
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -79,6 +84,14 @@ class GpCemSSM(CemSSM):
                                     kernel=BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen),
                                     likelihood=self._likelihood)
         self._model.eval()
+
+    @property
+    def x_train(self) -> Optional[Tensor]:
+        """Returns the x values of the current training data."""
+        if self._model.train_inputs is None:
+            return None
+        else:
+            return torch.stack(self._model.train_inputs)
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         x = self._join_states_actions(states, actions)
