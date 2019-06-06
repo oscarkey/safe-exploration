@@ -5,8 +5,8 @@ import pytest
 import torch
 from polytope import polytope
 
-from .. import gp_reachability as gp_reachability_numpy
-from .. import gp_reachability_pytorch
+from .. import gp_reachability as reachability_np
+from .. import gp_reachability_pytorch as reachability_pt
 from ..ssm_cem import CemSSM
 from ..ssm_cem import GpCemSSM
 from ..state_space_models import StateSpaceModel
@@ -91,17 +91,32 @@ def test__onestep_reachability__returns_the_same_as_numpy_impl(before_test_onest
     n_s, n_u, p, q, ssm, k_fb, k_ff, L_mu, L_sigm, c_safety, a, b = before_test_onestep_reachability
     numpy_ssm = CemSSMNumpyWrapper(n_s, n_u, ssm)
 
-    p_numpy, q_numpy = gp_reachability_numpy.onestep_reachability(p, numpy_ssm, k_ff, L_mu, L_sigm, q, k_fb, c_safety,
-                                                                  verbose=0, a=a, b=b)
+    p_numpy, q_numpy = reachability_np.onestep_reachability(p, numpy_ssm, k_ff, L_mu, L_sigm, q, k_fb, c_safety,
+                                                            verbose=0, a=a, b=b)
 
     q = torch.tensor(q) if q is not None else q
-    p_pytorch, q_pytorch = gp_reachability_pytorch.onestep_reachability(torch.tensor(p), ssm, torch.tensor(k_ff),
-                                                                        torch.tensor(L_mu), torch.tensor(L_sigm), q,
-                                                                        torch.tensor(k_fb), c_safety, verbose=0,
-                                                                        a=torch.tensor(a), b=torch.tensor(b))
+    p_pytorch, q_pytorch, _ = reachability_pt.onestep_reachability(torch.tensor(p), ssm, torch.tensor(k_ff),
+                                                                   torch.tensor(L_mu), torch.tensor(L_sigm), q,
+                                                                   torch.tensor(k_fb), c_safety, verbose=0,
+                                                                   a=torch.tensor(a), b=torch.tensor(b))
 
     assert np.allclose(p_pytorch.detach().numpy(), p_numpy), "Centers of the next states should be the same"
     assert np.allclose(q_pytorch.detach().numpy(), q_numpy), "Shapes of the next states should be the same"
+
+
+def test__onestep_reachability__sigma_same_as_gp_output(before_test_onestep_reachability):
+    n_s, n_u, p, q, ssm, k_fb, k_ff, L_mu, L_sigm, c_safety, a, b = before_test_onestep_reachability
+    q = torch.tensor(q) if q is not None else q
+
+    _, _, pred_sigma = reachability_pt.onestep_reachability(torch.tensor(p), ssm, torch.tensor(k_ff),
+                                                            torch.tensor(L_mu), torch.tensor(L_sigm), q,
+                                                            torch.tensor(k_fb), c_safety, verbose=0, a=torch.tensor(a),
+                                                            b=torch.tensor(b))
+
+    _, actual_sigma = ssm.predict_without_jacobians(torch.tensor(p).transpose(0, 1), torch.tensor(k_ff).transpose(0, 1))
+
+    assert torch.allclose(pred_sigma, actual_sigma)
+    assert pred_sigma.shape == (n_s, 1)
 
 
 def test__is_ellipsoid_inside_polytope__inside__returns_true():
@@ -110,7 +125,7 @@ def test__is_ellipsoid_inside_polytope__inside__returns_true():
     b = torch.tensor(poly.b).unsqueeze(1)
     p = torch.tensor([[5., 5.]]).transpose(0, 1)
     q = torch.tensor([[2., 1.], [1., 2.]])
-    assert gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, A, b) is True
+    assert reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b) is True
 
 
 def test__is_ellipsoid_inside_polytope__partially_out__returns_false():
@@ -119,7 +134,7 @@ def test__is_ellipsoid_inside_polytope__partially_out__returns_false():
     b = torch.tensor(poly.b).unsqueeze(1)
     p = torch.tensor([[0., 0.]]).transpose(0, 1)
     q = torch.tensor([[2., 1.], [1., 2.]])
-    assert gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, A, b) is False
+    assert reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b) is False
 
 
 def test__is_ellipsoid_inside_polytope__outside__returns_false():
@@ -128,4 +143,4 @@ def test__is_ellipsoid_inside_polytope__outside__returns_false():
     b = torch.tensor(poly.b).unsqueeze(1)
     p = torch.tensor([[20., 20.]]).transpose(0, 1)
     q = torch.tensor([[2., 1.], [1., 2.]])
-    assert gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, A, b) is False
+    assert reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b) is False

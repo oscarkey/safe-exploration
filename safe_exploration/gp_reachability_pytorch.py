@@ -15,7 +15,7 @@ from .utils_ellipsoid import ellipsoid_from_rectangle_pytorch, sum_two_ellipsoid
 
 def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tensor, l_sigma: Tensor,
                          q_shape: Tensor = None, k_fb: Tensor = None, c_safety: float = 1., verbose: int = 1,
-                         a: Tensor = None, b: Tensor = None) -> Tuple[Tensor, Tensor]:
+                         a: Tensor = None, b: Tensor = None) -> Tuple[Tensor, Tensor, Tensor]:
     """Over-approximate the reachable set of states under affine control law.
 
     Given a system of the form:
@@ -36,8 +36,10 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
     :param verbose: Verbosity level of the print output
     :param a: Parameter of the linear model.
     :param b: Parameter of the linear model.
-    :returns: ([n_s x 1] Center of the overapproximated next state ellipsoid,
-    [n_s x n_s] Shape matrix of the overapproximated next state ellipsoid)
+    :returns:
+        [n_s x 1] Center of the overapproximated next state ellipsoid,
+        [n_s x n_s] Shape matrix of the overapproximated next state ellipsoid,
+        [n_s x 1] Variance of the GP
     """
     assert_shape(p_center, (ssm.num_states, 1))
     assert_shape(k_ff, (1, ssm.num_actions))
@@ -75,7 +77,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         if verbose > 0:
             print_ellipsoid(p_1, q_1, text="uncertainty first state")
 
-        return p_1.detach(), q_1.detach()
+        return p_1.detach(), q_1.detach(), sigm_0.detach()
     else:
         # The state is a (ellipsoid) set.
         if verbose > 0:
@@ -133,7 +135,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print("volume of ellipsoid summed individually")
             print((torch.det(torch.cholesky(q_1))))
 
-        return p_1.detach(), q_1.detach()
+        return p_1.detach(), q_1.detach(), sigm_0.detach()
 
 
 def lin_ellipsoid_safety_distance(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor,

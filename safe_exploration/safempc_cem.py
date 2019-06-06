@@ -8,6 +8,7 @@ from constrained_cem_mpc.utils import assert_shape
 from polytope import Polytope
 from torch import Tensor
 
+from .gp_reachability_pytorch import onestep_reachability
 from . import gp_reachability_pytorch
 from .environments import Environment
 from .safempc_simple import LqrFeedbackController
@@ -189,10 +190,9 @@ class CemSafeMPC:
         p = p.unsqueeze(1)
 
         k_ff = action.unsqueeze(1)
-        p_next, q_next = gp_reachability_pytorch.onestep_reachability(p, self._ssm, k_ff, self._l_mu, self._l_sigma, q,
-                                                                      k_fb=self._lqr.get_control_matrix_pytorch(),
-                                                                      a=self._linearized_model_a,
-                                                                      b=self._linearized_model_b, verbose=0)
+        p_next, q_next, sigma = onestep_reachability(p, self._ssm, k_ff, self._l_mu, self._l_sigma, q,
+                                                     k_fb=self._lqr.get_control_matrix_pytorch(),
+                                                     a=self._linearized_model_a, b=self._linearized_model_b, verbose=0)
         return self._pq_flattener.flatten(p_next.squeeze(), q_next), torch.tensor([0.0])
 
     def _get_safe_controller_action(self, state):
