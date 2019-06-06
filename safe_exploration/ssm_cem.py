@@ -1,6 +1,6 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
 from abc import abstractmethod
-from typing import Tuple
+from typing import Tuple, Optional
 
 import gpytorch
 import torch
@@ -28,9 +28,12 @@ class CemSSM:
         Currently only supports a single state action pair.
         TODO: Add batch support.
 
-        :param states (1 x n_s) tensor of states
-        :param actions (1 x n_u) tensor of actions
-        :return (mean of next states [1 x n_s], variance of next states [1 x n_s], jacobian of mean [1 x n_s x n_s])
+        :param states: (1 x n_s) tensor of states
+        :param actions: (1 x n_u) tensor of actions
+        :returns:
+            mean of next states [1 x n_s],
+            variance of next states [1 x n_s],
+            jacobian of mean [1 x n_s x n_s])
         """
         pass
 
@@ -43,7 +46,9 @@ class CemSSM:
 
         :param states (1 x n_s) tensor of states
         :param actions (1 x n_u) tensor of actions
-        :return (mean of next states [1 x n_s], variance of next states [1 x n_s]
+        :returns:
+            mean of next states [1 x n_s],
+            variance of next states [1 x n_s]
         """
         pass
 
@@ -51,9 +56,10 @@ class CemSSM:
     def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
         """Incorporate the given data into the model.
 
-        :param train_x [N x (n_s + n_u)]
-        :param train_y [N x n_s]
-        :param replace_old If True, replace all existing training data with this new training data. Otherwise, merge it.
+        :param train_x: [N x (n_s + n_u)]
+        :param train_y: [N x n_s]
+        :param replace_old: If True, replace all existing training data with this new training data. Otherwise, merge
+                            it.
         """
         pass
 
