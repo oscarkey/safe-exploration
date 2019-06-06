@@ -476,7 +476,7 @@ def generate_initial_samples(env, conf, relative_dynamics, solver, safe_policy):
 
         h_mat_safe, h_safe, _, _ = env.get_safety_constraints(normalize=True)
 
-        bool_mask_inside = np.argwhere(sample_inside_polytope(states_probing, solver.h_mat_safe, solver.h_safe))
+        bool_mask_inside = np.argwhere(sample_inside_polytope(states_probing, h_mat_safe, h_safe))
         states_probing_inside = states_probing[bool_mask_inside, :]
 
         n_inside_first = np.shape(states_probing_inside)[0]
