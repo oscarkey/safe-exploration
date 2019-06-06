@@ -272,7 +272,7 @@ def ellipsoid_from_rectangle(u_b):
 
 
 def ellipsoid_from_rectangle_pytorch(u_b: Tensor) -> Tensor:
-    """ Compute ellipsoid covering box
+    """Compute the ellipsoid covering the given box.
 
     Given a box defined by
 
@@ -283,28 +283,20 @@ def ellipsoid_from_rectangle_pytorch(u_b: Tensor) -> Tensor:
     This can be either done by a diagonal shape matrix (axis-aligned)
     or a rotated/shifted ellipsoid
 
-    Method is described in:
-        [1] :
+    Method is described in: ?
 
     TODO:   Choice of point is terrible as of now, since it contains linearly dependent
             points which are not properly handled.
-
-    Parameters
-    ----------
-        u_b: Tensor, 1d
-            list of length n containing upper bounds of intervals defining box (see above)
-    Returns
-    -------
-        q: Tensor of size n x n
-            Shape matrix of covering ellipsoid
-
+    :param: [N x n] tensor containing upper bounds of intervals defining the boxes (see above) for each of the N in the
+    batch
+    :returns: [N x n x n] shape matrices covering the ellipsoids
     """
-    assert len(u_b.shape) == 1, "lb and ub need to be 1-dimensional!"
-    assert torch.all(u_b > 0), """all elements of u_b need to be greater than zero!
-                            (otherwise the ellipsoid wouldnt be zero-centered) """
-    n = len(u_b)
+    assert len(u_b.shape) == 2
+    assert torch.all(u_b > 0), "all elements of u_b need to be greater than zero! " \
+                               "(otherwise the ellipsoid wouldn't be zero-centered)"
+    n = u_b.shape[1]
     d = n * u_b ** 2
-    q = torch.diag(d)
+    q = torch.diag_embed(d)
 
     return q
 

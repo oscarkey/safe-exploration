@@ -80,38 +80,25 @@ def test_ellipsoid_from_from_rectangle_residuals_zero_(before_ellipsoid_from_rec
 
 
 def test__ellipsoid_from_rectangle_pytorch__ub_below_zero__throws_exception():
-    """ do we get an exception if lb > ub """
-
     with pytest.raises(Exception):
-        ub = [0.6, -0.3]
-        q_shape = ellipsoid_from_rectangle_pytorch(ub)
+        ub = torch.tensor([[0.6, -0.3]])
+        ellipsoid_from_rectangle_pytorch(ub)
 
 
-def test__ellipsoid_from_from_rectangle_pytorch__returns_spd_shape_matrix(before_ellipsoid_from_rectangle):
-    ub = before_ellipsoid_from_rectangle["ub"]
-    n_s = before_ellipsoid_from_rectangle["n_s"]
+def test__ellipsoid_from_from_rectangle_pytorch__returns_same_as_numpy_impl():
+    ub1 = torch.tensor([0.5, 0.2])
+    ub2 = torch.tensor([0.3, 10.0])
+    ub3 = torch.tensor([0.1, 5.6])
+    ub_batch = torch.stack((ub1, ub2, ub3))
 
-    q_shape = ellipsoid_from_rectangle_pytorch(torch.tensor(ub)).numpy()
+    q_numpy_1 = ellipsoid_from_rectangle(ub1.numpy())
+    q_numpy_2 = ellipsoid_from_rectangle(ub2.numpy())
+    q_numpy_3 = ellipsoid_from_rectangle(ub3.numpy())
+    q_pytorch = ellipsoid_from_rectangle_pytorch(ub_batch)
 
-    assert np.all(np.linalg.eigvals(q_shape) > 0)
-    assert np.allclose(0.5 * (q_shape + q_shape.T), q_shape)
-
-
-def test__ellipsoid_from_from_rectangle_pytorch__residuals_zero_at_edges_of_rectangle(before_ellipsoid_from_rectangle):
-    eps_tol = 1e-5
-
-    ub = before_ellipsoid_from_rectangle["ub"]
-    n_s = before_ellipsoid_from_rectangle["n_s"]
-
-    q_shape = ellipsoid_from_rectangle_pytorch(torch.tensor(ub)).numpy()
-
-    p_center = np.zeros((n_s, 1))
-
-    test_points = before_ellipsoid_from_rectangle["test_points"]
-
-    d_test_points = distance_to_center(test_points, p_center, q_shape)
-
-    assert np.all(np.abs(d_test_points - 1) <= eps_tol)
+    assert np.allclose(q_numpy_1, q_pytorch[0].numpy())
+    assert np.allclose(q_numpy_2, q_pytorch[1].numpy())
+    assert np.allclose(q_numpy_3, q_pytorch[2].numpy())
 
 
 @pytest.fixture(params=["t_1", "t_2", "t_3"])

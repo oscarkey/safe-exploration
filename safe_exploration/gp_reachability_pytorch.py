@@ -67,7 +67,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         rkhs_bounds = c_safety * torch.sqrt(sigm_0.transpose(0, 1)).view((n_s,))
 
-        q_1 = ellipsoid_from_rectangle_pytorch(rkhs_bounds)
+        q_1 = ellipsoid_from_rectangle_pytorch(rkhs_bounds.unsqueeze(0)).squeeze()
 
         p_lin = torch.mm(a, p_center) + torch.mm(b, u_p)
         p_1 = p_lin + mu_0
@@ -110,13 +110,13 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         ub_mean, ub_sigma = compute_remainder_overapproximations_pytorch(q_shape, k_fb, l_mu, l_sigma)
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0.transpose(0, 1)) + ub_sigma)
 
-        Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps.squeeze())
+        Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps).squeeze()
         p_lagrange_sigm = torch.zeros((n_s, 1))
 
         if verbose > 0:
             print_ellipsoid(p_lagrange_sigm, Q_lagrange_sigm, text="overapproximation lagrangian sigma")
 
-        Q_lagrange_mu = ellipsoid_from_rectangle_pytorch(ub_mean)
+        Q_lagrange_mu = ellipsoid_from_rectangle_pytorch(ub_mean.unsqueeze(0)).squeeze()
         p_lagrange_mu = torch.zeros((n_s, 1))
 
         if verbose > 0:

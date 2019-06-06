@@ -68,7 +68,7 @@ def before_test_onestep_reachability(request):
 
     train_data = np.load(os.path.join(os.path.dirname(__file__), 'invpend_data.npz'))
     X = torch.tensor(train_data["X"])
-    y = torch.tensor(train_data["y"].T)
+    y = torch.tensor(train_data["y"])
 
     ssm = GpCemSSM(n_s, n_u)
     ssm.update_model(X, y, replace_old=True)
