@@ -16,6 +16,9 @@ from numpy import ndarray
 from casadi import reshape as cas_reshape
 from casadi import sum1, sum2, MX, vertcat, mtimes
 
+from .safempc_simple import SimpleSafeMPC
+from .environments import Environment
+from .safempc import SafeMPC
 from .gp_reachability_casadi import lin_ellipsoid_safety_distance
 from .gp_reachability_casadi import multi_step_reachability as cas_multistep
 
@@ -65,7 +68,8 @@ class StaticSafeMPCExploration(ExplorationModule):
 
     """
 
-    def __init__(self, safempc, env, n_restarts_optimizer=1, sample_mean=None, sample_std=None, verbosity=1):
+    def __init__(self, safempc: SimpleSafeMPC, env, n_restarts_optimizer=1, sample_mean=None, sample_std=None,
+                 verbosity=1):
         """ Initialize with a pre-defined safempc object"""
         self.safempc = safempc
         self.env = env
@@ -352,14 +356,14 @@ class StaticSafeMPCExploration(ExplorationModule):
 
 class DynamicSafeMPCExploration(ExplorationModule):
 
-    def __init__(self, safempc, env):
+    def __init__(self, safempc: SafeMPC, env: Environment):
         """ Initialize with a pre-defined safempc object"""
         self.safempc = safempc
         self.env = env
-        self.n_s = safempc.n_s
-        self.n_u = safempc.n_u
-        self.n_safe = safempc.n_safe
-        self.n_perf = safempc.n_perf
+        self.n_s = safempc.state_dimen
+        self.n_u = safempc.action_dimen
+        self.n_safe = safempc.safety_trajectory_length
+        self.n_perf = safempc.performance_trajectory_length
 
         # 
         cost = None
@@ -371,7 +375,7 @@ class DynamicSafeMPCExploration(ExplorationModule):
 
     def find_max_variance_verbose(self, x_0: ndarray, sol_verbose: bool = False) -> Tuple[ndarray, bool, bool, ndarray,
                                                                                           ndarray, ndarray, ndarray]:
-        u_apply, feasible, _, k_fb, k_ff, p_ctrl, q_all, _ = self.safempc.get_action(x_0, sol_verbose=True)
+        u_apply, feasible, _, k_fb, k_ff, p_ctrl, q_all, _ = self.safempc.get_action_verbose(x_0)
         return x_0[:, None], u_apply, feasible, k_fb, k_ff, p_ctrl, q_all
 
     def update_model(self, x, y, train=False, replace_old=False):
@@ -379,11 +383,11 @@ class DynamicSafeMPCExploration(ExplorationModule):
         self.safempc.update_model(x, y, train, replace_old)
 
     def get_information_gain(self):
-        return self.safempc.ssm.information_gain()
+        return self.safempc.information_gain()
 
     @property
     def x_train(self) -> ndarray:
-        return self.safempc.ssm.x_train
+        return self.safempc.x_train
 
     def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
-        return self.safempc.ssm.predict(z)
+        return self.safempc.ssm_predict(z)

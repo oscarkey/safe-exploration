@@ -6,12 +6,16 @@ Created on Thu Sep 28 09:28:15 2017
 """
 import warnings
 from functools import lru_cache
+from typing import Tuple, Union, List
 
 import casadi as cas
 import numpy as np
 import torch
 from casadi import MX, mtimes, vertcat, sum2, sqrt
 from casadi import reshape as cas_reshape
+from numpy.core._multiarray_umath import ndarray
+
+from .safempc import SafeMPC
 from .gp_reachability_casadi import lin_ellipsoid_safety_distance
 from .gp_reachability_casadi import multi_step_reachability as cas_multistep
 from .uncertainty_propagation_casadi import mean_equivalent_multistep, \
@@ -28,10 +32,8 @@ DEFAULT_OPT_ENV = {'ctrl_bounds': None, 'safe_policy': None, 'lin_model': None,
                    'h_mat_obs': None, 'h_obs': None}
 
 
-class SimpleSafeMPC:
-    """ Simplified implementation of the SafeMPC algorithm in Casadi
-
-    """
+class SimpleSafeMPC(SafeMPC):
+    """ Simplified implementation of the SafeMPC algorithm in Casadi."""
 
     def __init__(self, n_safe, ssm, opt_env, wx_cost, wu_cost, beta_safety=2.5,
                  rhc=True,
@@ -165,6 +167,22 @@ class SimpleSafeMPC:
             warnings.warn("No SafePolicy!")
 
         # init safe
+
+    @property
+    def state_dimen(self) -> int:
+        return self.n_s
+
+    @property
+    def action_dimen(self) -> int:
+        return self.n_u
+
+    @property
+    def safety_trajectory_length(self) -> int:
+        return self.n_safe
+
+    @property
+    def performance_trajectory_length(self) -> int:
+        return self.n_perf
 
     def init_solver(self, cost_func=None):
         """ Initialize a casadi solver object corresponding to the SafeMPC optimization problem
@@ -588,7 +606,7 @@ class SimpleSafeMPC:
 
         return p_all, q_all
 
-    def get_action(self, x0_mu, lqr_only=False, sol_verbose=False):
+    def get_action(self, x0_mu: ndarray) -> Tuple[ndarray, bool]:
         """ Wrapper around the solve function
 
         Parameters
@@ -605,21 +623,12 @@ class SimpleSafeMPC:
             AND we have to revert to the safe controller.
         """
         safety_failure = False
-        if lqr_only:
-            u_apply = self.safe_policy(x0_mu)
+        u_apply, success = self.solve(x0_mu[:, None])
+        return u_apply.reshape(self.n_u, ), success
 
-            return u_apply, safety_failure
-
-        if sol_verbose:
-            u_apply, feasible, success, k_fb_apply, k_ff_all, p_all, q_all = self.solve(
-                x0_mu[:, None], sol_verbose=True)
-            return u_apply.reshape(
-                self.n_u, ), feasible, success, k_fb_apply, k_ff_all, p_all, q_all
-
-        else:
-            u_apply, success = self.solve(x0_mu[:, None])
-
-            return u_apply.reshape(self.n_u, ), success
+    def get_action_verbose(self, x0_mu: ndarray):
+        u_apply, feasible, success, k_fb_apply, k_ff_all, p_all, q_all = self.solve(x0_mu[:, None], sol_verbose=True)
+        return u_apply.reshape(self.n_u, ), feasible, success, k_fb_apply, k_ff_all, p_all, q_all
 
     def solve(self, p_0, u_0=None, k_ff_all_0=None, k_fb_0=None, u_perf_0=None,
               k_fb_perf_0=None, sol_verbose=False):
@@ -1077,6 +1086,16 @@ class SimpleSafeMPC:
         else:
             warnings.warn("""Updating gp without reinitializing the solver! \n
                 This is potentially dangerous, since the new GP is not incorporated in the MPC""")
+
+    @property
+    def x_train(self) -> ndarray:
+        return self.ssm.x_train
+
+    def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
+        return self.ssm.predict(z)
+
+    def information_gain(self) -> Union[ndarray, List[None]]:
+        return self.ssm.information_gain()
 
 
 class LqrFeedbackController:
