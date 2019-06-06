@@ -210,7 +210,7 @@ class SimpleSafeMPC:
                                               [p_0, u_0, k_fb_0, k_ff_all],
                                               [p_all, q_all])
 
-        g_safe, lbg_safe, ubg_safe, g_names_safe = self.generate_safety_constraints(
+        g_safe, lbg_safe, ubg_safe, g_names_safe = self._generate_safety_constraints(
             p_all, q_all, u_0, k_fb_0, k_ff_all)
         g = vertcat(g, g_safe)
         lbg += lbg_safe
@@ -234,12 +234,12 @@ class SimpleSafeMPC:
             sigma_perf = np.array([])
             gp_sigma_pred_perf_all = None
 
-        cost = self.generate_cost_function(p_0, u_0, p_all, q_all, mu_perf, sigma_perf,
-                                           k_ff_all, k_fb_0, gp_sigma_pred_safe_all,
-                                           k_fb_perf=k_fb_perf_traj,
-                                           k_ff_perf=k_ff_perf_traj,
-                                           gp_pred_sigma_perf=gp_sigma_pred_perf_all,
-                                           custom_cost_func=cost_func)
+        cost = self._generate_cost_function(p_0, u_0, p_all, q_all, mu_perf, sigma_perf,
+                                            k_ff_all, k_fb_0, gp_sigma_pred_safe_all,
+                                            k_fb_perf=k_fb_perf_traj,
+                                            k_ff_perf=k_ff_perf_traj,
+                                            gp_pred_sigma_perf=gp_sigma_pred_perf_all,
+                                            custom_cost_func=cost_func)
 
         opt_vars = vertcat(u_0, k_ff_perf, k_ff_all.reshape((-1, 1)))
         opt_params = vertcat(p_0, k_fb_0.reshape((-1, 1)), k_fb_perf.reshape((-1, 1)))
@@ -270,10 +270,10 @@ class SimpleSafeMPC:
         self.g = g
         self.g_name = g_name
 
-    def generate_cost_function(self, p_0, u_0, p_all, q_all, mu_perf, sigma_perf,
-                               k_ff_safe, k_fb_safe, sigma_safe, k_fb_perf=None,
-                               k_ff_perf=None, gp_pred_sigma_perf=None,
-                               custom_cost_func=None, eps_noise=0.0):
+    def _generate_cost_function(self, p_0, u_0, p_all, q_all, mu_perf, sigma_perf,
+                                k_ff_safe, k_fb_safe, sigma_safe, k_fb_perf=None,
+                                k_ff_perf=None, gp_pred_sigma_perf=None,
+                                custom_cost_func=None, eps_noise=0.0):
         # Generate cost function
         if custom_cost_func is None:
             cost = 0
@@ -301,7 +301,7 @@ class SimpleSafeMPC:
 
         return cost
 
-    def generate_safety_constraints(self, p_all, q_all, u_0, k_fb_0, k_ff_all):
+    def _generate_safety_constraints(self, p_all, q_all, u_0, k_fb_0, k_ff_all):
         """ Generate all safety constraints
 
         Parameters
@@ -551,37 +551,7 @@ class SimpleSafeMPC:
 
         return np.dot(state, self.a.T) + np.dot(action, self.b.T)
 
-    def get_lqr_feedback(self, x_0=None, u_0=None):
-        """ Get the initial feedback controller k_fb
-
-        x_0: n_s x 1 ndarray[float], optional
-            Current state of the system
-        u_0: n_u x 1 ndarray[float], optional
-            Initialization of the control input
-
-        """
-        q = self.wx_feedback
-        r = self.wu_feedback
-
-        if x_0 is None:
-            x_0 = np.zeros((self.n_s, 1))
-        if u_0 is None:
-            u_0 = np.zeros((self.n_u, 1))
-
-        if self.lin_prior:
-            a = self.a
-            b = self.b
-
-            k_lqr, _, _ = dlqr(a, b, q, r)
-            k_fb = -k_lqr
-        else:
-
-            raise NotImplementedError(
-                "Cannot compute feed-back matrices without prior model")
-
-        return k_fb.reshape((1, self.n_s * self.n_u))
-
-    def get_safety_trajectory_openloop(self, x_0, u_0, k_fb=None, k_ff=None):
+    def _get_safety_trajectory_openloop(self, x_0, u_0, k_fb=None, k_ff=None):
         """ Compute a trajectory of ellipsoids based on an initial state and a set of controls
 
         Parameters
@@ -781,9 +751,9 @@ class SimpleSafeMPC:
             k_fb_safe_output = array_of_vec_to_array_of_mat(np.copy(k_fb_0), self.n_u,
                                                             self.n_s)
 
-            p_safe, q_safe = self.get_safety_trajectory_openloop(x_0, u_apply,
-                                                                 np.copy(k_fb_0),
-                                                                 k_ff_safe)
+            p_safe, q_safe = self._get_safety_trajectory_openloop(x_0, u_apply,
+                                                                  np.copy(k_fb_0),
+                                                                  k_ff_safe)
 
             p_safe = np.array(p_safe)
             q_safe = np.array(q_safe)
@@ -825,7 +795,7 @@ class SimpleSafeMPC:
                     print("Peformance controls:")
                     print(k_ff_perf_traj_eval)
 
-            feasible, _ = self.eval_safety_constraints(p_safe, q_safe)
+            feasible, _ = self._eval_safety_constraints(p_safe, q_safe)
 
             if self.rhc and feasible:
                 self.k_ff_safe = k_ff_safe
@@ -862,10 +832,10 @@ class SimpleSafeMPC:
                         "Infeasible solution. Switching to previous solution, n_fail = {}, n_safe = {}".format(
                             self.n_fail, self.n_safe)))
                 if sol_verbose:
-                    u_apply, k_fb_safe_output, k_ff_safe_all, p_safe = self.get_old_solution(
+                    u_apply, k_fb_safe_output, k_ff_safe_all, p_safe = self._get_old_solution(
                         x_0, get_ctrl_traj=True)
                 else:
-                    u_apply = self.get_old_solution(x_0)
+                    u_apply = self._get_old_solution(x_0)
                     k_ff_safe_all = u_apply
 
         if sol_verbose:
@@ -873,9 +843,9 @@ class SimpleSafeMPC:
 
         return u_apply, success
 
-    def eval_safety_constraints(self, p_all, q_all, ubg_term=0., lbg_term=-np.inf,
-                                ubg_interm=0., lbg_interm=-np.inf, terminal_only=False,
-                                eps_constraints=1e-5):
+    def _eval_safety_constraints(self, p_all, q_all, ubg_term=0., lbg_term=-np.inf,
+                                 ubg_interm=0., lbg_interm=-np.inf, terminal_only=False,
+                                 eps_constraints=1e-5):
         """ Evaluate the safety constraints """
         g_term_val = self.g_term_cas(p_all[-1, :, None],
                                      cas_reshape(q_all[-1, :], (self.n_s, self.n_s)))
@@ -906,7 +876,7 @@ class SimpleSafeMPC:
 
         return feasible, np.vstack((g_term_val, g_interm_val))
 
-    def get_old_solution(self, x, k=None, get_ctrl_traj=False):
+    def _get_old_solution(self, x, k=None, get_ctrl_traj=False):
         """ Shift previously obtained solutions in time and return solution to be applied
 
         Prameters
