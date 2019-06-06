@@ -5,12 +5,13 @@ import numpy as np
 import torch
 from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint, Rollout, DynamicsFunc
 from constrained_cem_mpc.utils import assert_shape
+from numpy import ndarray
 from polytope import Polytope
 from torch import Tensor
 
-from .gp_reachability_pytorch import onestep_reachability
 from . import gp_reachability_pytorch
 from .environments import Environment
+from .gp_reachability_pytorch import onestep_reachability
 from .safempc_simple import LqrFeedbackController
 from .ssm_cem import GpCemSSM
 from .visualization import utils_visualization
@@ -139,7 +140,7 @@ class CemSafeMPC:
         # TODO: attach the cost function to the mpc.
         pass
 
-    def get_action(self, state: np.ndarray) -> Tuple[np.ndarray, bool]:
+    def get_action(self, state: ndarray) -> Tuple[ndarray, bool]:
         assert_shape(state, (self._state_dimen,))
 
         # If we don't have training data we skip solving the mpc as it won't be any use.
@@ -199,6 +200,6 @@ class CemSafeMPC:
         # TODO: Use the safe policy from the config (though I think this is actually always just lqr)
         return np.dot(self._lqr.get_control_matrix(), state)
 
-    def update_model(self, x, y, opt_hyp=False, replace_old=True, reinitialize_solver=True):
-        self._ssm.update_model(x, y, opt_hyp, replace_old)
+    def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
+        self._ssm.update_model(torch.tensor(x), torch.tensor(y), opt_hyp, replace_old)
         self._has_training_data = True
