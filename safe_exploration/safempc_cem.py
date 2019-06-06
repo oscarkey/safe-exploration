@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Union, List
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint, Rollout
+from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint, Rollout, DynamicsFunc
 from constrained_cem_mpc.utils import assert_shape
 from polytope import Polytope
 from torch import Tensor
@@ -88,15 +88,21 @@ class EllipsoidTerminalConstraint(Constraint):
             return 10
 
 
-def _objective_func(states, actions):
-    return 0
-
-
 def construct_constraints(env: Environment):
     """Creates the polytopic constraints for the MPC problem from the values in the config file."""
     h_mat_safe, h_safe, h_mat_obs, h_obs = env.get_safety_constraints(normalize=True)
     return [ActionConstraint(box2torchpoly([[env.u_min.item(), env.u_max.item()], ])),  #
             EllipsoidTerminalConstraint(env.n_s, h_mat_safe, h_safe)]
+
+
+class DynamicsFuncWrapper(DynamicsFunc):
+    """Wraps a given function as a DynamicsFunc."""
+
+    def __init__(self, func):
+        self._func = func
+
+    def __call__(self, state: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
+        return self._func(state, action)
 
 
 class CemSafeMPC:
@@ -122,7 +128,7 @@ class CemSafeMPC:
                                           linearized_model_b)
 
         # TODO: Load params for CEM from config.
-        self._mpc = ConstrainedCemMpc(self._dynamics_func, _objective_func, constraints=constraints,
+        self._mpc = ConstrainedCemMpc(DynamicsFuncWrapper(self._dynamics_func), constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
                                       time_horizon=2, num_rollouts=20, num_elites=3, num_iterations=8, num_workers=0)
 
@@ -178,7 +184,7 @@ class CemSafeMPC:
 
         plt.show()
 
-    def _dynamics_func(self, state, action):
+    def _dynamics_func(self, state: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
         p, q = self._pq_flattener.unflatten(state)
         p = p.unsqueeze(1)
 
@@ -187,7 +193,7 @@ class CemSafeMPC:
                                                                       k_fb=self._lqr.get_control_matrix_pytorch(),
                                                                       a=self._linearized_model_a,
                                                                       b=self._linearized_model_b, verbose=0)
-        return self._pq_flattener.flatten(p_next.squeeze(), q_next)
+        return self._pq_flattener.flatten(p_next.squeeze(), q_next), torch.tensor([0.0])
 
     def _get_safe_controller_action(self, state):
         # TODO: Use the safe policy from the config (though I think this is actually always just lqr)
