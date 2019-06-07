@@ -166,7 +166,11 @@ def compute_remainder_overapproximations_pytorch(q: Tensor, k_fb: Tensor, l_mu: 
     u_sigma: [N x n_s] The upper bound of the over-approximation of the variance lagrangian remainder
     """
     N, n_u, n_s = k_fb.shape
-    assert q.shape[0] == N and l_mu.shape[0] == N and l_sigma.shape[0] == N
+    assert q.size(0) == N and l_mu.size(0) == N and l_sigma.size(0) == N
+    assert q.dim() == 3 and q.size(1) == q.size(2)
+    assert k_fb.dim() == 3
+    assert l_mu.dim() == 2
+    assert l_sigma.dim() == 2
 
     batch_eye = torch.eye(n_s).repeat((N, 1, 1))
     s = torch.cat((batch_eye, k_fb.transpose(1, 2)), dim=2)
