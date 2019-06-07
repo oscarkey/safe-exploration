@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from ..utils import sample_inside_polytope, assert_shape, compute_remainder_overapproximations, \
-    compute_remainder_overapproximations_pytorch, eigenvalues_batch
+    compute_remainder_overapproximations_pytorch, eigenvalues_batch, trace_batch
 
 
 def test_sample_inside_polytope():
@@ -91,3 +91,19 @@ def test__eigenvalues_batch__returns_same_result_as_torch():
     assert torch.allclose(evs_batch[0], evs1)
     assert torch.allclose(evs_batch[1], evs2)
     assert torch.allclose(evs_batch[2], evs3)
+
+
+def test__trace_batch__returns_same_result_as_torch():
+    x1 = torch.tensor([[1., 2.], [3., 4.]])
+    x2 = torch.tensor([[10., 11.], [12., 13.]])
+    x3 = torch.tensor([[100., 110.], [120., 130.]])
+    x_batch = torch.stack((x1, x2, x3))
+
+    traces_batch = trace_batch(x_batch)
+
+    trace1 = torch.trace(x1)
+    trace2 = torch.trace(x2)
+    trace3 = torch.trace(x3)
+    assert torch.allclose(traces_batch[0], trace1)
+    assert torch.allclose(traces_batch[1], trace2)
+    assert torch.allclose(traces_batch[2], trace3)

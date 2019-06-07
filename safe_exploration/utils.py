@@ -658,3 +658,17 @@ def eigenvalues_batch(xs: Tensor) -> Tensor:
         ev_i, _ = torch.eig(xs[i], eigenvectors=False)
         evs[i] = ev_i
     return evs
+
+
+def trace_batch(xs: Tensor) -> Tensor:
+    """Computes the traces of a batch of 2D tensors.
+
+    :param xs: [N x n x m] batch of tensors to compute the traces of
+    :returns: [N] traces of each tensor in the batch
+    """
+    assert xs.dim() == 3
+    N = xs.shape[0]
+    traces = torch.empty((N))
+    for i in range(N):
+        traces[i] = torch.trace(xs[i])
+    return traces
