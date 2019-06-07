@@ -33,16 +33,30 @@ def test_sample_inside_polytope():
 
 
 def test__compute_remainder_overapproximations_pytorch__returns_same_as_numpy_impl():
-    q = torch.tensor([[2.0, 1.0], [1.0, 3.0]])
-    k_fb = torch.tensor([[1.0, 5.0], [5.0, 9.0]])
+    q_1 = torch.tensor([[2.0, 1.0], [1.0, 3.0]])
+    k_fb_1 = torch.tensor([[1.0, 5.0], [5.0, 9.0]])
+    q_2 = torch.tensor([[10.0, 9.0], [0.5, 2.9]])
+    k_fb_2 = torch.tensor([[1.1, 5.2], [4.5, 6.5]])
+    q_batch = torch.stack((q_1, q_2))
+    k_fb_batch = torch.stack((k_fb_1, k_fb_2))
+
+
     l_mu = torch.tensor([0.01, 0.05])
     l_sigma = torch.tensor([0.02, 0.03])
+    l_mu_batch = l_mu.repeat((2, 1))
+    l_sigma_batch = l_sigma.repeat((2, 1))
 
-    u_numpy, sigma_numpy = compute_remainder_overapproximations(q.numpy(), k_fb.numpy(), l_mu.numpy(), l_sigma.numpy())
-    u_pytorch, sigma_pytorch = compute_remainder_overapproximations_pytorch(q, k_fb, l_mu, l_sigma)
+    u_numpy_1, sigma_numpy_1 = compute_remainder_overapproximations(q_1.numpy(), k_fb_1.numpy(), l_mu.numpy(),
+                                                                    l_sigma.numpy())
+    u_numpy_2, sigma_numpy_2 = compute_remainder_overapproximations(q_2.numpy(), k_fb_2.numpy(), l_mu.numpy(),
+                                                                    l_sigma.numpy())
+    u_pytorch, sigma_pytorch = compute_remainder_overapproximations_pytorch(q_batch, k_fb_batch, l_mu_batch,
+                                                                            l_sigma_batch)
 
-    assert np.allclose(u_numpy, u_pytorch.numpy())
-    assert np.allclose(sigma_numpy, sigma_pytorch.numpy())
+    assert np.allclose(u_numpy_1, u_pytorch[0].numpy())
+    assert np.allclose(sigma_numpy_1, sigma_pytorch[0].numpy())
+    assert np.allclose(u_numpy_2, u_pytorch[1].numpy())
+    assert np.allclose(sigma_numpy_2, sigma_pytorch[1].numpy())
 
 
 def test___assert_shape__correct__does_nothing():

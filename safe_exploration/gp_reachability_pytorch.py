@@ -109,7 +109,10 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print_ellipsoid(p_0, Q_0, text="linear transformation uncertainty")
 
         # computing the box approximate to the lagrange remainder
-        ub_mean, ub_sigma = compute_remainder_overapproximations_pytorch(q_shape, k_fb, l_mu, l_sigma)
+        ub_mean, ub_sigma = compute_remainder_overapproximations_pytorch(q_shape.unsqueeze(0), k_fb.unsqueeze(0),
+                                                                         l_mu.unsqueeze(0), l_sigma.unsqueeze(0))
+        ub_mean = ub_mean.squeeze()
+        ub_sigma = ub_sigma.squeeze()
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0.transpose(0, 1)) + ub_sigma)
 
         Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps).squeeze()

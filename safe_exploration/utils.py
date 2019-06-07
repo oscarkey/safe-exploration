@@ -151,41 +151,42 @@ def compute_remainder_overapproximations(q, k_fb, l_mu, l_sigma):
 
 def compute_remainder_overapproximations_pytorch(q: Tensor, k_fb: Tensor, l_mu: Tensor, l_sigma: Tensor) -> Tuple[
     Tensor, Tensor]:
-    """ Compute the (hyper-)rectangle over-approximating the lagrangians of mu and sigma
+    """Compute the (hyper-)rectangle over-approximating the lagrangians of mu and sigma.
 
     Parameters
     ----------
-    q: n_s x n_s Tensor[float]
-        The shape matrix of the current state ellipsoid
-    k_fb: n_u x n_s Tensor[float]
-        The linear feedback term
-    l_mu: n x 0 numpy Tensor[float]
-        The lipschitz constants for the gradients of the predictive mean
-    l_sigma n x 0 numpy Tensor[float]
-        The lipschitz constans on the predictive variance
+    q: [N x n_s x n_s] The shape matrix of the current state ellipsoid
+    k_fb: [N x n_u x n_s] he linear feedback term
+    l_mu: [N x n] The lipschitz constants for the gradients of the predictive mean
+    l_sigma [N x n] The lipschitz constans on the predictive variance
 
     Returns
     -------
-    u_mu: n_s x 0 numpy Tensor[float]
-        The upper bound of the over-approximation of the mean lagrangian remainder
-    u_sigma: n_s x 0 numpy Tensor[float]
-        The upper bound of the over-approximation of the variance lagrangian remainder
+    u_mu: [N x n_s] The upper bound of the over-approximation of the mean lagrangian remainder
+    u_sigma: [N x n_s] The upper bound of the over-approximation of the variance lagrangian remainder
     """
-    n_u, n_s = k_fb.shape
-    s = torch.cat((torch.eye(n_s), k_fb.transpose(0, 1)), dim=1)
-    b = torch.mm(s, s.transpose(0, 1))
-    qb = torch.mm(q, b)
-    evals, _ = torch.eig(qb)
+    N, n_u, n_s = k_fb.shape
+    assert q.shape[0] == N and l_mu.shape[0] == N and l_sigma.shape[0] == N
 
-    r_sqr = torch.max(evals)
+    batch_eye = torch.eye(n_s).repeat((N, 1, 1))
+    s = torch.cat((batch_eye, k_fb.transpose(1, 2)), dim=2)
+    b = torch.matmul(s, s.transpose(1, 2))
+    qb = torch.matmul(q, b)
+    evals = eigenvalues_batch(qb)
+
+    # Check we only got real parts.
+    assert not (evals[:, :, 1] != 0).any(), 'All imaginary parts should be 0'
+    real_evals = evals[:, :, 0]
+
+    r_sqr = torch.max(real_evals, dim=1)[0]
     # This is equivalent to:
     # q_inv = sLA.inv(q)
     # evals,_,_ = sLA.eig(b,q_inv)
     # however we prefer to avoid the inversion
     # and breaking the symmetry of b and q
 
-    u_mu = l_mu * r_sqr
-    u_sigma = l_sigma * torch.sqrt(r_sqr)
+    u_mu = l_mu * r_sqr.repeat((1,1)).transpose(0, 1)
+    u_sigma = l_sigma * torch.sqrt(r_sqr).repeat((1,1)).transpose(0, 1)
     return u_mu, u_sigma
 
 
