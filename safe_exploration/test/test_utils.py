@@ -9,7 +9,8 @@ import pytest
 import torch
 
 from ..utils import sample_inside_polytope, assert_shape, compute_remainder_overapproximations, \
-    compute_remainder_overapproximations_pytorch, eigenvalues_batch, trace_batch, batch_vector_matrix_mul
+    compute_remainder_overapproximations_pytorch, eigenvalues_batch, trace_batch, batch_vector_matrix_mul, \
+    batch_vector_mul
 
 
 def test_sample_inside_polytope():
@@ -119,6 +120,24 @@ def test__batch_vector_tensor_mul__returns_same_as_individual_multiplications():
     r_batch = batch_vector_matrix_mul(x, v_batch)
 
     assert r_batch.size() == (3, 2)
+    assert torch.allclose(r_batch[0], torch.matmul(x, v1))
+    assert torch.allclose(r_batch[1], torch.matmul(x, v2))
+    assert torch.allclose(r_batch[2], torch.matmul(x, v3))
+
+
+def test__batch_vector_mul__returns_same_as_individual_multiplications():
+    x = torch.tensor([[1, 2]])
+    print('x shape', x.shape)
+    v1 = torch.tensor([1, 2])
+    v2 = torch.tensor([10, 20])
+    v3 = torch.tensor([100, 200])
+    v_batch = torch.stack((v1, v2, v3))
+
+    r_batch = batch_vector_mul(x, v_batch)
+
+    assert r_batch.size() == (3, 2)
+    print('shape1', x.shape, v1.shape)
+    print('shape2', torch.matmul(x, v1).shape)
     assert torch.allclose(r_batch[0], torch.matmul(x, v1))
     assert torch.allclose(r_batch[1], torch.matmul(x, v2))
     assert torch.allclose(r_batch[2], torch.matmul(x, v3))
