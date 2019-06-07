@@ -13,17 +13,29 @@ from ..utils_ellipsoid import distance_to_center, ellipsoid_from_rectangle, elli
 
 
 def test__sum_two_ellipsoids_pytorch__gives_same_result_as_numpy_impl():
-    p1 = np.array([0.0, 1.0])
-    q1 = np.array([[2.0, 1.0], [1.0, 2.0]])
-    p2 = np.array([2.0, 2.0])
-    q2 = np.array([[4.0, 1.0], [1.0, 2.0]])
+    p_a_1 = torch.tensor([0.0, 1.0])
+    q_a_1 = torch.tensor([[2.0, 1.0], [1.0, 2.0]])
+    p_b_1 = torch.tensor([2.0, 2.0])
+    q_b_1 = torch.tensor([[4.0, 1.0], [1.0, 2.0]])
 
-    p_numpy, q_numpy = sum_two_ellipsoids(p1, q1, p2, q2)
-    p_torch, q_torch = sum_two_ellipsoids_pytorch(torch.tensor(p1), torch.tensor(q1), torch.tensor(p2),
-                                                  torch.tensor(q2))
+    p_a_2 = torch.tensor([0.1, 1.1])
+    q_a_2 = torch.tensor([[2.1, 1.1], [1.1, 2.1]])
+    p_b_2 = torch.tensor([2.1, 2.1])
+    q_b_2 = torch.tensor([[4.1, 1.1], [1.1, 2.1]])
 
-    assert np.allclose(p_numpy, p_torch.numpy())
-    assert np.allclose(q_numpy, q_torch.numpy())
+    p_a_batch = torch.stack((p_a_1, p_a_2))
+    q_a_batch = torch.stack((q_a_1, q_a_2))
+    p_b_batch = torch.stack((p_b_1, p_b_2))
+    q_b_batch = torch.stack((q_b_1, q_b_2))
+
+    p_numpy_1, q_numpy_1 = sum_two_ellipsoids(p_a_1.numpy(), q_a_1.numpy(), p_b_1.numpy(), q_b_1.numpy())
+    p_numpy_2, q_numpy_2 = sum_two_ellipsoids(p_a_2.numpy(), q_a_2.numpy(), p_b_2.numpy(), q_b_2.numpy())
+    p_torch, q_torch = sum_two_ellipsoids_pytorch(p_a_batch, q_a_batch, p_b_batch, q_b_batch)
+
+    assert np.allclose(p_numpy_1, p_torch[0].numpy())
+    assert np.allclose(q_numpy_1, q_torch[0].numpy())
+    assert np.allclose(p_numpy_2, p_torch[1].numpy())
+    assert np.allclose(q_numpy_2, q_torch[1].numpy())
 
 
 @pytest.fixture(params=["rectangle", "cube"])

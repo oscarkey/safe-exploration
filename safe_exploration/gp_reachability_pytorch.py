@@ -127,10 +127,10 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         if verbose > 0:
             print_ellipsoid(p_lagrange_mu, Q_lagrange_mu, text="overapproximation lagrangian mu")
 
-        p_sum_lagrange, Q_sum_lagrange = sum_two_ellipsoids_pytorch(p_lagrange_sigm, Q_lagrange_sigm, p_lagrange_mu,
+        p_sum_lagrange, Q_sum_lagrange = sum_two_ellipsoids_non_batch(p_lagrange_sigm, Q_lagrange_sigm, p_lagrange_mu,
                                                                     Q_lagrange_mu)
 
-        p_1, q_1 = sum_two_ellipsoids_pytorch(p_sum_lagrange, Q_sum_lagrange, p_0, Q_0)
+        p_1, q_1 = sum_two_ellipsoids_non_batch(p_sum_lagrange, Q_sum_lagrange, p_0, Q_0)
 
         if verbose > 0:
             print_ellipsoid(p_1, q_1, text="accumulated uncertainty current step")
@@ -139,6 +139,11 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print((torch.det(torch.cholesky(q_1))))
 
         return p_1.detach(), q_1.detach(), sigm_0.detach()
+
+
+def sum_two_ellipsoids_non_batch(p_0, q_0, p_1, q_1):
+    p, q = sum_two_ellipsoids_pytorch(p_0.unsqueeze(0), q_0.unsqueeze(0), p_1.unsqueeze(0), q_1.unsqueeze(0))
+    return p.squeeze(), q.squeeze()
 
 
 def lin_ellipsoid_safety_distance(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor,

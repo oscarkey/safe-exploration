@@ -15,6 +15,8 @@ import torch
 from numpy import sqrt, trace
 from torch import Tensor
 
+from utils import assert_shape, trace_batch
+
 
 def sample_inside_ellipsoid(samples, p_center, q_shape, c=1.):
     """ Check if a sample is inside a given ellipsoid
@@ -99,32 +101,34 @@ def sum_two_ellipsoids(p_1, q_1, p_2, q_2, c=None):
 
 def sum_two_ellipsoids_pytorch(p_1: Tensor, q_1: Tensor, p_2: Tensor, q_2: Tensor, c: float = None) -> Tuple[
     Tensor, Tensor]:
-    """  Sum of two ellipsoids
+    """Sum of two ellipsoids.
 
-    Computes the ellipsoidal overapproximation of the sum of two n-dimensional
-    ellipsoids.
-    from:
-    "A Kurzhanski, I Valyi - Ellipsoidal Calculus for Estimation and Control"
+    Computes the ellipsoidal overapproximation of the sum of two n-dimensional ellipsoids.
+    From: "A Kurzhanski, I Valyi - Ellipsoidal Calculus for Estimation and Control"
 
     Parameters
     ----------
-    p_1,p_2: n x 1 tensor
-        The centers of the ellipsoids to sum
-    q_1,q_2: n x n tensor
-        The shape matrices of the two ellipsoids
+    p_1,p_2: N x n x 1 tensor
+        The centers of the ellipsoids to sum, where N is the batch dimension.
+    q_1,q_2: N x n x n tensor
+        The shape matrices of the two ellipsoids, where N is the batch dimension.
     c: float, optional
-        The
+        ?
+
     Returns
     -------
-    p_new: n x 1 tensor
+    p_new: N x n x 1 tensor
         The center of the resulting ellipsoid
-    q_new: n x n tensor
+    q_new: N x n x n tensor
         The shape matrix of the resulting ellipsoid
     """
+    assert_shape(p_2, p_1.shape)
+    assert_shape(q_2, q_1.shape)
+    assert p_1.shape[0] == q_1.shape[0], 'p and q must have same batch sizes'
 
     # choose p s.t. the trace of the new shape matrix is minimized
     if c is None:
-        c = torch.sqrt(torch.trace(q_1) / torch.trace(q_2))
+        c = torch.sqrt(trace_batch(q_1) / trace_batch(q_2))
 
     p_new = p_1 + p_2
     q_new = (1 + (1. / c)) * q_1 + (1 + c) * q_2
