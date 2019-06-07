@@ -8,7 +8,8 @@ import numpy as np
 import pytest
 import torch
 
-from ..utils import sample_inside_polytope, assert_shape, compute_remainder_overapproximations, compute_remainder_overapproximations_pytorch
+from ..utils import sample_inside_polytope, assert_shape, compute_remainder_overapproximations, \
+    compute_remainder_overapproximations_pytorch, eigenvalues_batch
 
 
 def test_sample_inside_polytope():
@@ -60,3 +61,19 @@ def test__assert_shape__none_but_ignore_true__does_nothing():
 def test__assert_shape__none_and_ignore_false__throws():
     with pytest.raises(ValueError):
         assert_shape(None, (), ignore_if_none=False)
+
+
+def test__eigenvalues_batch__returns_same_result_as_torch():
+    x1 = torch.tensor([[1., 2.], [3., 4.]])
+    x2 = torch.tensor([[10., 11.], [12., 13.]])
+    x3 = torch.tensor([[100., 110.], [120., 130.]])
+    x_batch = torch.stack((x1, x2, x3))
+
+    evs_batch = eigenvalues_batch(x_batch)
+
+    evs1, _ = torch.eig(x1)
+    evs2, _ = torch.eig(x2)
+    evs3, _ = torch.eig(x3)
+    assert torch.allclose(evs_batch[0], evs1)
+    assert torch.allclose(evs_batch[1], evs2)
+    assert torch.allclose(evs_batch[2], evs3)

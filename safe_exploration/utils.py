@@ -640,3 +640,18 @@ def assert_shape(x, shape: tuple, ignore_if_none=False) -> None:
 
     if x.shape != shape:
         raise ValueError(f'Wanted shape {shape}, got {x.shape}')
+
+
+def eigenvalues_batch(xs: Tensor) -> Tensor:
+    """Computes the eigen values of a batch of 2D tensors, using torch.eig().
+
+    :param xs: [N x n x n] batch of size N, of tensors to compute the eigenvalues of
+    :returns: [N x n x 2] the n eigenvalues for each of the N tensors in the batch, where dimension 0 is the real part
+                          and dimension 1 is the imaginary part
+    """
+    assert xs.dim() == 3 and xs.shape[1] == xs.shape[2], f'Wanted (N, n, n), got {xs.shape}'
+    evs = []
+    for x in xs:
+        ev_i, _ = torch.eig(x, eigenvectors=False)
+        evs.append(ev_i)
+    return torch.stack(evs)
