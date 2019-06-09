@@ -12,30 +12,42 @@ from ..utils_ellipsoid import distance_to_center, ellipsoid_from_rectangle, elli
     sum_two_ellipsoids, sum_two_ellipsoids_pytorch
 
 
+def setup_module():
+    torch.set_default_dtype(torch.double)
+
+
 def test__sum_two_ellipsoids_pytorch__gives_same_result_as_numpy_impl():
     p_a_1 = torch.tensor([0.0, 1.0])
     q_a_1 = torch.tensor([[2.0, 1.0], [1.0, 2.0]])
     p_b_1 = torch.tensor([2.0, 2.0])
     q_b_1 = torch.tensor([[4.0, 1.0], [1.0, 2.0]])
 
-    p_a_2 = torch.tensor([0.1, 1.1])
-    q_a_2 = torch.tensor([[2.1, 1.1], [1.1, 2.1]])
-    p_b_2 = torch.tensor([2.1, 2.1])
-    q_b_2 = torch.tensor([[4.1, 1.1], [1.1, 2.1]])
+    p_a_2 = torch.tensor([10.1, 11.1])
+    q_a_2 = torch.tensor([[12.1, 11.1], [11.1, 12.1]])
+    p_b_2 = torch.tensor([12.1, 12.1])
+    q_b_2 = torch.tensor([[14.1, 11.1], [11.1, 12.1]])
 
-    p_a_batch = torch.stack((p_a_1, p_a_2))
-    q_a_batch = torch.stack((q_a_1, q_a_2))
-    p_b_batch = torch.stack((p_b_1, p_b_2))
-    q_b_batch = torch.stack((q_b_1, q_b_2))
+    p_a_3 = torch.tensor([100.1, 101.1])
+    q_a_3 = torch.tensor([[102.1, 101.1], [101.1, 102.1]])
+    p_b_3 = torch.tensor([102.1, 102.1])
+    q_b_3 = torch.tensor([[104.1, 101.1], [101.1, 102.1]])
+
+    p_a_batch = torch.stack((p_a_1, p_a_2, p_a_3))
+    q_a_batch = torch.stack((q_a_1, q_a_2, q_a_3))
+    p_b_batch = torch.stack((p_b_1, p_b_2, p_b_3))
+    q_b_batch = torch.stack((q_b_1, q_b_2, q_b_3))
 
     p_numpy_1, q_numpy_1 = sum_two_ellipsoids(p_a_1.numpy(), q_a_1.numpy(), p_b_1.numpy(), q_b_1.numpy())
     p_numpy_2, q_numpy_2 = sum_two_ellipsoids(p_a_2.numpy(), q_a_2.numpy(), p_b_2.numpy(), q_b_2.numpy())
+    p_numpy_3, q_numpy_3 = sum_two_ellipsoids(p_a_3.numpy(), q_a_3.numpy(), p_b_3.numpy(), q_b_3.numpy())
     p_torch, q_torch = sum_two_ellipsoids_pytorch(p_a_batch, q_a_batch, p_b_batch, q_b_batch)
 
     assert np.allclose(p_numpy_1, p_torch[0].numpy())
     assert np.allclose(q_numpy_1, q_torch[0].numpy())
     assert np.allclose(p_numpy_2, p_torch[1].numpy())
     assert np.allclose(q_numpy_2, q_torch[1].numpy())
+    assert np.allclose(p_numpy_3, p_torch[2].numpy())
+    assert np.allclose(q_numpy_3, q_torch[2].numpy())
 
 
 @pytest.fixture(params=["rectangle", "cube"])

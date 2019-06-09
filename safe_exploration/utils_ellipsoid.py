@@ -99,7 +99,7 @@ def sum_two_ellipsoids(p_1, q_1, p_2, q_2, c=None):
     return p_new, q_new
 
 
-def sum_two_ellipsoids_pytorch(p_1: Tensor, q_1: Tensor, p_2: Tensor, q_2: Tensor, c: float = None) -> Tuple[
+def sum_two_ellipsoids_pytorch(p_1: Tensor, q_1: Tensor, p_2: Tensor, q_2: Tensor) -> Tuple[
     Tensor, Tensor]:
     """Sum of two ellipsoids.
 
@@ -108,29 +108,31 @@ def sum_two_ellipsoids_pytorch(p_1: Tensor, q_1: Tensor, p_2: Tensor, q_2: Tenso
 
     Parameters
     ----------
-    p_1,p_2: N x n x 1 tensor
+    p_1, p_2: N x n tensor
         The centers of the ellipsoids to sum, where N is the batch dimension.
-    q_1,q_2: N x n x n tensor
+    q_1, q_2: N x n x n tensor
         The shape matrices of the two ellipsoids, where N is the batch dimension.
     c: float, optional
         ?
 
     Returns
     -------
-    p_new: N x n x 1 tensor
+    p_new: N x n tensor
         The center of the resulting ellipsoid
     q_new: N x n x n tensor
         The shape matrix of the resulting ellipsoid
     """
-    assert p_1.dim() == 3, f'Wanted p_1 [N x n x 1], got {p_1.size()}'
+    assert p_1.dim() == 2, f'Wanted p_1 [N x n], got {p_1.size()}'
     assert q_1.dim() == 3, f'Wanted q_1 [N x n x n], got {q_1.size()}'
-    assert_shape(p_2, p_1.shape)
-    assert_shape(q_2, q_1.shape)
-    assert p_1.shape[0] == q_1.shape[0], 'p and q must have same batch sizes'
+    assert p_1.size(0) == q_1.size(0), 'p and q must have same batch sizes'
+    assert_shape(p_2, p_1.size())
+    assert_shape(q_2, q_1.size())
+    n = p_1.size(1)
 
     # choose p s.t. the trace of the new shape matrix is minimized
-    if c is None:
-        c = torch.sqrt(trace_batch(q_1) / trace_batch(q_2))
+    c = torch.sqrt(trace_batch(q_1) / trace_batch(q_2))
+    # Repeat c to match the dimensions of q in for every batch, ready for element-wise multiplication.
+    c = c.unsqueeze(1).unsqueeze(1).repeat((1, n, n))
 
     p_new = p_1 + p_2
     q_new = (1 + (1. / c)) * q_1 + (1 + c) * q_2
