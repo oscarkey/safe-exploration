@@ -5,6 +5,7 @@ import pytest
 import torch
 from polytope import polytope
 
+from utils import assert_shape
 from .. import gp_reachability as reachability_np
 from .. import gp_reachability_pytorch as reachability_pt
 from ..ssm_cem import CemSSM
@@ -28,11 +29,15 @@ class CemSSMNumpyWrapper(StateSpaceModel):
             raise NotImplementedError
 
         if jacobians:
-            results = self._ssm.predict_with_jacobians(torch.tensor(states), torch.tensor(actions))
+            p, q, j = self._ssm.predict_with_jacobians(torch.tensor(states), torch.tensor(actions))
+            # CemSSM returns p: [N x n_s], StateSpaceModel returns [N x n_s x 1] (not sure why).
+            p = p.unsqueeze(1)
+            return self._convert_to_numpy((p, q, j))
         else:
-            results = self._ssm.predict_without_jacobians(torch.tensor(states), torch.tensor(actions))
-
-        return self._convert_to_numpy(results)
+            p, q = self._ssm.predict_without_jacobians(torch.tensor(states), torch.tensor(actions))
+            # CemSSM returns p: [N x n_s], StateSpaceModel returns [N x n_s x 1] (not sure why).
+            p = p.unsqueeze(1)
+            return self._convert_to_numpy(p, q)
 
     @staticmethod
     def _convert_to_numpy(xs):
@@ -63,8 +68,10 @@ def before_test_onestep_reachability(request):
     a = None
     b = None
     if lin_model:
-        a = np.random.rand(n_s, n_s)
-        b = np.random.rand(n_s, n_u)
+        a = torch.rand((n_s, n_s))
+        b = torch.rand((n_s, n_u))
+    a_np = a.numpy() if a is not None else a
+    b_np = b.numpy() if b is not None else b
 
     train_data = np.load(os.path.join(os.path.dirname(__file__), 'invpend_data.npz'))
     X = torch.tensor(train_data["X"])
@@ -73,50 +80,68 @@ def before_test_onestep_reachability(request):
     ssm = GpCemSSM(n_s, n_u)
     ssm.update_model(X, y, replace_old=True)
 
-    L_mu = np.array([0.001] * n_s)
-    L_sigm = np.array([0.001] * n_s)
-    k_fb = np.random.rand(n_u, n_s)  # need to choose this appropriately later
-    k_ff = np.random.rand(n_u, 1)
+    L_mu = torch.tensor([0.001] * n_s)
+    L_sigm = torch.tensor([0.001] * n_s)
+    k_fb = torch.rand((n_u, n_s))  # need to choose this appropriately later
 
-    p = .1 * np.random.randn(n_s, 1)
-    if init_uncertainty:
-        q = .2 * np.array([[.5, .2], [.2, .65]])  # reachability based on previous uncertainty
-    else:
-        q = None  # no initial uncertainty
-
-    return n_s, n_u, p, q, ssm, k_fb, k_ff, L_mu, L_sigm, c_safety, a, b
+    return n_s, n_u, ssm, k_fb, L_mu, L_sigm, c_safety, a, b, a_np, b_np, init_uncertainty
 
 
 def test__onestep_reachability__returns_the_same_as_numpy_impl(before_test_onestep_reachability):
-    n_s, n_u, p, q, ssm, k_fb, k_ff, L_mu, L_sigm, c_safety, a, b = before_test_onestep_reachability
+    N = 2
+    n_s, n_u, ssm, k_fb, L_mu, L_sigm, c_safety, a, b, a_np, b_np, init_uncertainty = before_test_onestep_reachability
     numpy_ssm = CemSSMNumpyWrapper(n_s, n_u, ssm)
 
-    p_numpy, q_numpy = reachability_np.onestep_reachability(p, numpy_ssm, k_ff, L_mu, L_sigm, q, k_fb, c_safety,
-                                                            verbose=0, a=a, b=b)
+    p = .1 * torch.rand((N, n_s))
+    if init_uncertainty:
+        q = .2 * torch.tensor([[[.6, .21], [.21, .55]], [[.5, .2], [.2, .65]]])
+        assert_shape(q, (N, n_s, n_s))
+    else:
+        q = None
+    k_ff = torch.rand((N, n_u))
 
-    q = torch.tensor(q) if q is not None else q
-    p_pytorch, q_pytorch, _ = reachability_pt.onestep_reachability(torch.tensor(p), ssm, torch.tensor(k_ff),
-                                                                   torch.tensor(L_mu), torch.tensor(L_sigm), q,
-                                                                   torch.tensor(k_fb), c_safety, verbose=0,
-                                                                   a=torch.tensor(a), b=torch.tensor(b))
+    # Remove batches.
+    p_1 = p[0].unsqueeze(1).numpy()
+    k_ff_1 = k_ff[0].unsqueeze(0).numpy()
+    q_1 = q[0].numpy() if q is not None else q
+    p_2 = p[1].unsqueeze(1).numpy()
+    k_ff_2 = k_ff[1].unsqueeze(0).numpy()
+    q_2 = q[1].numpy() if q is not None else q
+    p_new_1, q_new_1 = reachability_np.onestep_reachability(p_1, numpy_ssm, k_ff_1, L_mu.numpy(), L_sigm.numpy(), q_1,
+                                                            k_fb.numpy(), c_safety, verbose=0, a=a_np, b=b_np)
+    p_new_2, q_new_2 = reachability_np.onestep_reachability(p_2, numpy_ssm, k_ff_2, L_mu.numpy(), L_sigm.numpy(), q_2,
+                                                            k_fb.numpy(), c_safety, verbose=0, a=a_np, b=b_np)
 
-    assert np.allclose(p_pytorch.detach().numpy(), p_numpy), "Centers of the next states should be the same"
-    assert np.allclose(q_pytorch.detach().numpy(), q_numpy), "Shapes of the next states should be the same"
+    p_new_pt, q_new_pt, _ = reachability_pt.onestep_reachability(p, ssm, k_ff, L_mu, L_sigm, q, k_fb, c_safety,
+                                                                 verbose=0, a=a, b=b)
+
+    assert np.allclose(p_new_pt[0].numpy(), p_new_1.squeeze())
+    assert np.allclose(q_new_pt[0].numpy(), q_new_1.squeeze())
+    assert np.allclose(p_new_pt[1].numpy(), p_new_2.squeeze())
+    assert np.allclose(q_new_pt[1].numpy(), q_new_2.squeeze())
 
 
 def test__onestep_reachability__sigma_same_as_gp_output(before_test_onestep_reachability):
-    n_s, n_u, p, q, ssm, k_fb, k_ff, L_mu, L_sigm, c_safety, a, b = before_test_onestep_reachability
-    q = torch.tensor(q) if q is not None else q
+    N = 2
+    n_s, n_u, ssm, k_fb, L_mu, L_sigm, c_safety, a, b, a_np, b_np, init_uncertainty = before_test_onestep_reachability
 
-    _, _, pred_sigma = reachability_pt.onestep_reachability(torch.tensor(p), ssm, torch.tensor(k_ff),
-                                                            torch.tensor(L_mu), torch.tensor(L_sigm), q,
-                                                            torch.tensor(k_fb), c_safety, verbose=0, a=torch.tensor(a),
-                                                            b=torch.tensor(b))
+    p = .1 * torch.rand((N, n_s))
+    if init_uncertainty:
+        q = .2 * torch.tensor([[[.6, .21], [.21, .55]], [[.5, .2], [.2, .65]]])
+        assert_shape(q, (N, n_s, n_s))
+    else:
+        q = None
+    k_ff = torch.rand((N, n_u))
 
-    _, actual_sigma = ssm.predict_without_jacobians(torch.tensor(p).transpose(0, 1), torch.tensor(k_ff).transpose(0, 1))
+    _, _, pred_sigma = reachability_pt.onestep_reachability(p, ssm, k_ff, L_mu, L_sigm, q, k_fb, c_safety, verbose=0,
+                                                            a=a, b=b)
 
-    assert torch.allclose(pred_sigma, actual_sigma)
-    assert pred_sigma.shape == (n_s, 1)
+    _, actual_sigma_1 = ssm.predict_without_jacobians(p[0:1], k_ff[0:1])
+    _, actual_sigma_2 = ssm.predict_without_jacobians(p[1:2], k_ff[1:2])
+
+    assert torch.allclose(pred_sigma[0], actual_sigma_1)
+    assert torch.allclose(pred_sigma[1], actual_sigma_2)
+    assert pred_sigma.shape == (N, n_s)
 
 
 def test__is_ellipsoid_inside_polytope__inside__returns_true():

@@ -9,8 +9,7 @@ import pytest
 import torch
 
 from ..utils import sample_inside_polytope, assert_shape, compute_remainder_overapproximations, \
-    compute_remainder_overapproximations_pytorch, eigenvalues_batch, trace_batch, batch_vector_matrix_mul, \
-    batch_vector_mul
+    compute_remainder_overapproximations_pytorch, eigenvalues_batch, trace_batch, batch_vector_matrix_mul
 
 
 def test_sample_inside_polytope():

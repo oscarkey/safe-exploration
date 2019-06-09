@@ -188,13 +188,16 @@ class CemSafeMPC:
 
     def _dynamics_func(self, state: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
         p, q = self._pq_flattener.unflatten(state)
-        p = p.unsqueeze(1)
 
-        k_ff = action.unsqueeze(1)
-        p_next, q_next, sigma = onestep_reachability(p, self._ssm, k_ff, self._l_mu, self._l_sigma, q,
+        # Add batch dimension.
+        p = p.unsqueeze(0)
+        q = q.unsqueeze(0) if q is not None else q
+        action = action.unsqueeze(0)
+
+        p_next, q_next, sigma = onestep_reachability(p, self._ssm, action, self._l_mu, self._l_sigma, q,
                                                      k_fb=self._lqr.get_control_matrix_pytorch(),
                                                      a=self._linearized_model_a, b=self._linearized_model_b, verbose=0)
-        return self._pq_flattener.flatten(p_next.squeeze(), q_next), torch.tensor([0.0])
+        return self._pq_flattener.flatten(p_next.squeeze(0), q_next.squeeze(0)), torch.tensor([0.0])
 
     def _get_safe_controller_action(self, state):
         # TODO: Use the safe policy from the config (though I think this is actually always just lqr)

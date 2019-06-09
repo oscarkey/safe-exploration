@@ -102,12 +102,15 @@ class GpCemSSM(CemSSM):
         pred = self._model(x)
         jac_mean = utilities.compute_jacobian(pred.mean, x).squeeze()
 
-        return pred.mean, pred.variance, jac_mean
+        # TODO: Why do we have to squeeze here?
+        return pred.mean.squeeze(), pred.variance.squeeze(), jac_mean
 
     def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         x = self._join_states_actions(states, actions)
         pred = self._model(x)
-        return pred.mean, pred.variance
+
+        # TODO: Why do we have to squeeze here?
+        return pred.mean.squeeze(), pred.variance.squeeze()
 
     def _join_states_actions(self, states: Tensor, actions: Tensor) -> Tensor:
         assert_shape(states, (1, self.num_states))
