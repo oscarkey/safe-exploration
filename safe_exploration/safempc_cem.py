@@ -267,3 +267,8 @@ class CemSafeMPC(SafeMPC):
     def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
         mean, sigma = self._ssm.predict_raw(torch.tensor(z))
         return mean.detach().numpy(), sigma.detach().numpy()
+
+    def eval_prior(self, states: ndarray, actions: ndarray):
+        a = self._linearized_model_a.numpy()
+        b = self._linearized_model_b.numpy()
+        return np.dot(states, a.T) + np.dot(actions, b.T)

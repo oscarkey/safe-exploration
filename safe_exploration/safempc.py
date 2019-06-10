@@ -43,6 +43,16 @@ class SafeMPC(ABC):
         pass
 
     @abstractmethod
+    def eval_prior(self, states: ndarray, actions: ndarray):
+        """Compute the prediction of the prior model for the given state and action.
+
+        :param states: [N x n_s] batch of N states
+        :param actions: [N x n_u] batch of N actions
+        :returns: [N x n_s] batch of N next states as predicted by the prior
+        """
+        pass
+
+    @abstractmethod
     def init_solver(self, cost_func=None) -> None:
         pass
 
