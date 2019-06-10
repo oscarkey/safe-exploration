@@ -185,7 +185,7 @@ class CemSafeMPC(SafeMPC):
     def x_train(self) -> ndarray:
         x_train = self._ssm.x_train
         if x_train is None:
-            return np.array([])
+            return np.empty((0, self._state_dimen + self._action_dimen))
         else:
             return x_train.detach().numpy()
 

@@ -85,13 +85,20 @@ class GpCemSSM(CemSSM):
     does not implement the linearization and differentation functions which are only require for Casadi.
     """
 
-    def __init__(self, state_dimen: int, action_dimen: int):
+    def __init__(self, state_dimen: int, action_dimen: int, model: Optional[MultiOutputGP] = None):
+        """Constructs a new instance.
+
+        :param model: Set during unit testing to inject a model.
+        """
         super().__init__(state_dimen, action_dimen)
 
         self._likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
-        self._model = MultiOutputGP(train_x=None, train_y=None,
-                                    kernel=BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen),
-                                    likelihood=self._likelihood)
+        if model is None:
+            self._model = MultiOutputGP(train_x=None, train_y=None,
+                                        kernel=BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen),
+                                        likelihood=self._likelihood)
+        else:
+            self._model = model
         self._model.eval()
 
     @property
@@ -100,7 +107,17 @@ class GpCemSSM(CemSSM):
         if self._model.train_inputs is None:
             return None
         else:
-            return torch.stack(self._model.train_inputs)
+            # train_inputs is list of [output dimen x n x state dimen + action dimen]
+            # It is repeated over output dimen, so we can ignore this.
+            # We want to concatenate over the list in the batch dimension, n.
+            return torch.cat([x[0, :, :] for x in self._model.train_inputs], dim=0)
+
+    @property
+    def y_train(self) -> Optional[Tensor]:
+        if self._model.train_targets is None:
+            return None
+        else:
+            return self._model.train_targets.transpose(0, 1)
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
@@ -131,13 +148,14 @@ class GpCemSSM(CemSSM):
         return torch.cat((states, actions), dim=1)
 
     def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
+        assert train_x.size(0) == train_y.size(0), 'Batch dimensions must be equal.'
         # TODO: select datapoints by highest variance.
         if replace_old or self._model.train_inputs is None or self._model.train_targets is None:
             x_new = train_x
             y_new = train_y
         else:
-            x_new = torch.cat((self._model.train_inputs, train_x), dim=0)
-            y_new = torch.cat((self._model.train_targets, train_y), dim=0)
+            x_new = torch.cat((self.x_train, train_x), dim=0)
+            y_new = torch.cat((self.y_train, train_y), dim=0)
 
         # Hack because set_train_data() does not work if previous data was None.
         self._model.train_inputs = []
