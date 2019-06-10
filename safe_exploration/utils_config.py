@@ -88,7 +88,7 @@ def create_solver(conf, env: Environment):
     elif conf.solver_type == "safempc_cem":
         constraints = safempc_cem.construct_constraints(env)
         solver = CemSafeMPC(constraints=constraints, env=env, opt_env=env_opts_safempc, wx_feedback_cost=wx_cost,
-                            wu_feedback_cost=wu_cost)
+                            wu_feedback_cost=wu_cost, plot_cem_optimisation=conf.plot_cem_optimisation)
     elif conf.solver_type == "cautious_mpc":
         T = conf.T
 

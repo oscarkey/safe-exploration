@@ -101,6 +101,7 @@ class DefaultConfigExploration(DefaultConfig):
     save_dir = None  # the directory such that the overall save location is save_path_base/save_dir/
     save_path_base = "results_exploration"  # the directory such that the overall save location is save_path_base/save_dir/
     data_savename = None
+    plot_cem_optimisation = False
 
     def __init__(self, file_path):
         super(DefaultConfigExploration, self).create_savedirs(file_path)

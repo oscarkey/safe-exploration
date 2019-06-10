@@ -12,6 +12,7 @@ from torch import Tensor
 from . import gp_reachability_pytorch
 from .environments import Environment
 from .gp_reachability_pytorch import onestep_reachability
+from .safempc import SafeMPC
 from .safempc_simple import LqrFeedbackController
 from .ssm_cem import GpCemSSM
 from .visualization import utils_visualization
@@ -132,11 +133,11 @@ class DynamicsFuncWrapper(DynamicsFunc):
         return self._func(states, actions)
 
 
-class CemSafeMPC:
+class CemSafeMPC(SafeMPC):
     """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
     def __init__(self, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost,
-                 wu_feedback_cost) -> None:
+                 wu_feedback_cost, plot_cem_optimisation=True) -> None:
         super().__init__()
 
         self._state_dimen = env.n_s
@@ -155,11 +156,38 @@ class CemSafeMPC:
                                           linearized_model_b)
 
         # TODO: Load params for CEM from config.
+        self._mpc_time_horizon = 2
         self._mpc = ConstrainedCemMpc(DynamicsFuncWrapper(self._dynamics_func), constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
-                                      time_horizon=2, num_rollouts=20, num_elites=3, num_iterations=8)
-
+                                      time_horizon=self._mpc_time_horizon, num_rollouts=20, num_elites=3,
+                                      num_iterations=8)
         self._has_training_data = False
+        self._plot = plot_cem_optimisation
+
+    @property
+    def state_dimen(self) -> int:
+        return self._state_dimen
+
+    @property
+    def action_dimen(self) -> int:
+        return self._action_dimen
+
+    @property
+    def safety_trajectory_length(self) -> int:
+        return self._mpc_time_horizon
+
+    @property
+    def performance_trajectory_length(self) -> int:
+        # We haven't yet implemented performance trajectories in CEM.
+        return 0
+
+    @property
+    def x_train(self) -> ndarray:
+        x_train = self._ssm.x_train
+        if x_train is None:
+            return np.array([])
+        else:
+            return x_train.detach().numpy()
 
     def init_solver(self, cost_func=None):
         # TODO: attach the cost function to the mpc.
@@ -173,7 +201,9 @@ class CemSafeMPC:
         state_batch = torch.tensor(state).unsqueeze(0)
         if self._has_training_data:
             actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
-            self._plot_rollouts(rollouts)
+
+            if self._plot:
+                self._plot_rollouts(rollouts)
         else:
             actions = None
 
@@ -195,6 +225,9 @@ class CemSafeMPC:
             action = self._get_safe_controller_action(state)
 
         return action, success
+
+    def get_action_verbose(self, state: ndarray):
+        raise NotImplementedError
 
     def _plot_rollouts(self, rollouts: List[Rollouts]):
         """Plots the constraint, and the terminal states of the rollouts through the optimisation process."""
@@ -226,3 +259,10 @@ class CemSafeMPC:
     def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
         self._ssm.update_model(torch.tensor(x), torch.tensor(y), opt_hyp, replace_old)
         self._has_training_data = True
+
+    def information_gain(self) -> Union[ndarray, List[None]]:
+        print('Not implemented')
+        return [None] * self.state_dimen
+
+    def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
+        raise NotImplementedError  # return self._ssm.predict_raw(torch.tensor(z)).detach().numpy()
