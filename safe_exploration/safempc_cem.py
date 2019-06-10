@@ -265,4 +265,5 @@ class CemSafeMPC(SafeMPC):
         return [None] * self.state_dimen
 
     def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
-        raise NotImplementedError  # return self._ssm.predict_raw(torch.tensor(z)).detach().numpy()
+        mean, sigma = self._ssm.predict_raw(torch.tensor(z))
+        return mean.detach().numpy(), sigma.detach().numpy()

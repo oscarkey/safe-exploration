@@ -58,6 +58,15 @@ class CemSSM(ABC):
         pass
 
     @abstractmethod
+    def predict_raw(self, z: Tensor):
+        """Predict using stacked state and action.
+
+        :param z: [1 x (n_s + n_u)]
+        :returns: [1 x n_s], [1 x n_s]
+        """
+        pass
+
+    @abstractmethod
     def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
         """Incorporate the given data into the model.
 
@@ -94,23 +103,27 @@ class GpCemSSM(CemSSM):
             return torch.stack(self._model.train_inputs)
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        x = self._join_states_actions(states, actions)
+        z = self._join_states_actions(states, actions)
 
         # We need the gradient to compute the jacobians.
-        x.requires_grad = True
+        z.requires_grad = True
 
-        pred = self._model(x)
-        jac_mean = utilities.compute_jacobian(pred.mean, x).squeeze()
+        pred = self._model(z)
+        jac_mean = utilities.compute_jacobian(pred.mean, z).squeeze()
 
         # TODO: Why do we have to squeeze here?
         return pred.mean.squeeze(), pred.variance.squeeze(), jac_mean
 
     def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
-        x = self._join_states_actions(states, actions)
-        pred = self._model(x)
+        z = self._join_states_actions(states, actions)
+        pred = self._model(z)
 
         # TODO: Why do we have to squeeze here?
         return pred.mean.squeeze(), pred.variance.squeeze()
+
+    def predict_raw(self, z: Tensor):
+        pred = self._model(z)
+        return pred.mean, pred.variance
 
     def _join_states_actions(self, states: Tensor, actions: Tensor) -> Tensor:
         assert_shape(states, (1, self.num_states))
