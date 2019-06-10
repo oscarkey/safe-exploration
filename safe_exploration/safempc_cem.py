@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Union, List
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint, Rollout, DynamicsFunc
+from constrained_cem_mpc import ConstrainedCemMpc, ActionConstraint, box2torchpoly, Constraint, Rollouts, DynamicsFunc
 from constrained_cem_mpc.utils import assert_shape
 from numpy import ndarray
 from polytope import Polytope
@@ -28,17 +28,33 @@ class PQFlattener:
         self._state_dimen = state_dimen
 
     def flatten(self, p: Tensor, q: Optional[Tensor]) -> Tensor:
-        if q is None:
-            q = torch.zeros((self._state_dimen, self._state_dimen), dtype=p.dtype, device=p.device)
+        """Converts p and q into a single state tensor.
 
-        assert_shape(p, (self._state_dimen,))
-        assert_shape(q, (self._state_dimen, self._state_dimen))
-        return torch.cat((p.reshape(-1), q.reshape(-1)))
+        :param p: [N x state dimen], batch of p vectors
+        :param q: [N x state dimen x state dimen], batch of q matricies, or None if all the states are points
+        :returns: [N x (state dimen + state_dimen * state_dimen], batch of flattened states
+        """
+        N = p.size(0)
+
+        if q is None:
+            q = torch.zeros((N, self._state_dimen, self._state_dimen), dtype=p.dtype, device=p.device)
+
+        assert_shape(p, (N, self._state_dimen,))
+        assert_shape(q, (N, self._state_dimen, self._state_dimen))
+        return torch.cat((p.reshape(N, -1), q.reshape(N, -1)), dim=1)
 
     def unflatten(self, flat: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
-        assert_shape(flat, (self.get_flat_state_dimen(),))
-        p = flat[0:self._state_dimen]
-        q = flat[self._state_dimen:].view(self._state_dimen, self._state_dimen)
+        """Converts a flat state into p and q.
+
+        :param flat: [N x (state dimen + state_dimen * state_dimen], batch of flattened states
+        :returns:
+            p: [N x state dimen], batch of p vectors,
+            q: [N x state dimen x state dimen], batch of q matricies, or None if all the states are points
+        """
+        N = flat.size(0)
+        assert_shape(flat, (N, self.get_flat_state_dimen(),))
+        p = flat[:, 0:self._state_dimen]
+        q = flat[:, self._state_dimen:].view(N, self._state_dimen, self._state_dimen)
 
         # If q is all zeros, we treat this as None.
         if len(q.nonzero()) == 0:
@@ -82,8 +98,17 @@ class EllipsoidTerminalConstraint(Constraint):
         self._polytope_b = torch.tensor(safe_polytope_b)
 
     def __call__(self, trajectory, actions) -> float:
-        p, q = self._pq_flattener.unflatten(trajectory[-1])
+        # Add batch dimension.
+        trajectory = trajectory.unsqueeze(0)
+
+        p, q = self._pq_flattener.unflatten(trajectory[:, -1])
+
+        # Remove batch dimension.
+        p = p.squeeze(0)
+        q = q.squeeze(0) if q is not None else q
+
         p = p.unsqueeze(1)
+
         if gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, self._polytope_a, self._polytope_b):
             return 0
         else:
@@ -103,8 +128,8 @@ class DynamicsFuncWrapper(DynamicsFunc):
     def __init__(self, func):
         self._func = func
 
-    def __call__(self, state: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
-        return self._func(state, action)
+    def __call__(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
+        return self._func(states, actions)
 
 
 class CemSafeMPC:
@@ -132,7 +157,7 @@ class CemSafeMPC:
         # TODO: Load params for CEM from config.
         self._mpc = ConstrainedCemMpc(DynamicsFuncWrapper(self._dynamics_func), constraints=constraints,
                                       state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
-                                      time_horizon=2, num_rollouts=20, num_elites=3, num_iterations=8, num_workers=0)
+                                      time_horizon=2, num_rollouts=20, num_elites=3, num_iterations=8)
 
         self._has_training_data = False
 
@@ -144,9 +169,10 @@ class CemSafeMPC:
         assert_shape(state, (self._state_dimen,))
 
         # If we don't have training data we skip solving the mpc as it won't be any use.
-        # This makes the first episode much faster (during which we gather training data).
+        # This makes the first episode much faster (during which we gather training data)
+        state_batch = torch.tensor(state).unsqueeze(0)
         if self._has_training_data:
-            actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(torch.tensor(state), None))
+            actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
             self._plot_rollouts(rollouts)
         else:
             actions = None
@@ -170,34 +196,28 @@ class CemSafeMPC:
 
         return action, success
 
-    def _plot_rollouts(self, rollouts: List[List[Rollout]]):
+    def _plot_rollouts(self, rollouts: List[Rollouts]):
         """Plots the constraint, and the terminal states of the rollouts through the optimisation process."""
         tc = self._mpc._rollout_function._constraints[1]
         _plot_constraints_in_2d(tc._polytope_a.detach().numpy(), tc._polytope_b.detach().numpy(), None, None)
         for i in range(len(rollouts)):
-            for j in range(len(rollouts[i])):
-                t = rollouts[i][j].trajectory[-1]
-                p, q = self._pq_flattener.unflatten(t)
+            ps, qs = self._pq_flattener.unflatten(rollouts[i].trajectories[:, -1, :])
+            for j in range(ps.size(0)):
                 red = hex(round(255.0 / self._mpc._num_iterations * i))[2:]
                 if red == '0':
                     red = '00'
                 color = f'#{red}0000'
-                _plot_ellipsoids_in_2d(p.unsqueeze(1), q, color=color)
+                _plot_ellipsoids_in_2d(ps[j].unsqueeze(1), qs[j], color=color)
 
         plt.show()
 
-    def _dynamics_func(self, state: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
-        p, q = self._pq_flattener.unflatten(state)
+    def _dynamics_func(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
+        ps, qs = self._pq_flattener.unflatten(states)
 
-        # Add batch dimension.
-        p = p.unsqueeze(0)
-        q = q.unsqueeze(0) if q is not None else q
-        action = action.unsqueeze(0)
-
-        p_next, q_next, sigma = onestep_reachability(p, self._ssm, action, self._l_mu, self._l_sigma, q,
+        p_next, q_next, sigma = onestep_reachability(ps, self._ssm, actions, self._l_mu, self._l_sigma, qs,
                                                      k_fb=self._lqr.get_control_matrix_pytorch(),
                                                      a=self._linearized_model_a, b=self._linearized_model_b, verbose=0)
-        return self._pq_flattener.flatten(p_next.squeeze(0), q_next.squeeze(0)), torch.tensor([0.0])
+        return self._pq_flattener.flatten(p_next, q_next), torch.zeros((states.size(0),), dtype=torch.double)
 
     def _get_safe_controller_action(self, state):
         # TODO: Use the safe policy from the config (though I think this is actually always just lqr)

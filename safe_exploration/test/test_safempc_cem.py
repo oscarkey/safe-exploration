@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from constrained_cem_mpc import ActionConstraint
 
@@ -10,15 +9,15 @@ from ..safempc_cem import PQFlattener, EllipsoidTerminalConstraint
 class TestPQFlattener:
     def test__flatten_unflatten__q_not_none__input_equals_output(self):
         flattener = PQFlattener(state_dimen=3)
-        p = torch.tensor([1, 2, 3])
-        q = torch.tensor([[10, 11, 12], [20, 21, 22], [30, 31, 32]])
+        p = torch.tensor([[1, 2, 3], [10, 20, 30]])
+        q = torch.tensor([[[10, 11, 12], [20, 21, 22], [30, 31, 32]], [[20, 21, 22], [30, 31, 32], [50, 51, 52]]])
         p_out, q_out = flattener.unflatten(flattener.flatten(p, q))
         assert torch.allclose(p, p_out)
         assert torch.allclose(q, q_out)
 
     def test__flatten_unflatten__q_is_none__input_equals_output(self):
         flattener = PQFlattener(state_dimen=4)
-        p = torch.tensor([1, 2, 3, 4])
+        p = torch.tensor([[1, 2, 3, 4], [10, 20, 30, 40]])
         q = None
         p_out, q_out = flattener.unflatten(flattener.flatten(p, q))
         assert torch.allclose(p, p_out)
