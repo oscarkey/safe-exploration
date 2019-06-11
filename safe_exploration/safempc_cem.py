@@ -136,8 +136,9 @@ class DynamicsFuncWrapper(DynamicsFunc):
 class CemSafeMPC(SafeMPC):
     """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
-    def __init__(self, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost,
-                 wu_feedback_cost, plot_cem_optimisation=True) -> None:
+    def __init__(self, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost, wu_feedback_cost,
+                 mpc_time_horizon=2, plot_cem_optimisation=False, lqr: Optional[LqrFeedbackController] = None,
+                 mpc: Optional[ConstrainedCemMpc] = None) -> None:
         super().__init__()
 
         self._state_dimen = env.n_s
@@ -147,22 +148,31 @@ class CemSafeMPC(SafeMPC):
         self._get_random_action = env.random_action
         self._pq_flattener = PQFlattener(env.n_s)
         self._ssm = GpCemSSM(env.n_s, env.n_u)
+        self._plot = plot_cem_optimisation
+        self._mpc_time_horizon = mpc_time_horizon
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
         self._linearized_model_a = torch.tensor(linearized_model_a)
         self._linearized_model_b = torch.tensor(linearized_model_b)
-        self._lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, env.n_s, env.n_u, linearized_model_a,
-                                          linearized_model_b)
 
-        # TODO: Load params for CEM from config.
-        self._mpc_time_horizon = 2
-        self._mpc = ConstrainedCemMpc(DynamicsFuncWrapper(self._dynamics_func), constraints=constraints,
-                                      state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
-                                      time_horizon=self._mpc_time_horizon, num_rollouts=20, num_elites=3,
-                                      num_iterations=8)
+        if lqr is None:
+            lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, env.n_s, env.n_u, linearized_model_a,
+                                        linearized_model_b)
+        self._lqr = lqr
+
+        if mpc is None:
+            # TODO: Load params for CEM from config.
+            mpc = ConstrainedCemMpc(DynamicsFuncWrapper(self._dynamics_func), constraints=constraints,
+                                    state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
+                                    time_horizon=self._mpc_time_horizon, num_rollouts=20, num_elites=3,
+                                    num_iterations=8)
+        self._mpc = mpc
+
         self._has_training_data = False
-        self._plot = plot_cem_optimisation
+
+        self._last_mpc_actions = np.empty((0, self.action_dimen))
+        self._mpc_actions_executed = 0
 
     @property
     def state_dimen(self) -> int:
@@ -198,24 +208,34 @@ class CemSafeMPC(SafeMPC):
 
         # If we don't have training data we skip solving the mpc as it won't be any use.
         # This makes the first episode much faster (during which we gather training data)
-        state_batch = torch.tensor(state).unsqueeze(0)
         if self._has_training_data:
-            actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
+            state_batch = torch.tensor(state).unsqueeze(0)
+            mpc_actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
+            mpc_actions = mpc_actions.detach().cpu().numpy() if mpc_actions is not None else mpc_actions
 
             if self._plot:
                 self._plot_rollouts(rollouts)
         else:
-            actions = None
+            print('No training data')
+            mpc_actions = None
 
         # TODO: Need to maintain a queue of previously safe actions to fully implement SafeMPC.
 
-        if actions is not None:
+        if mpc_actions is not None:
             print('Found solution')
             success = True
-            action = actions[0].numpy()
+            self._last_mpc_actions = mpc_actions
+            self._mpc_actions_executed = 0
         else:
-            print('No solution, using safe controller')
+            print('No solution found')
             success = False
+
+        if self._mpc_actions_executed < self._last_mpc_actions.shape[0]:
+            print('Using existing solution')
+            action = self._last_mpc_actions[self._mpc_actions_executed]
+            self._mpc_actions_executed += 1
+        else:
+            print('Using safe controller')
             action = self._get_safe_controller_action(state)
 
         return action, success
@@ -263,7 +283,7 @@ class CemSafeMPC(SafeMPC):
         return [None] * self.state_dimen
 
     def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
-        mean, sigma = self._ssm.predict_raw(torch.tensor(z).expand(0))
+        mean, sigma = self._ssm.predict_raw(torch.tensor(z))
         return mean.detach().numpy(), sigma.detach().numpy()
 
     def eval_prior(self, states: ndarray, actions: ndarray):
