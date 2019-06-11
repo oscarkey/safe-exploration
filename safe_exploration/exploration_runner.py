@@ -158,6 +158,9 @@ def run_exploration(conf, visualize=False):
                 x_i, u_i = exploration_module.find_max_variance(x_i)
 
             if visualize or save_vis:
+                # TODO: Remove the line below so the exploration points all plot on the same axes. This is currently
+                # broken with PyCharm sciview.
+                fig, ax = env.plot_safety_bounds(color="b")
                 ax = env.plot_state(ax, x=x_i, color=c_sample(i), normalize=False)
                 fig.canvas.draw()
                 if visualize:

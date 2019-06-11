@@ -97,11 +97,12 @@ class DefaultConfigExploration(DefaultConfig):
     verify_safety = False
     visualize = True
     save_results = True
-    save_vis = True
+    save_vis = False
     save_dir = None  # the directory such that the overall save location is save_path_base/save_dir/
     save_path_base = "results_exploration"  # the directory such that the overall save location is save_path_base/save_dir/
     data_savename = None
     plot_cem_optimisation = False
+    train_gp = True
 
     def __init__(self, file_path):
         super(DefaultConfigExploration, self).create_savedirs(file_path)
