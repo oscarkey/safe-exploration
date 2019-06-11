@@ -30,15 +30,14 @@ class CemSSM(ABC):
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Predict the next states and uncertainties, along with the jacobian of the state means.
 
-        Currently only supports a single state action pair.
-        TODO: Add batch support.
+        N is the batch size.
 
-        :param states: (1 x n_s) tensor of states
-        :param actions: (1 x n_u) tensor of actions
+        :param states: (N x n_s) tensor of states
+        :param actions: (N x n_u) tensor of actions
         :returns:
-            mean of next states [1 x n_s],
-            variance of next states [1 x n_s],
-            jacobian of mean [1 x n_s x n_s])
+            mean of next states [N x n_s],
+            variance of next states [N x n_s],
+            jacobian of mean [N x n_s x n_s])
         """
         pass
 
@@ -46,14 +45,13 @@ class CemSSM(ABC):
     def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         """Predict the next states and uncertainties.
 
-        Currently only supports a single state action pair.
-        TODO: Add batch support.
+        N is the batck size.
 
-        :param states (1 x n_s) tensor of states
-        :param actions (1 x n_u) tensor of actions
+        :param states (N x n_s) tensor of states
+        :param actions (N x n_u) tensor of actions
         :returns:
-            mean of next states [1 x n_s],
-            variance of next states [1 x n_s]
+            mean of next states [N x n_s],
+            variance of next states [N x n_s]
         """
         pass
 
@@ -122,21 +120,37 @@ class GpCemSSM(CemSSM):
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
 
-        # We need the gradient to compute the jacobians.
-        z.requires_grad = True
-
         pred = self._model(z)
-        jac_mean = utilities.compute_jacobian(pred.mean, z).squeeze()
+        pred_mean = pred.mean.transpose(0, 1)
+        pred_var = pred.variance.transpose(0, 1)
 
-        # TODO: Why do we have to squeeze here?
-        return pred.mean.squeeze(), pred.variance.squeeze(), jac_mean
+        # TODO: avoid a second forward pass through the model.
+        def mean_func(x: Tensor):
+            pred1 = self._model(x)
+            res = pred1.mean.transpose(0, 1)
+            return res
+
+        pred_mean_jac = utilities.compute_jacobian_fast(mean_func, z, num_outputs=self.num_states)
+
+        N = states.size(0)
+        assert_shape(pred_mean, (N, self.num_states))
+        assert_shape(pred_var, (N, self.num_states))
+        assert_shape(pred_mean_jac, (N, self.num_states, self.num_states + self.num_actions))
+
+        return pred_mean, pred_var, pred_mean_jac
 
     def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
-        pred = self._model(z)
 
-        # TODO: Why do we have to squeeze here?
-        return pred.mean.squeeze(), pred.variance.squeeze()
+        pred = self._model(z)
+        pred_mean = pred.mean.transpose(0, 1)
+        pred_var = pred.variance.transpose(0, 1)
+
+        N = states.size(0)
+        assert_shape(pred_mean, (N, self.num_states))
+        assert_shape(pred_var, (N, self.num_states))
+
+        return pred_mean, pred_var
 
     def predict_raw(self, z: Tensor):
         N = z.size(0)
@@ -145,8 +159,9 @@ class GpCemSSM(CemSSM):
         return pred.mean, pred.variance
 
     def _join_states_actions(self, states: Tensor, actions: Tensor) -> Tensor:
-        assert_shape(states, (1, self.num_states))
-        assert_shape(actions, (1, self.num_actions))
+        N = states.size(0)
+        assert_shape(states, (N, self.num_states))
+        assert_shape(actions, (N, self.num_actions))
         return torch.cat((states, actions), dim=1)
 
     def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:

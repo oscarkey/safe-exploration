@@ -68,7 +68,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print("\nApplying action:")
             print(u_p)
 
-        mu_0, sigm_0 = _predict_without_jacobians_batched(ssm, p_center, u_p)
+        mu_0, sigm_0 = ssm.predict_without_jacobians(p_center, u_p)
 
         rkhs_bounds = c_safety * torch.sqrt(sigm_0)
 
@@ -94,7 +94,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print("\nApplying action:")
             print(u_bar)
         # compute the zero and first order matrices
-        mu_0, sigm_0, jac_mu = _predict_with_jacobians_batched(ssm, x_bar, u_bar)
+        mu_0, sigm_0, jac_mu = ssm.predict_with_jacobians(x_bar, u_bar)
 
         if verbose > 0:
             print_ellipsoid(mu_0, torch.diag(sigm_0.squeeze()), text="predictive distribution")
@@ -143,28 +143,6 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print((torch.det(torch.cholesky(q_1))))
 
         return p_1.detach(), q_1.detach(), sigm_0.detach()
-
-
-def _predict_without_jacobians_batched(ssm: CemSSM, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
-    results1 = []
-    results2 = []
-    for i in range(states.shape[0]):
-        result1, result2 = ssm.predict_without_jacobians(states[i:i + 1, :], actions[i:i + 1, :])
-        results1.append(result1)
-        results2.append(result2)
-    return torch.stack(tuple(results1)), torch.stack(tuple(results2))
-
-
-def _predict_with_jacobians_batched(ssm: CemSSM, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-    results1 = []
-    results2 = []
-    results3 = []
-    for i in range(states.shape[0]):
-        result1, result2, result3 = ssm.predict_with_jacobians(states[i:i + 1, :], actions[i:i + 1, :])
-        results1.append(result1)
-        results2.append(result2)
-        results3.append(result3)
-    return torch.stack(tuple(results1)), torch.stack(tuple(results2)), torch.stack(tuple(results3))
 
 
 def lin_ellipsoid_safety_distance(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor,
