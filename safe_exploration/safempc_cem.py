@@ -213,12 +213,6 @@ class CemSafeMPC(SafeMPC):
             print('Found solution')
             success = True
             action = actions[0].numpy()
-        elif np.random.rand() < 0.2:
-            # This is a temporary epsilon-greedy like exploration policy to help gather data for the GP.
-            # Obviously taking random actions isn't actually safe, but it's useful for debugging.
-            print('No solution, taking random action')
-            success = False
-            action = self._get_random_action()
         else:
             print('No solution, using safe controller')
             success = False
@@ -250,7 +244,11 @@ class CemSafeMPC(SafeMPC):
         p_next, q_next, sigma = onestep_reachability(ps, self._ssm, actions, self._l_mu, self._l_sigma, qs,
                                                      k_fb=self._lqr.get_control_matrix_pytorch(),
                                                      a=self._linearized_model_a, b=self._linearized_model_b, verbose=0)
-        return self._pq_flattener.flatten(p_next, q_next), torch.zeros((states.size(0),), dtype=torch.double)
+
+        # Try to maximise the variance in the predictions so we explore as must as possible.
+        objective_cost = - torch.sum((sigma), dim=1)
+
+        return self._pq_flattener.flatten(p_next, q_next), objective_cost
 
     def _get_safe_controller_action(self, state):
         # TODO: Use the safe policy from the config (though I think this is actually always just lqr)

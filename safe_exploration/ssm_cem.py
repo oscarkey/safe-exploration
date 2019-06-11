@@ -194,7 +194,7 @@ class GpCemSSM(CemSSM):
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self._likelihood, self._model)
 
         training_iter = 200
-        print(f'Training GP for {training_iter} iterations...')
+        print(f'Training GP on {self.x_train.size(0)} data points for {training_iter} iterations...')
         losses = []
         for i in range(training_iter):
             # Zero gradients from previous iteration

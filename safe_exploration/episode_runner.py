@@ -45,7 +45,7 @@ def run_episodic(conf, visualize=False):
         else:
             X, y = generate_initial_samples(env, conf, conf.relative_dynamics, solver,
                                         safe_policy)
-            solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True)
+            solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)
 
         X_list = [X]
         y_list = [y]
