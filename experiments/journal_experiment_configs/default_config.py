@@ -9,6 +9,7 @@ import warnings
 from os import makedirs
 from os.path import basename, splitext, dirname
 from shutil import copy
+from typing import Dict, Any
 
 
 class DefaultConfig(object):
@@ -46,3 +47,15 @@ class DefaultConfig(object):
             # copy config file into results folder
             dirname_conf = dirname(file_path)
             copy("{}/{}.py".format(dirname_conf, conf_name), "{}/".format(res_path))
+
+    def add_sacred_config(self, config: Dict[str, Any]):
+        """Adds all the given pairs in the given config dict as attributes to this config object.
+
+        :raises ValueError: if the given config key already exists
+        """
+        existing_keys = set(dir(self))
+        for key, value in config.items():
+            if key in existing_keys:
+                raise ValueError(f'Param \'{key}\' already exists with value \'{value}\'')
+
+            setattr(self, key, value)

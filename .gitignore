@@ -105,3 +105,5 @@ ENV/
 .idea
 **/*results*
 
+# File with authentication details for sacred
+sacred_auth_details.py

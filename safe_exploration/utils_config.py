@@ -10,6 +10,7 @@ from os.path import abspath, exists, split
 
 import numpy as np
 
+from experiments.journal_experiment_configs.default_config import DefaultConfig
 from . import safempc_cem
 from .cautious_mpc import CautiousMPC
 from .environments import InvertedPendulum, CartPole, Environment
@@ -164,7 +165,7 @@ def get_model_options_from_conf(conf, env):
     return gp_dict
 
 
-def loadConfig(conf_path):
+def load_config(conf_path: str) -> DefaultConfig:
     if not exists(abspath(conf_path)):
         raise ValueError
     else:
