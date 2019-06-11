@@ -87,11 +87,6 @@ class Environment(metaclass=abc.ABCMeta):
         self.iteration = 0
 
     @abc.abstractmethod
-    def step(self, action):
-        """ Apply action to system and output current state and other information."""
-        pass
-
-    @abc.abstractmethod
     def _dynamics(self, t, state, action):
         """ Evaluate the system dynamics """
         pass
