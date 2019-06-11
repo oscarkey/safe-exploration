@@ -265,7 +265,7 @@ class CemSafeMPC(SafeMPC):
         return [None] * self.state_dimen
 
     def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
-        mean, sigma = self._ssm.predict_raw(torch.tensor(z))
+        mean, sigma = self._ssm.predict_raw(torch.tensor(z).expand(0))
         return mean.detach().numpy(), sigma.detach().numpy()
 
     def eval_prior(self, states: ndarray, actions: ndarray):

@@ -139,6 +139,8 @@ class GpCemSSM(CemSSM):
         return pred.mean.squeeze(), pred.variance.squeeze()
 
     def predict_raw(self, z: Tensor):
+        N = z.size(0)
+        assert_shape(z, (N, self.num_states + self.num_actions))
         pred = self._model(z)
         return pred.mean, pred.variance
 

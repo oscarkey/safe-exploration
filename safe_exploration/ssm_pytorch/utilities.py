@@ -1,10 +1,13 @@
 """General utilities for pytorch."""
 
 import itertools
+from typing import Callable, Optional
 
 import torch
+from torch import Tensor
 from torch.autograd import grad
 
+from utils import assert_shape
 
 __all__ = ['compute_jacobian', 'update_cholesky', 'SetTorchDtype']
 
@@ -50,6 +53,52 @@ def compute_jacobian(f, x):
         grad_output[index] = 0
 
     return jacobian
+
+
+def compute_jacobian_fast(f: Callable[[Tensor], Tensor], x: Tensor, num_outputs: int) -> Tensor:
+    """Computes the jacobian of the output of f wrt x.
+
+    Uses the batch support of f to compute all the elements of the jacobian in a single backward pass. Borrowed from:
+    https://gist.github.com/sbarratt/37356c46ad1350d4c30aefbd488a4faa
+
+    :param f: [N x n] -> [N x m]
+    :param x: [N x n], batch of inputs
+    :param num_outputs: m, the output dimension of f
+    :returns: [N x m x n], batch of jacobians
+    """
+    assert x.dim() == 2, f'Wanted [N x n], got {x.size()}'
+    N, n = x.size()
+
+    # For some reason, if requires_grad is True then grad is None. So we set it to false, and then true again below.
+    x.requires_grad = False
+
+    x = tile(x, num_outputs)
+    x.requires_grad_(True)
+
+    y = f(x)
+    assert_shape(y, (N * num_outputs, num_outputs))
+
+    repeated_eye = torch.eye(num_outputs).repeat((N, 1))
+    y.backward(repeated_eye)
+
+    if x.grad is None:
+        # If there is no connection between f and x then g will be None, thus we leave it as 0.
+        return torch.zeros((N, num_outputs, n), dtype=x.dtype)
+    else:
+        flat_jac = x.grad.data
+        return flat_jac.view(N, num_outputs, n)
+
+
+def tile(x: Tensor, n_tile: int):
+    """Tiles Tensor x n_tile times in dimension 0.
+
+    :param x: [N x n] input to tile
+    :param n_tile: number of times x will be repeated in dim 0
+    :returns: [N * n_tile x n]
+    """
+    assert x.dim() == 2
+    assert n_tile >= 1
+    return x.repeat(1, n_tile).view(-1, x.size(1))
 
 
 class SetTorchDtype(object):
