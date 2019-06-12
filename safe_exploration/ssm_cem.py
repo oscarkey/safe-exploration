@@ -2,7 +2,9 @@
 from abc import abstractmethod, ABC
 from typing import Tuple, Optional
 
+import bnn
 import gpytorch
+import matplotlib.pyplot as plt
 import torch
 from torch import Tensor
 
@@ -110,6 +112,12 @@ class CemSSM(ABC):
         """Subclasses should implement this to train their model."""
         pass
 
+    def _join_states_actions(self, states: Tensor, actions: Tensor) -> Tensor:
+        N = states.size(0)
+        assert_shape(states, (N, self.num_states))
+        assert_shape(actions, (N, self.num_actions))
+        return torch.cat((states, actions), dim=1)
+
 
 class GpCemSSM(CemSSM):
     """A SSM using GPyTorch, for the CEM implementation of SafeMPC.
@@ -205,3 +213,93 @@ class GpCemSSM(CemSSM):
 
         self._model.eval()
         self._likelihood.eval()
+
+
+class McDropoutSSM(CemSSM):
+    """BNN, approximated using MC dropout, state space model.
+
+    Uses the "bnn" package from https://github.com/anassinator/bnn
+    """
+
+    def __init__(self, state_dimen: int, action_dimen: int):
+        super().__init__(state_dimen, action_dimen)
+
+        self._num_particles = 100
+
+        in_features = state_dimen + action_dimen
+        out_features = state_dimen
+        self._model = bnn.bayesian_model(in_features, out_features, hidden_features=[200, 200])
+        self._optimizer = torch.optim.Adam(p for p in self._model.parameters() if p.requires_grad)
+
+    def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        z = self._join_states_actions(states, actions)
+        pred_mean, pred_var = self.predict_raw(z)
+
+        def mean_func(x: Tensor):
+            return self.predict_raw(x)[0]
+
+        pred_mean_jac = utilities.compute_jacobian_fast(mean_func, z, num_outputs=self.num_states)
+
+        return pred_mean, pred_var, pred_mean_jac
+
+    def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
+        # To get the variance, we sample _num_particles times from the network.
+        z = self._join_states_actions(states, actions)
+        return self.predict_raw(z)
+
+    def predict_raw(self, z: Tensor):
+        N = z.size(0)
+        assert_shape(z, (N, self.num_states + self.num_actions))
+
+        z_particles = z.repeat((self._num_particles, 1, 1))
+        output = self._model(z_particles)
+
+        # TODO: Do we need to predict the variance too? See:
+        # https://github.com/anassinator/bnn/blob/master/examples/sin_x.ipynb
+
+        pred_mean = output.mean(dim=0)
+        pred_var = output.var(dim=0)
+
+        return pred_mean, pred_var
+
+    def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
+        # Nothing to do. We do not store the training data, just incorporate it in the model in _train_model().
+        pass
+
+    def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
+        training_iter = 1000
+        print(f'Training BNN on {self.x_train.size(0)} data points for {training_iter} iterations...')
+        losses = []
+        for i in range(training_iter):
+            self._optimizer.zero_grad()
+            output = self._model(x_train, resample=True)
+            loss = (-self._gaussian_log_likelihood(y_train, output) + 1e-2 * self._model.regularization()).mean()
+            loss.backward()
+            losses.append(loss.item())
+            self._optimizer.step()
+        print(f'Training complete. Final losses: {losses[-4]:.2f} {losses[-3]:.2f} {losses[-2]:.2f} {losses[-1]:.2f}')
+
+    @staticmethod
+    def _gaussian_log_likelihood(targets, pred_means, pred_stds=None):
+        """Taken from https://github.com/anassinator/bnn/blob/master/examples/sin_x.ipynb"""
+        deltas = pred_means - targets
+        return -(deltas ** 2).sum(-1) * 0.5
+
+
+def test_plot(ssm: CemSSM, train_x: Tensor, train_y: Tensor):
+    states = torch.range(0., 5., 0.1).unsqueeze(1)
+    actions = torch.empty((states.size(0), 0))
+    mu, std = ssm.predict_without_jacobians(states, actions)
+
+    xs = states.squeeze(1).detach().numpy()
+    mu = mu.detach().numpy()
+    std = std.detach().numpy()
+
+    plt.plot(xs, mu)
+
+    for i in range(1, 4):
+        plt.gca().fill_between(xs.flat, (mu - i * std).flat, (mu + i * std).flat, color="#dddddd", alpha=1.0 / i,
+                               label="Confidence")
+
+    plt.scatter(train_x.squeeze(1).numpy(), train_y.squeeze(1).numpy())
+    plt.show()

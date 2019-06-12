@@ -1,6 +1,6 @@
 import torch
 
-from ..ssm_cem import GpCemSSM
+from ..ssm_cem import GpCemSSM, McDropoutSSM
 
 
 class TestGpCemSSM:
@@ -33,3 +33,26 @@ class TestGpCemSSM:
 
         assert y_train.size() == (4, 2)
         assert torch.allclose(ys, y_train)
+
+
+class TestMcDropoutSSM:
+    def test__predict_without_jacobians__returns_correct_shape(self):
+        ssm = McDropoutSSM(state_dimen=2, action_dimen=1)
+        states = torch.tensor([[1., 1.], [1., 1.], [1., 1.]])
+        actions = torch.tensor([[1.], [1.], [1.]])
+
+        mean, var = ssm.predict_without_jacobians(states, actions)
+
+        assert mean.size() == (3, 2)
+        assert var.size() == (3, 2)
+
+    def test__predict_with_jacobians__returns_correct_shape(self):
+        ssm = McDropoutSSM(state_dimen=2, action_dimen=1)
+        states = torch.tensor([[1., 1.], [1., 1.], [1., 1.]])
+        actions = torch.tensor([[1.], [1.], [1.]])
+
+        mean, var, jac = ssm.predict_with_jacobians(states, actions)
+
+        assert mean.size() == (3, 2)
+        assert var.size() == (3, 2)
+        assert jac.size() == (3, 2, 2 + 1)

@@ -15,7 +15,8 @@ setup(
                       # We need sacred from master due to https://github.com/conda/conda-build/issues/3431
                       'sacred @ git+https://github.com/IDSIA/sacred/tarball/master#egg=sacred',
                       'pymongo',
-                      'dnspython'],
+                      'dnspython',
+                      'bnn @ git+https://github.com/anassinator/bnn.git#egg=bnn'],
     extras_require={'test': ['pytest>=4,<5',
                              'flake8==3.6.0',
                              'pydocstyle==3.0.0',
