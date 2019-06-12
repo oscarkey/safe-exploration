@@ -45,6 +45,9 @@ class Config(DefaultConfigEpisode):
     init_std = np.array([.05, .05])
     env_options["init_std"] = init_std
 
+    init_std_initial_data = np.array([.1, .1])
+    init_m_initial_data = [0., 0.]
+
     render = True
     visualize = True
     plot_ellipsoids = False
