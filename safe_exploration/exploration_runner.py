@@ -60,7 +60,6 @@ def run_exploration(conf, visualize=False):
     l_x_next_obs_all = []
     l_x_next_pred = []
     l_x_next_prior = []
-    l_gp_dict = []
 
     for jj in range(n_experiments):
         env = create_env(conf.env_name, conf.env_options)
@@ -201,7 +200,6 @@ def run_exploration(conf, visualize=False):
         l_x_next_obs_all += [x_next_obs_all]
         l_x_next_pred += [x_next_pred]
         l_x_next_prior += [x_next_prior]
-        l_gp_dict += [safempc.ssm.to_dict()]
 
         if not save_path is None:
             save_results(save_path, l_sigm_sum, l_sigm, l_inf_gain, l_z_all, l_x_next_obs_all, l_x_next_pred,
