@@ -63,7 +63,7 @@ class CemSSM(ABC):
         pass
 
     @abstractmethod
-    def predict_raw(self, z: Tensor):
+    def predict_raw(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         """Predict using stacked state and action.
 
         :param z: [1 x (n_s + n_u)]
@@ -101,12 +101,12 @@ class CemSSM(ABC):
             self._train_model(x_new, y_new)
 
     @abstractmethod
-    def _update_model(self, x_train: Tensor, y_train: Tensor):
+    def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
         """Subclasses should implement this to update the actual model, if needed."""
         pass
 
     @abstractmethod
-    def _train_model(self, x_train: Tensor, y_train: Tensor):
+    def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
         """Subclasses should implement this to train their model."""
         pass
 
@@ -134,79 +134,51 @@ class GpCemSSM(CemSSM):
             self._model = model
         self._model.eval()
 
-    @property
-    def x_train(self) -> Optional[Tensor]:
-        """Returns the x values of the current training data."""
-        if self._model.train_inputs is None:
-            return None
-        else:
-            # train_inputs is list of [output dimen x n x state dimen + action dimen]
-            # It is repeated over output dimen, so we can ignore this.
-            # We want to concatenate over the list in the batch dimension, n.
-            return torch.cat([x[0, :, :] for x in self._model.train_inputs], dim=0)
-
-    @property
-    def y_train(self) -> Optional[Tensor]:
-        if self._model.train_targets is None:
-            return None
-        else:
-            return self._model.train_targets.transpose(0, 1)
-
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
 
-        pred = self._model(z)
-        pred_mean = pred.mean.transpose(0, 1)
-        pred_var = pred.variance.transpose(0, 1)
+        pred_mean, pred_var = self._predict(z)
 
         # TODO: avoid a second forward pass through the model.
         def mean_func(x: Tensor):
-            pred1 = self._model(x)
-            res = pred1.mean.transpose(0, 1)
-            return res
+            return self._predict(x)[0]
 
         pred_mean_jac = utilities.compute_jacobian_fast(mean_func, z, num_outputs=self.num_states)
 
         N = states.size(0)
-        assert_shape(pred_mean, (N, self.num_states))
-        assert_shape(pred_var, (N, self.num_states))
         assert_shape(pred_mean_jac, (N, self.num_states, self.num_states + self.num_actions))
 
         return pred_mean, pred_var, pred_mean_jac
 
     def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
+        return self._predict(z)
 
-        pred = self._model(z)
-        pred_mean = pred.mean.transpose(0, 1)
-        pred_var = pred.variance.transpose(0, 1)
+    def _predict(self, z: Tensor) -> Tuple[Tensor, Tensor]:
+        pred_mean, pred_var = self.predict_raw(z)
+        pred_mean = pred_mean.transpose(0, 1)
+        pred_var = pred_var.transpose(0, 1)
 
-        N = states.size(0)
+        N = z.size(0)
         assert_shape(pred_mean, (N, self.num_states))
         assert_shape(pred_var, (N, self.num_states))
 
         return pred_mean, pred_var
 
-    def predict_raw(self, z: Tensor):
+    def predict_raw(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         N = z.size(0)
         assert_shape(z, (N, self.num_states + self.num_actions))
         pred = self._model(z)
         return pred.mean, pred.variance
 
-    def _join_states_actions(self, states: Tensor, actions: Tensor) -> Tensor:
-        N = states.size(0)
-        assert_shape(states, (N, self.num_states))
-        assert_shape(actions, (N, self.num_actions))
-        return torch.cat((states, actions), dim=1)
-
-    def _update_model(self, x_train: Tensor, y_train: Tensor):
+    def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
         # Hack because set_train_data() does not work if previous data was None.
         self._model.train_inputs = []
         self._model.train_targets = torch.zeros((0))
 
         self._model.set_train_data(x_train, y_train.transpose(0, 1), strict=False)
 
-    def _train_model(self, x_train: Tensor, y_train: Tensor):
+    def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
         self._model.train()
         self._likelihood.train()
 
