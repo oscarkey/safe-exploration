@@ -14,7 +14,7 @@ from .environments import Environment
 from .gp_reachability_pytorch import onestep_reachability
 from .safempc import SafeMPC
 from .safempc_simple import LqrFeedbackController
-from .ssm_cem import GpCemSSM, CemSSM
+from .ssm_cem import CemSSM
 from .visualization import utils_visualization
 
 
@@ -136,9 +136,9 @@ class DynamicsFuncWrapper(DynamicsFunc):
 class CemSafeMPC(SafeMPC):
     """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
-    def __init__(self, ssm: CemSSM, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost,
-                 wu_feedback_cost, mpc_time_horizon=2, plot_cem_optimisation=False,
-                 lqr: Optional[LqrFeedbackController] = None, mpc: Optional[ConstrainedCemMpc] = None) -> None:
+    def __init__(self, ssm: CemSSM, constraints: [Constraint], env: Environment, conf, opt_env, wx_feedback_cost,
+                 wu_feedback_cost, lqr: Optional[LqrFeedbackController] = None,
+                 mpc: Optional[ConstrainedCemMpc] = None) -> None:
         super().__init__()
 
         self._state_dimen = env.n_s
@@ -148,8 +148,8 @@ class CemSafeMPC(SafeMPC):
         self._get_random_action = env.random_action
         self._pq_flattener = PQFlattener(env.n_s)
         self._ssm = ssm
-        self._plot = plot_cem_optimisation
-        self._mpc_time_horizon = mpc_time_horizon
+        self._plot = conf.plot_cem_optimisation
+        self._mpc_time_horizon = conf.mpc_time_horizon
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
@@ -162,11 +162,10 @@ class CemSafeMPC(SafeMPC):
         self._lqr = lqr
 
         if mpc is None:
-            # TODO: Load params for CEM from config.
             mpc = ConstrainedCemMpc(DynamicsFuncWrapper(self._dynamics_func), constraints=constraints,
                                     state_dimen=self._pq_flattener.get_flat_state_dimen(), action_dimen=env.n_u,
-                                    time_horizon=self._mpc_time_horizon, num_rollouts=20, num_elites=3,
-                                    num_iterations=8)
+                                    time_horizon=self._mpc_time_horizon, num_rollouts=conf.cem_num_rollouts,
+                                    num_elites=conf.cem_num_elites, num_iterations=conf.cem_num_iterations)
         self._mpc = mpc
 
         self._has_training_data = False

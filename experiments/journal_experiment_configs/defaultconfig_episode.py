@@ -114,7 +114,6 @@ class DefaultConfigEpisode(DefaultConfig):
     save_path_base = "results_journal/results_rl"  # _{time_string}"  # the directory such that the overall save location is save_path_base/save_dir/
     data_savepath = "gp_data"
     save_name_results = None
-    plot_cem_optimisation = True
 
     def __init__(self, file_path):
         self._generate_save_dir_string()

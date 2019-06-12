@@ -35,9 +35,18 @@ else:
 @ex.config
 def base_config():
     save_to_db = True
+    # File name of the base config file.
     scenario_file = None
+
     # Type of state space model to use, one of exact_gp, mc_dropout.
-    cem_ssm = 'exact_gp'
+    cem_ssm = 'mc_dropout'
+
+    # -- CemSafeMPC options
+    mpc_time_horizon = 2
+    cem_num_rollouts = 20
+    cem_num_elites = 3
+    cem_num_iterations = 8
+
     # Whether to plot the ellipsoids generated during the CEM optimisation process.
     plot_cem_optimisation = True
 

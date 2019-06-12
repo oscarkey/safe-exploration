@@ -43,6 +43,14 @@ def test__construct_constraints__contains_one_action_constraint():
     assert len([c for c in constraints if isinstance(c, ActionConstraint)]) == 1
 
 
+class FakeConfig:
+    mpc_time_horizon = 2
+    cem_num_rollouts = 20
+    cem_num_elites = 3
+    cem_num_iterations = 8
+    plot_cem_optimisation = False
+
+
 class TestCemSafeMPC:
     @staticmethod
     def _get_opt_env():
@@ -52,8 +60,8 @@ class TestCemSafeMPC:
         ssm = mocker.Mock()
         mpc = mocker.Mock()
         mpc.get_actions.return_value = (torch.tensor([[0.1], [0.2]]), [])
-        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), self._get_opt_env(), wx_feedback_cost=None, wu_feedback_cost=None,
-                              mpc_time_horizon=2, plot_cem_optimisation=False, lqr=mocker.Mock(), mpc=mpc)
+        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), FakeConfig(), self._get_opt_env(), wx_feedback_cost=None,
+                              wu_feedback_cost=None, lqr=mocker.Mock(), mpc=mpc)
         safe_mpc.update_model(np.array([[0.1, 0.2, 0.3]]), np.array([[0.1, 0.1]]))
 
         action, success = safe_mpc.get_action(np.array([0., 0.]))
@@ -64,8 +72,8 @@ class TestCemSafeMPC:
         ssm = mocker.Mock()
         mpc = mocker.Mock()
         mpc.get_actions.side_effect = [(torch.tensor([[0.1], [0.2]]), []), (None, [])]
-        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), self._get_opt_env(), wx_feedback_cost=None, wu_feedback_cost=None,
-                              mpc_time_horizon=2, plot_cem_optimisation=False, lqr=mocker.Mock(), mpc=mpc)
+        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), FakeConfig(), self._get_opt_env(), wx_feedback_cost=None,
+                              wu_feedback_cost=None, lqr=mocker.Mock(), mpc=mpc)
         safe_mpc.update_model(np.array([[0.1, 0.2, 0.3]]), np.array([[0.1, 0.1]]))
 
         safe_mpc.get_action(np.array([0., 0.]))
@@ -82,8 +90,8 @@ class TestCemSafeMPC:
         mpc = mocker.Mock()
         mpc.get_actions.side_effect = [(None, [])]
 
-        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), self._get_opt_env(), wx_feedback_cost=None, wu_feedback_cost=None,
-                              mpc_time_horizon=2, plot_cem_optimisation=False, lqr=lqr, mpc=mpc)
+        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), FakeConfig(), self._get_opt_env(), wx_feedback_cost=None,
+                              wu_feedback_cost=None, lqr=lqr, mpc=mpc)
         safe_mpc.update_model(np.array([[0.1, 0.2, 0.3]]), np.array([[0.1, 0.1]]))
 
         action, success = safe_mpc.get_action(np.array([1., 2.]))
@@ -99,8 +107,8 @@ class TestCemSafeMPC:
         mpc = mocker.Mock()
         mpc.get_actions.side_effect = [(torch.tensor([[0.1], [0.2]]), []), (None, []), (None, [])]
 
-        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), self._get_opt_env(), wx_feedback_cost=None, wu_feedback_cost=None,
-                              mpc_time_horizon=2, plot_cem_optimisation=False, lqr=lqr, mpc=mpc)
+        safe_mpc = CemSafeMPC(ssm, [], InvertedPendulum(), FakeConfig(), self._get_opt_env(), wx_feedback_cost=None,
+                              wu_feedback_cost=None, lqr=lqr, mpc=mpc)
         safe_mpc.update_model(np.array([[0.1, 0.2, 0.3]]), np.array([[0.1, 0.1]]))
 
         safe_mpc.get_action(np.array([0., 0.]))
