@@ -14,7 +14,7 @@ from .environments import Environment
 from .gp_reachability_pytorch import onestep_reachability
 from .safempc import SafeMPC
 from .safempc_simple import LqrFeedbackController
-from .ssm_cem import GpCemSSM
+from .ssm_cem import GpCemSSM, CemSSM
 from .visualization import utils_visualization
 
 
@@ -136,9 +136,9 @@ class DynamicsFuncWrapper(DynamicsFunc):
 class CemSafeMPC(SafeMPC):
     """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
-    def __init__(self, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost, wu_feedback_cost,
-                 mpc_time_horizon=2, plot_cem_optimisation=False, lqr: Optional[LqrFeedbackController] = None,
-                 mpc: Optional[ConstrainedCemMpc] = None) -> None:
+    def __init__(self, ssm: CemSSM, constraints: [Constraint], env: Environment, opt_env, wx_feedback_cost,
+                 wu_feedback_cost, mpc_time_horizon=2, plot_cem_optimisation=False,
+                 lqr: Optional[LqrFeedbackController] = None, mpc: Optional[ConstrainedCemMpc] = None) -> None:
         super().__init__()
 
         self._state_dimen = env.n_s
@@ -147,7 +147,7 @@ class CemSafeMPC(SafeMPC):
         self._l_sigma = torch.tensor(env.l_sigm)
         self._get_random_action = env.random_action
         self._pq_flattener = PQFlattener(env.n_s)
-        self._ssm = GpCemSSM(env.n_s, env.n_u)
+        self._ssm = ssm
         self._plot = plot_cem_optimisation
         self._mpc_time_horizon = mpc_time_horizon
 

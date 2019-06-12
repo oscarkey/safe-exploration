@@ -16,6 +16,7 @@ from .cautious_mpc import CautiousMPC
 from .environments import InvertedPendulum, CartPole, Environment
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
+from .ssm_cem import CemSSM, GpCemSSM, McDropoutSSM
 from .utils import dlqr, unavailable
 
 try:
@@ -23,6 +24,15 @@ try:
     from safe_exploration.ssm_gpy.gaussian_process import SimpleGPModel
 except:
     _has_ssm_gpy = False
+
+
+def _create_cem_ssm(conf: DefaultConfig, env: Environment) -> CemSSM:
+    if conf.cem_ssm == 'exact_gp':
+        return GpCemSSM(env.n_s, env.n_u)
+    elif conf.cem_ssm == 'mc_dropout':
+        return McDropoutSSM(env.n_s, env.n_u)
+    else:
+        raise ValueError(f'Unknown value for cem_ssm, {conf.cem_ssm}')
 
 
 @unavailable(not _has_ssm_gpy, "ssm_gpy")
@@ -87,9 +97,11 @@ def create_solver(conf, env: Environment):
                                opt_perf_trajectory=perf_opts_safempc,
                                lin_trafo_gp_input=lin_trafo_gp_input, verbosity=conf.verbose)
     elif conf.solver_type == "safempc_cem":
+        ssm = _create_cem_ssm(conf, env)
         constraints = safempc_cem.construct_constraints(env)
-        solver = CemSafeMPC(constraints=constraints, env=env, opt_env=env_opts_safempc, wx_feedback_cost=wx_cost,
-                            wu_feedback_cost=wu_cost, plot_cem_optimisation=conf.plot_cem_optimisation)
+        solver = CemSafeMPC(ssm, constraints=constraints, env=env, opt_env=env_opts_safempc,
+                            wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost,
+                            plot_cem_optimisation=conf.plot_cem_optimisation)
     elif conf.solver_type == "cautious_mpc":
         T = conf.T
 

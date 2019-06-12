@@ -36,6 +36,10 @@ else:
 def base_config():
     save_to_db = True
     scenario_file = None
+    # Type of state space model to use, one of exact_gp, mc_dropout.
+    cem_ssm = 'exact_gp'
+    # Whether to plot the ellipsoids generated during the CEM optimisation process.
+    plot_cem_optimisation = True
 
 
 def check_config_conflicts(conf: DefaultConfig) -> Tuple[bool, str]:

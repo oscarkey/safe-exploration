@@ -120,7 +120,7 @@ class CemSSM(ABC):
 
 
 class GpCemSSM(CemSSM):
-    """A SSM using GPyTorch, for the CEM implementation of SafeMPC.
+    """A SSM using an exact GP from GPyTorch, for the CEM implementation of SafeMPC.
 
     Compared to GPyTorchSSM, this uses PyTorch tensors all the way through, rather than converting to Numpy. It also
     does not implement the linearization and differentation functions which are only require for Casadi.

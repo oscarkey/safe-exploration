@@ -87,7 +87,8 @@ class DefaultConfigEpisode(DefaultConfig):
 
     # episode settings
 
-    init_mode = None  # random_rollouts , "safe_samples", None
+    # init_mode = None  # random_rollouts , "safe_samples", None
+    init_mode = 'safe_samples'
     n_safe_samples = 25
     c_max_probing_init = 4
     c_max_probing_next_state = 2
