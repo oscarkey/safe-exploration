@@ -21,10 +21,17 @@ class CemSSM(ABC):
         self.num_states = num_states
         self.num_actions = num_actions
 
+        self._x_train = None
+        self._y_train = None
+
     @property
-    @abstractmethod
     def x_train(self) -> Optional[Tensor]:
-        pass
+        """Returns the x values of the current training data."""
+        return self._x_train
+
+    @property
+    def y_train(self) -> Optional[Tensor]:
+        return self._y_train
 
     @abstractmethod
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -64,15 +71,43 @@ class CemSSM(ABC):
         """
         pass
 
-    @abstractmethod
     def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
         """Incorporate the given data into the model.
 
         :param train_x: [N x (n_s + n_u)]
         :param train_y: [N x n_s]
+        :param opt_hyp: if True we will train the model, which may take some time
         :param replace_old: If True, replace all existing training data with this new training data. Otherwise, merge
                             it.
         """
+        N = train_x.size(0)
+        assert_shape(train_x, (N, self.num_states + self.num_actions))
+        assert_shape(train_y, (N, self.num_states))
+
+        # TODO: select datapoints by highest variance.
+        if replace_old or self._x_train is None or self._y_train is None:
+            x_new = train_x
+            y_new = train_y
+        else:
+            x_new = torch.cat((self._x_train, train_x), dim=0)
+            y_new = torch.cat((self._y_train, train_y), dim=0)
+
+        self._x_train = x_new
+        self._y_train = y_new
+
+        self._update_model(x_new, y_new)
+
+        if opt_hyp:
+            self._train_model(x_new, y_new)
+
+    @abstractmethod
+    def _update_model(self, x_train: Tensor, y_train: Tensor):
+        """Subclasses should implement this to update the actual model, if needed."""
+        pass
+
+    @abstractmethod
+    def _train_model(self, x_train: Tensor, y_train: Tensor):
+        """Subclasses should implement this to train their model."""
         pass
 
 
@@ -164,26 +199,14 @@ class GpCemSSM(CemSSM):
         assert_shape(actions, (N, self.num_actions))
         return torch.cat((states, actions), dim=1)
 
-    def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
-        assert train_x.size(0) == train_y.size(0), 'Batch dimensions must be equal.'
-        # TODO: select datapoints by highest variance.
-        if replace_old or self._model.train_inputs is None or self._model.train_targets is None:
-            x_new = train_x
-            y_new = train_y
-        else:
-            x_new = torch.cat((self.x_train, train_x), dim=0)
-            y_new = torch.cat((self.y_train, train_y), dim=0)
-
+    def _update_model(self, x_train: Tensor, y_train: Tensor):
         # Hack because set_train_data() does not work if previous data was None.
         self._model.train_inputs = []
         self._model.train_targets = torch.zeros((0))
 
-        self._model.set_train_data(x_new, y_new.transpose(0, 1), strict=False)
+        self._model.set_train_data(x_train, y_train.transpose(0, 1), strict=False)
 
-        if opt_hyp:
-            self._run_optimisation(x_new, y_new)
-
-    def _run_optimisation(self, train_x: Tensor, train_y: Tensor):
+    def _train_model(self, x_train: Tensor, y_train: Tensor):
         self._model.train()
         self._likelihood.train()
 
@@ -200,9 +223,9 @@ class GpCemSSM(CemSSM):
             # Zero gradients from previous iteration
             optimizer.zero_grad()
             # Output from model
-            output = self._model(train_x)
+            output = self._model(x_train)
             # Calc loss and backprop gradients
-            loss = -mll(output, train_y.transpose(0, 1)).sum()
+            loss = -mll(output, y_train.transpose(0, 1)).sum()
             loss.backward()
             losses.append(loss.item())
             optimizer.step()
