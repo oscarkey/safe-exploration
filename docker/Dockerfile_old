@@ -12,7 +12,7 @@ RUN conda install python=3.6 --yes --quiet \
   && hash -r
 
 # Install the main library
-COPY . /code
+COPY .. /code
 
 RUN cd /code \
   && pip install --upgrade pip \

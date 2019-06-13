@@ -5,7 +5,7 @@ services:
   - docker
 
 install:
-  - docker build -f Dockerfile -t test-image .
+  - docker build -f Dockerfile_old -t test-image .
   - docker ps -a
 
 # Run tests
