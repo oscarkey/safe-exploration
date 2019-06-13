@@ -28,9 +28,9 @@ except:
 
 def _create_cem_ssm(conf: DefaultConfig, env: Environment) -> CemSSM:
     if conf.cem_ssm == 'exact_gp':
-        return GpCemSSM(env.n_s, env.n_u)
+        return GpCemSSM(conf, env.n_s, env.n_u)
     elif conf.cem_ssm == 'mc_dropout':
-        return McDropoutSSM(env.n_s, env.n_u)
+        return McDropoutSSM(conf, env.n_s, env.n_u)
     else:
         raise ValueError(f'Unknown value for cem_ssm, {conf.cem_ssm}')
 

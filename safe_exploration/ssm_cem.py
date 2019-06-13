@@ -126,12 +126,14 @@ class GpCemSSM(CemSSM):
     does not implement the linearization and differentation functions which are only require for Casadi.
     """
 
-    def __init__(self, state_dimen: int, action_dimen: int, model: Optional[MultiOutputGP] = None):
+    def __init__(self, conf, state_dimen: int, action_dimen: int, model: Optional[MultiOutputGP] = None):
         """Constructs a new instance.
 
         :param model: Set during unit testing to inject a model.
         """
         super().__init__(state_dimen, action_dimen)
+
+        self._training_iterations = conf.exact_gp_training_iterations
 
         self._likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
         if model is None:
@@ -196,10 +198,9 @@ class GpCemSSM(CemSSM):
         # "Loss" for GPs - the marginal log likelihood
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self._likelihood, self._model)
 
-        training_iter = 200
-        print(f'Training GP on {self.x_train.size(0)} data points for {training_iter} iterations...')
+        print(f'Training GP on {self.x_train.size(0)} data points for {self._training_iterations} iterations...')
         losses = []
-        for i in range(training_iter):
+        for i in range(self._training_iterations):
             # Zero gradients from previous iteration
             optimizer.zero_grad()
             # Output from model
@@ -221,10 +222,11 @@ class McDropoutSSM(CemSSM):
     Uses the "bnn" package from https://github.com/anassinator/bnn
     """
 
-    def __init__(self, state_dimen: int, action_dimen: int):
+    def __init__(self, conf, state_dimen: int, action_dimen: int):
         super().__init__(state_dimen, action_dimen)
 
-        self._num_particles = 100
+        self._training_iterations = conf.mc_dropout_training_iterations
+        self._num_particles = conf.mc_dropout_num_samples
 
         in_features = state_dimen + action_dimen
         out_features = state_dimen
@@ -267,10 +269,10 @@ class McDropoutSSM(CemSSM):
         pass
 
     def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
-        training_iter = 1000
-        print(f'Training BNN on {self.x_train.size(0)} data points for {training_iter} iterations...')
+        # TODO: should we reset the weights at the start of each training?
+        print(f'Training BNN on {self.x_train.size(0)} data points for {self._training_iterations} iterations...')
         losses = []
-        for i in range(training_iter):
+        for i in range(self._training_iterations):
             self._optimizer.zero_grad()
             output = self._model(x_train, resample=True)
             loss = (-self._gaussian_log_likelihood(y_train, output) + 1e-2 * self._model.regularization()).mean()

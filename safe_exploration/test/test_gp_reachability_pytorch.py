@@ -5,6 +5,7 @@ import pytest
 import torch
 from polytope import polytope
 
+from .test_ssm_cem import TestGpCemSSM
 from utils import assert_shape
 from .. import gp_reachability as reachability_np
 from .. import gp_reachability_pytorch as reachability_pt
@@ -29,15 +30,15 @@ class CemSSMNumpyWrapper(StateSpaceModel):
             raise NotImplementedError
 
         if jacobians:
-            p, q, j = self._ssm.predict_with_jacobians(torch.tensor(states), torch.tensor(actions))
+            p, sigma, j = self._ssm.predict_with_jacobians(torch.tensor(states), torch.tensor(actions))
             # CemSSM returns p: [N x n_s], StateSpaceModel returns [N x n_s x 1] (not sure why).
             p = p.unsqueeze(1)
-            return self._convert_to_numpy((p, q, j))
+            return self._convert_to_numpy((p, sigma, j))
         else:
-            p, q = self._ssm.predict_without_jacobians(torch.tensor(states), torch.tensor(actions))
+            p, sigma = self._ssm.predict_without_jacobians(torch.tensor(states), torch.tensor(actions))
             # CemSSM returns p: [N x n_s], StateSpaceModel returns [N x n_s x 1] (not sure why).
             p = p.unsqueeze(1)
-            return self._convert_to_numpy(p, q)
+            return self._convert_to_numpy(p, sigma)
 
     @staticmethod
     def _convert_to_numpy(xs):
@@ -77,7 +78,7 @@ def before_test_onestep_reachability(request):
     X = torch.tensor(train_data["X"])
     y = torch.tensor(train_data["y"])
 
-    ssm = GpCemSSM(n_s, n_u)
+    ssm = GpCemSSM(TestGpCemSSM.FakeConfig(), n_s, n_u)
     ssm.update_model(X, y, replace_old=True)
 
     L_mu = torch.tensor([0.001] * n_s)

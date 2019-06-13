@@ -2,6 +2,7 @@
 
 import pytest
 
+from .test_ssm_cem import TestGpCemSSM
 from ..ssm_cem import GpCemSSM
 from ..ssm_pytorch.utilities import compute_jacobian_fast, tile
 
@@ -68,7 +69,7 @@ class TestJacobian(object):
 
 
 def test__compute_jacobian_fast__returns_same_as_slow_impl():
-    ssm = GpCemSSM(state_dimen=2, action_dimen=1)
+    ssm = GpCemSSM(TestGpCemSSM.FakeConfig, state_dimen=2, action_dimen=1)
     train_x = torch.tensor([[1., 2., 3.]])
     train_y = torch.tensor([[10., 11.]])
     ssm.update_model(train_x, train_y, replace_old=True)

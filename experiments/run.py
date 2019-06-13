@@ -46,9 +46,18 @@ def base_config():
     cem_num_rollouts = 20
     cem_num_elites = 3
     cem_num_iterations = 8
-
     # Whether to plot the ellipsoids generated during the CEM optimisation process.
     plot_cem_optimisation = True
+
+    # -- MC dropout SSM
+    mc_dropout_training_iterations = 1000
+    # List giving number of units in each hidden layer.
+    mc_dropout_hidden_features = [200, 200]
+    # Number of times we will sample the network during the forward pass, to compute the mean + var.
+    mc_dropout_num_samples = 200
+
+    # -- Exact GP SSM
+    exact_gp_training_iterations = 200
 
 
 def check_config_conflicts(conf: DefaultConfig) -> Tuple[bool, str]:
