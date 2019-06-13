@@ -47,7 +47,7 @@ def base_config():
     cem_num_elites = 3
     cem_num_iterations = 8
     # Whether to plot the ellipsoids generated during the CEM optimisation process.
-    plot_cem_optimisation = True
+    plot_cem_optimisation = False
 
     # -- MC dropout SSM
     mc_dropout_training_iterations = 1000
