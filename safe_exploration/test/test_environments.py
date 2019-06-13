@@ -5,9 +5,10 @@ Created on Mon Dec  4 13:24:39 2017
 @author: tkoller
 """
 import builtins
+import sys
+
 import numpy as np
 import pytest
-import sys
 from scipy.optimize import approx_fprime
 
 from ..environments import InvertedPendulum, CartPole
@@ -22,16 +23,18 @@ def before_test_inv_pend(request):
 
     return env
 
+
 @pytest.fixture
 def no_matplotlib(monkeypatch):
     """ Mock an import error for matplotlib"""
     import_orig = builtins.__import__
+
     def mocked_import(name, globals, locals, fromlist, level):
         """ """
         if name == 'matplotlib.pyplot':
-
             raise ImportError("This is a mocked import error")
         return import_orig(name, globals, locals, fromlist, level)
+
     monkeypatch.setattr(builtins, '__import__', mocked_import)
 
 
@@ -52,7 +55,7 @@ def test_plotting_invpend_without_matplotlib_throws_error():
         env.plot_state(None)
 
     with pytest.raises(ImportError) as e_info:
-        env.plot_ellipsoid_trajectory(None,None)
+        env.plot_ellipsoid_trajectory(None, None)
 
 
 def test_normalization(before_test_inv_pend):
@@ -82,8 +85,7 @@ def test_safety_bounds_normalization(before_test_inv_pend):
     h_mat_safe_norm, h_safe_norm, _, _ = env.get_safety_constraints(normalize=True)
     in_norm = sample_inside_polytope(x_norm, h_mat_safe_norm, h_safe_norm)
 
-    assert np.all(
-        in_unnorm == in_norm), "do the normalized constraint correspond to the unnormalized?"
+    assert np.all(in_unnorm == in_norm), "do the normalized constraint correspond to the unnormalized?"
 
 
 def test_gradients(before_test_inv_pend):
@@ -96,8 +98,4 @@ def test_gradients(before_test_inv_pend):
         f_grad = env._jac_dynamics()[i, :]
         grad_finite_diff = approx_fprime(np.zeros((n_s + n_u,)), f, 1e-8)
 
-        # err = check_grad(f,f_grad,np.zeros((n_s+n_u,)))
-
-        assert np.allclose(f_grad,
-                           grad_finite_diff), 'Is the gradient of the {}-th dynamics dimension correct?'.format(
-            i)
+        assert np.allclose(f_grad, grad_finite_diff), f'Is the gradient of the {i}-th dynamics dimension correct?'
