@@ -39,10 +39,22 @@ def base_config():
     # File name of the base config file.
     scenario_file = None
 
+    # -- Environment
+    render = True
+    visualize = True
+
     # Type of state space model to use, one of exact_gp, mc_dropout.
     cem_ssm = 'mc_dropout'
 
-    # -- CemSafeMPC options
+    # -- Episodic
+    # The number of repeats of the experiment, over which we will average the metrics.
+    n_scenarios = 6
+    # Number of episodes in each repeat. Each episode lasts until there is a safety failure, up to n_steps
+    n_ep = 8
+    # Maximum number of steps in a single episode.
+    n_steps = 50
+
+    # -- CemSafeMPC
     mpc_time_horizon = 2
     cem_num_rollouts = 20
     cem_num_elites = 3

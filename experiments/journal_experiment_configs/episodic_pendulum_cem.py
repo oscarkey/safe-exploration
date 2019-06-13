@@ -18,12 +18,6 @@ class Config(DefaultConfigEpisode):
     """
     verbose = 0
 
-    n_ep = 8
-    n_steps = 50
-    n_steps_init = 8
-    n_rollouts_init = 5  # 5
-    n_scenarios = 6  # 10
-
     obs_frequency = 1  # Only take an observation every k-th time step (k = obs_frequency)
 
     # environment
@@ -48,8 +42,6 @@ class Config(DefaultConfigEpisode):
     init_std_initial_data = np.array([.1, .1])
     init_m_initial_data = [0., 0.]
 
-    render = True
-    visualize = True
     plot_ellipsoids = False
     plot_trajectory = False
 
