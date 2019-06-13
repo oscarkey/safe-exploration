@@ -110,7 +110,7 @@ class Environment(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def _jac_dynamics(self):
+    def jac_dynamics(self):
         """ The jacobian of the dynamics """
         pass
 
@@ -259,7 +259,7 @@ class Environment(metaclass=abc.ABCMeta):
             raise NotImplementedError(
                 "For now we only allow linearization at the origin!")
 
-        jac_ct = self._jac_dynamics()
+        jac_ct = self.jac_dynamics()
 
         A_ct = jac_ct[:, :self.n_s]
         B_ct = jac_ct[:, self.n_s:]
@@ -447,7 +447,7 @@ class InvertedPendulum(Environment):
 
         return dz
 
-    def _jac_dynamics(self):
+    def jac_dynamics(self):
         """ Evaluate the jacobians of the system dynamics
 
         Returns
@@ -927,7 +927,7 @@ class CartPole(Environment):
 
         return dz
 
-    def _jac_dynamics(self):
+    def jac_dynamics(self):
         """ The jacobian of the dynamics at the origin."""
 
         m = self.m

@@ -95,7 +95,7 @@ def test_gradients(before_test_inv_pend):
 
     for i in range(n_s):
         f = lambda z: env._dynamics(0, z[:env.n_s], z[env.n_s:])[i]
-        f_grad = env._jac_dynamics()[i, :]
+        f_grad = env.jac_dynamics()[i, :]
         grad_finite_diff = approx_fprime(np.zeros((n_s + n_u,)), f, 1e-8)
 
         assert np.allclose(f_grad, grad_finite_diff), f'Is the gradient of the {i}-th dynamics dimension correct?'
