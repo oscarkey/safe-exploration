@@ -5,8 +5,8 @@ import pytest
 import torch
 from polytope import polytope
 
-from .test_ssm_cem import TestGpCemSSM
 from utils import assert_shape
+from .test_ssm_cem import TestGpCemSSM
 from .. import gp_reachability as reachability_np
 from .. import gp_reachability_pytorch as reachability_pt
 from ..ssm_cem import CemSSM
@@ -31,13 +31,27 @@ class CemSSMNumpyWrapper(StateSpaceModel):
 
         if jacobians:
             p, sigma, j = self._ssm.predict_with_jacobians(torch.tensor(states), torch.tensor(actions))
-            # CemSSM returns p: [N x n_s], StateSpaceModel returns [N x n_s x 1] (not sure why).
-            p = p.unsqueeze(1)
+
+            # CemSSM returns p: [N x n_s], StateSpaceModel returns [n_s x 1] (not sure why).
+            p = p.transpose(0, 1)
+            sigma = sigma.squeeze(0)
+            j = j.squeeze(0)
+
+            assert_shape(p, (self.num_states, 1))
+            assert_shape(sigma, (self.num_states,))
+            assert_shape(j, (self.num_states, self.num_states + self.num_actions))
+
             return self._convert_to_numpy((p, sigma, j))
         else:
             p, sigma = self._ssm.predict_without_jacobians(torch.tensor(states), torch.tensor(actions))
-            # CemSSM returns p: [N x n_s], StateSpaceModel returns [N x n_s x 1] (not sure why).
-            p = p.unsqueeze(1)
+
+            # CemSSM returns p: [N x n_s], StateSpaceModel returns [n_s x 1] (not sure why).
+            p = p.transpose(0, 1)
+            sigma = sigma.squeeze(0)
+
+            assert_shape(p, (self.num_states, 1))
+            assert_shape(sigma, (self.num_states,))
+
             return self._convert_to_numpy(p, sigma)
 
     @staticmethod
