@@ -19,6 +19,7 @@ from safe_exploration.episode_runner import run_episodic
 from safe_exploration.exploration_runner import run_exploration
 from safe_exploration.uncertainty_propagation_runner import run_uncertainty_propagation
 from safe_exploration.utils_config import load_config, create_env, create_solver
+from utils_sacred import SacredAggregatedMetrics
 
 ex = sacred.Experiment()
 
@@ -107,6 +108,8 @@ def _run_scenario(_run, scenario_file: Optional[str]):
     if conflict:
         raise ValueError("There are conflicting settings: {}".format(conflict_str))
 
+    metrics = SacredAggregatedMetrics(_run)
+
     env = create_env(conf.env_name, conf.env_options)
 
     solver, safe_policy = create_solver(conf, env)
@@ -115,7 +118,7 @@ def _run_scenario(_run, scenario_file: Optional[str]):
     if task == "exploration":
         run_exploration(conf, conf.visualize)
     elif task == "episode_setting":
-        run_episodic(conf)
+        run_episodic(conf, metrics)
 
     elif task == "uncertainty_propagation":
         run_uncertainty_propagation(env, solver, conf)

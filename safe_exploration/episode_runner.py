@@ -10,11 +10,11 @@ from collections import namedtuple
 
 import numpy as np
 
-from .utils import unavailable
 from . import utils_ellipsoid
 from .sampling_models import MonteCarloSafetyVerification
 from .utils import generate_initial_samples, unavailable
 from .utils_config import create_solver, create_env
+from .utils_sacred import SacredAggregatedMetrics
 
 try:
     import matplotlib.pyplot as plt
@@ -23,7 +23,7 @@ except:
     _has_matplotlib = False
 
 
-def run_episodic(conf, visualize=False):
+def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
     """ Run episode setting """
 
     warnings.warn("Need to check relative dynamics")
@@ -56,7 +56,7 @@ def run_episodic(conf, visualize=False):
         for i in range(conf.n_ep):
 
             xx, yy, cc, exit_codes_i, safety_failure = do_rollout(
-                env, conf.n_steps,
+                env, conf.n_steps, episode_id=i, metrics=metrics,
                 cost=conf.rl_immediate_cost,
                 solver=solver,
                 plot_ellipsoids=conf.plot_ellipsoids,
@@ -84,6 +84,8 @@ def run_episodic(conf, visualize=False):
         cc_all += [cc_k]
         X_all += [X_list]
         y_all += [y_list]
+
+    metrics.flush()
 
     if not conf.data_savepath is None:
         savepath_data = "{}/{}".format(conf.save_path, conf.data_savepath)
@@ -113,7 +115,8 @@ def run_episodic(conf, visualize=False):
 
 
 @unavailable(not _has_matplotlib, "matplotlib", conditionals=["plot_ellipsoids,plot_trajectory"])
-def do_rollout(env, n_steps, solver=None, relative_dynamics=False, cost=None,
+def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, solver=None, relative_dynamics=False,
+               cost=None,
                plot_trajectory=True,
                verbosity=1, sampling_verification=False,
                plot_ellipsoids=False, render=False,
@@ -132,6 +135,8 @@ def do_rollout(env, n_steps, solver=None, relative_dynamics=False, cost=None,
 
     cc = []
     n_successful = 0
+    safe_controller_fallback_count = 0
+    total_time_in_solver = 0
     safety_failure = False
     if plot_trajectory:
         fig, ax = env.plot_safety_bounds()
@@ -157,9 +162,15 @@ def do_rollout(env, n_steps, solver=None, relative_dynamics=False, cost=None,
             exit_code = 5
         else:
             t_start_solver = time.time()
-            action, exit_code = solver.get_action(state)  # ,lqr_only = True)
+            action, mpc_success = solver.get_action(state)  # ,lqr_only = True)
             t_end_solver = time.time()
+
             t_solver = t_end_solver - t_start_solver
+            total_time_in_solver += t_solver
+
+            exit_code = 1 if mpc_success else 0
+            if not mpc_success:
+                safe_controller_fallback_count += 1
 
             if verbosity > 0:
                 print(("total time solver in ms: {}".format(t_solver)))
@@ -254,6 +265,10 @@ def do_rollout(env, n_steps, solver=None, relative_dynamics=False, cost=None,
         if done:
             safety_failure = True
             break
+
+    metrics.log_scalar('episode_length', n_successful, episode_id)
+    metrics.log_scalar('safe_controller_fallback_count', safe_controller_fallback_count, episode_id)
+    metrics.log_scalar('mean_time_in_solver', float(total_time_in_solver) / n_successful, episode_id)
 
     if n_successful == 0:
         warnings.warn("Agent survived 0 steps, cannot collect data")
