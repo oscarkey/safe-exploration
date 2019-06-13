@@ -66,10 +66,10 @@ def test_normalization(before_test_inv_pend):
     s_1, a_1 = env.normalize(*env.unnormalize(state, action))
     s_2, a_2 = env.unnormalize(*env.normalize(state, action))
 
-    assert np.all(s_1 == state)
-    assert np.all(a_1 == action)
-    assert np.all(s_2 == state)
-    assert np.all(a_2 == action)
+    assert np.allclose(s_1, state)
+    assert np.allclose(a_1, action)
+    assert np.allclose(s_2, state)
+    assert np.allclose(a_2, action)
 
 
 def test_safety_bounds_normalization(before_test_inv_pend):
@@ -99,3 +99,23 @@ def test_gradients(before_test_inv_pend):
         grad_finite_diff = approx_fprime(np.zeros((n_s + n_u,)), f, 1e-8)
 
         assert np.allclose(f_grad, grad_finite_diff), f'Is the gradient of the {i}-th dynamics dimension correct?'
+
+
+class TestInvertedPendulum:
+    def test__step__large_unsafe_action__ends_episode(self):
+        env = InvertedPendulum()
+        # Set std=0 so we know exactly where we are.
+        env.reset(mean=0, std=0)
+
+        _, _, _, done = env.step(np.array([10.]))
+
+        assert done is True
+
+    def test__step__small_safe_action__does_not_end_episode(self):
+        env = InvertedPendulum()
+        # Set std=0 so we know exactly where we are.
+        env.reset(mean=0, std=0)
+
+        _, _, _, done = env.step(np.array([0.1]))
+
+        assert done is False

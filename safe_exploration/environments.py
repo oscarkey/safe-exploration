@@ -7,7 +7,10 @@ Created on Mon Sep 25 17:16:45 2017
 import abc
 import math
 import warnings
+from typing import Tuple, Optional
+
 import numpy as np
+from numpy import ndarray
 
 from .utils import unavailable
 from casadi import reshape as cas_reshape
@@ -112,8 +115,14 @@ class Environment(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def _check_constraints(self, state=None):
-        """ Check the constraints """
+    def _check_constraints(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
+        """Check the state constraints
+
+        :param state: Some (unnormalized) state or the current state, if None then the current state is used
+        :returns:
+            satisfied: True if the constraints are satisfied, otherwise False,
+            failure code: -1 if no failiure, otherwise an error code defined by the subclass
+        """
         pass
 
     def get_safety_constraints(self, normalize=True):
@@ -402,19 +411,14 @@ class InvertedPendulum(Environment):
         return self.state_to_obs(self.current_state)
 
     def _check_constraints(self, state=None):
-        """ Check the state constraints
+        if state is None:
+            state = self.current_state
 
-        Parameters
-        ----------
-        state: ndarray[float], optional
-            Some (unnormalized) state or the current state
-
-        Returns:
-        --------
-        sat: bool
-            Returns 'True' if the constraints are satisfied, 'False' otherwise
-        """
-        return True, 0
+        # Check if the state lies inside the safe polytope i.e. A * x <= b.
+        res = np.matmul(self.h_mat_safe, state) - self.h_safe.T
+        satisfied = not (res > 0).any()
+        failure_code = -1 if satisfied else 1
+        return satisfied, failure_code
 
     def _dynamics(self, t, state, action):
         """ Evaluate the system dynamics
@@ -824,24 +828,13 @@ class CartPole(Environment):
 
         return self.state_to_obs(self.current_state)
 
-    def _check_constraints(self, state=None):
-        """ Check the state constraints
+    def _check_constraints(self, state=None) -> Tuple[bool, int]:
+        """Checks the constraints.
 
-        Parameters
-        ----------
-        state: ndarray[float], optional
-            Some (unnormalized) state or the current state
-
-        Returns:
-        --------
-        sat: bool
-            Returns 'true' if the constraints are satisfied, 'false' otherwise
-        failure_code:
-            -1: no failure
-             1: obstacle constraint - lim_x violated
-             2: pole fell over - max_rad_theta violated
+        For the cartpole environment the error codes are:
+            1: obstacle constraint - lim_x violated;
+            2: pole fell over - max_rad_theta violated
         """
-
         failure_code = -1
 
         if state is None:
