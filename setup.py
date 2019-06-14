@@ -13,10 +13,10 @@ setup(
                       'scipy',
                       # 'constrained-cem-mpc @ git+ssh://git@github.com/oscarkey/constrained-cem-mpc.git',
                       # We need sacred from master due to https://github.com/conda/conda-build/issues/3431
-                      'sacred @ git+https://github.com/IDSIA/sacred/tarball/master#egg=sacred',
+                      'sacred @ https://github.com/IDSIA/sacred/tarball/master#egg=sacred',
                       'pymongo',
                       'dnspython',
-                      'bnn @ git+https://github.com/anassinator/bnn.git#egg=bnn'],
+                      'bnn @ https://github.com/anassinator/bnn/tarball/master#egg=bnn'],
     extras_require={'test': ['pytest>=4,<5',
                              'flake8==3.6.0',
                              'pydocstyle==3.0.0',
@@ -24,8 +24,8 @@ setup(
                     'visualization': ['matplotlib',
                              'pygame'],
                     'ssm_gpy':  ['GPy'],
-                    'ssm_pytorch': ['gpytorch==0.2.1',
-                                    'torch<1.1',
+                    'ssm_pytorch': ['gpytorch',
+                                    'torch',
                                     'hessian @ https://github.com/mariogeiger/hessian/tarball/master#egg=hessian']},
 
     classifiers=[
