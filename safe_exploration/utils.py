@@ -687,3 +687,8 @@ def batch_vector_matrix_mul(x: Tensor, v: Tensor) -> Tensor:
     assert x.dim() == 2, f'Wanted x to be a 2D matrix, got {x.size()}'
     assert v.dim() == 2, f'Wanted y to be a batch of vectors, got {v.size()}'
     return torch.matmul(x, v.unsqueeze(2)).squeeze(2)
+
+
+def get_pytorch_device() -> str:
+    """Returns either the cpu, or the first gpu if one exists."""
+    return 'cuda:0' if torch.cuda.is_available() else 'cpu'

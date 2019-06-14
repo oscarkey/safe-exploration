@@ -9,6 +9,7 @@ from numpy import ndarray
 from polytope import Polytope
 from torch import Tensor
 
+from . import utils
 from . import gp_reachability_pytorch
 from .environments import Environment
 from .gp_reachability_pytorch import onestep_reachability
@@ -79,8 +80,8 @@ def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs) -> None:
 
 
 def _plot_ellipsoids_in_2d(p: Tensor, q: Tensor, color: Union[str, Tuple[float, float, float]] = 'orange') -> None:
-    p = p.detach().numpy()
-    q = q.detach().numpy()
+    p = p.detach().cpu().numpy()
+    q = q.detach().cpu().numpy()
     # Hacky way to test if cartpole or pendulum.
     num_cartpole_states = 4
     if p.shape[0] == num_cartpole_states:
@@ -95,8 +96,8 @@ class EllipsoidTerminalConstraint(Constraint):
 
     def __init__(self, state_dimen: int, safe_polytope_a: np.ndarray, safe_polytope_b: np.ndarray):
         self._pq_flattener = PQFlattener(state_dimen)
-        self._polytope_a = torch.tensor(safe_polytope_a)
-        self._polytope_b = torch.tensor(safe_polytope_b)
+        self._polytope_a = torch.tensor(safe_polytope_a, device=utils.get_pytorch_device())
+        self._polytope_b = torch.tensor(safe_polytope_b, device=utils.get_pytorch_device())
 
     def __call__(self, trajectory, actions) -> float:
         # Add batch dimension.
@@ -143,8 +144,8 @@ class CemSafeMPC(SafeMPC):
 
         self._state_dimen = env.n_s
         self._action_dimen = env.n_u
-        self._l_mu = torch.tensor(env.l_mu)
-        self._l_sigma = torch.tensor(env.l_sigm)
+        self._l_mu = torch.tensor(env.l_mu, device=utils.get_pytorch_device())
+        self._l_sigma = torch.tensor(env.l_sigm, device=utils.get_pytorch_device())
         self._get_random_action = env.random_action
         self._pq_flattener = PQFlattener(env.n_s)
         self._ssm = ssm
@@ -153,8 +154,8 @@ class CemSafeMPC(SafeMPC):
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
-        self._linearized_model_a = torch.tensor(linearized_model_a)
-        self._linearized_model_b = torch.tensor(linearized_model_b)
+        self._linearized_model_a = torch.tensor(linearized_model_a, device=utils.get_pytorch_device())
+        self._linearized_model_b = torch.tensor(linearized_model_b, device=utils.get_pytorch_device())
 
         if lqr is None:
             lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, env.n_s, env.n_u, linearized_model_a,
@@ -196,7 +197,7 @@ class CemSafeMPC(SafeMPC):
         if x_train is None:
             return np.empty((0, self._state_dimen + self._action_dimen))
         else:
-            return x_train.detach().numpy()
+            return x_train.detach().cpu().numpy()
 
     def init_solver(self, cost_func=None):
         # TODO: attach the cost function to the mpc.
@@ -208,7 +209,7 @@ class CemSafeMPC(SafeMPC):
         # If we don't have training data we skip solving the mpc as it won't be any use.
         # This makes the first episode much faster (during which we gather training data)
         if self._has_training_data:
-            state_batch = torch.tensor(state).unsqueeze(0)
+            state_batch = torch.tensor(state, device=utils.get_pytorch_device()).unsqueeze(0)
             mpc_actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
             mpc_actions = mpc_actions.detach().cpu().numpy() if mpc_actions is not None else mpc_actions
 
@@ -245,7 +246,8 @@ class CemSafeMPC(SafeMPC):
     def _plot_rollouts(self, rollouts: List[Rollouts]):
         """Plots the constraint, and the terminal states of the rollouts through the optimisation process."""
         tc = self._mpc._rollout_function._constraints[1]
-        _plot_constraints_in_2d(tc._polytope_a.detach().numpy(), tc._polytope_b.detach().numpy(), None, None)
+        _plot_constraints_in_2d(tc._polytope_a.detach().cpu().numpy(), tc._polytope_b.detach().cpu().numpy(), None,
+                                None)
         for i in range(len(rollouts)):
             ps, qs = self._pq_flattener.unflatten(rollouts[i].trajectories[:, -1, :])
             for j in range(ps.size(0)):
@@ -274,7 +276,9 @@ class CemSafeMPC(SafeMPC):
         return np.dot(self._lqr.get_control_matrix(), state)
 
     def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
-        self._ssm.update_model(torch.tensor(x), torch.tensor(y), opt_hyp, replace_old)
+        x = torch.tensor(x, device=utils.get_pytorch_device())
+        y = torch.tensor(y, device=utils.get_pytorch_device())
+        self._ssm.update_model(x, y, opt_hyp, replace_old)
         self._has_training_data = True
 
     def information_gain(self) -> Union[ndarray, List[None]]:
@@ -282,10 +286,10 @@ class CemSafeMPC(SafeMPC):
         return [None] * self.state_dimen
 
     def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
-        mean, sigma = self._ssm.predict_raw(torch.tensor(z))
-        return mean.detach().numpy(), sigma.detach().numpy()
+        mean, sigma = self._ssm.predict_raw(torch.tensor(z, device=utils.get_pytorch_device()))
+        return mean.detach().cpu().numpy(), sigma.detach().cpu().numpy()
 
     def eval_prior(self, states: ndarray, actions: ndarray):
-        a = self._linearized_model_a.numpy()
-        b = self._linearized_model_b.numpy()
+        a = self._linearized_model_a.cpu().numpy()
+        b = self._linearized_model_b.cpu().numpy()
         return np.dot(states, a.T) + np.dot(actions, b.T)

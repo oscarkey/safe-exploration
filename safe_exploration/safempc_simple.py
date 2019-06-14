@@ -15,6 +15,7 @@ from casadi import MX, mtimes, vertcat, sum2, sqrt
 from casadi import reshape as cas_reshape
 from numpy.core._multiarray_umath import ndarray
 
+from . import utils
 from .safempc import SafeMPC
 from .gp_reachability_casadi import lin_ellipsoid_safety_distance
 from .gp_reachability_casadi import multi_step_reachability as cas_multistep
@@ -1120,4 +1121,4 @@ class LqrFeedbackController:
 
     @lru_cache()
     def get_control_matrix_pytorch(self):
-        return torch.tensor(self.get_control_matrix())
+        return torch.tensor(self.get_control_matrix(), device=utils.get_pytorch_device())
