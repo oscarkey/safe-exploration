@@ -120,8 +120,8 @@ class EllipsoidTerminalConstraint(Constraint):
 def construct_constraints(env: Environment):
     """Creates the polytopic constraints for the MPC problem from the values in the config file."""
     h_mat_safe, h_safe, h_mat_obs, h_obs = env.get_safety_constraints(normalize=True)
-    action_constraint = ActionConstraint(box2torchpoly([[env.u_min.item(), env.u_max.item()], ])).to(
-        get_pytorch_device())
+    action_constraint = ActionConstraint(
+        box2torchpoly([[env.u_min.item(), env.u_max.item()], ]).to(get_pytorch_device()))
     terminal_constraint = EllipsoidTerminalConstraint(env.n_s, h_mat_safe, h_safe)
     return [action_constraint, terminal_constraint]
 
