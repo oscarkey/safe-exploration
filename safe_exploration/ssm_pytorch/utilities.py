@@ -36,12 +36,8 @@ def compute_jacobian(f, x):
         return grad(f, x)[0]
 
     # Initialize outputs
-    jacobian = torch.zeros(f.shape + x.shape)
-    grad_output = torch.zeros(*f.shape)
-
-    if x.is_cuda:
-        grad_output = grad_output.cuda()
-        jacobian = jacobian.cuda()
+    jacobian = torch.zeros(f.shape + x.shape, device=x.device)
+    grad_output = torch.zeros(*f.shape, device=x.device)
 
     # Iterate over all elements in f
     for index in itertools.product(*map(range, f.shape)):
@@ -78,7 +74,7 @@ def compute_jacobian_fast(f: Callable[[Tensor], Tensor], x: Tensor, num_outputs:
     y = f(x)
     assert_shape(y, (N * num_outputs, num_outputs))
 
-    repeated_eye = torch.eye(num_outputs).repeat((N, 1))
+    repeated_eye = torch.eye(num_outputs, device=x.device).repeat((N, 1))
     y.backward(repeated_eye)
 
     if x.grad is None:

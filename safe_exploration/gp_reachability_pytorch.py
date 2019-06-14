@@ -57,8 +57,8 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
     n_u = ssm.num_actions
 
     if a is None:
-        a = torch.eye(n_s)
-        b = torch.zeros((n_s, n_u))
+        a = torch.eye(n_s, device=p_center.device)
+        b = torch.zeros((n_s, n_u), device=p_center.device)
 
     if q_shape is None:
         # The state is a point.
@@ -120,13 +120,13 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0) + ub_sigma)
 
         Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps.squeeze(1))
-        p_lagrange_sigm = torch.zeros((N, n_s))
+        p_lagrange_sigm = torch.zeros((N, n_s), device=Q_lagrange_sigm.device)
 
         if verbose > 0:
             print_ellipsoid(p_lagrange_sigm, Q_lagrange_sigm, text="overapproximation lagrangian sigma")
 
         Q_lagrange_mu = ellipsoid_from_rectangle_pytorch(ub_mean.squeeze(1))
-        p_lagrange_mu = torch.zeros((N, n_s))
+        p_lagrange_mu = torch.zeros((N, n_s), device=Q_lagrange_mu.device)
 
         if verbose > 0:
             print_ellipsoid(p_lagrange_mu, Q_lagrange_mu, text="overapproximation lagrangian mu")

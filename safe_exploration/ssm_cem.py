@@ -185,7 +185,7 @@ class GpCemSSM(CemSSM):
     def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
         # Hack because set_train_data() does not work if previous data was None.
         self._model.train_inputs = []
-        self._model.train_targets = torch.zeros((0))
+        self._model.train_targets = torch.zeros((0), device=x_train.device)
 
         self._model.set_train_data(x_train, y_train.transpose(0, 1), strict=False)
 
@@ -298,7 +298,7 @@ class McDropoutSSM(CemSSM):
 
 def test_plot(ssm: CemSSM, train_x: Tensor, train_y: Tensor):
     states = torch.range(0., 5., 0.1).unsqueeze(1)
-    actions = torch.empty((states.size(0), 0))
+    actions = torch.empty((states.size(0), 0), device=train_x.device)
     mu, std = ssm.predict_without_jacobians(states, actions)
 
     xs = states.squeeze(1).detach().cpu().numpy()

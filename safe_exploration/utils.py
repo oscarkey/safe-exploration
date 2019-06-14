@@ -657,7 +657,7 @@ def eigenvalues_batch(xs: Tensor) -> Tensor:
     assert xs.dim() == 3 and xs.shape[1] == xs.shape[2], f'Wanted (N, n, n), got {xs.shape}'
     N = xs.shape[0]
     n = xs.shape[1]
-    evs = torch.empty((N, n, 2))
+    evs = torch.empty((N, n, 2), device=xs.device)
     for i in range(N):
         ev_i, _ = torch.eig(xs[i], eigenvectors=False)
         evs[i] = ev_i
@@ -672,7 +672,7 @@ def trace_batch(xs: Tensor) -> Tensor:
     """
     assert xs.dim() == 3
     N = xs.shape[0]
-    traces = torch.empty((N))
+    traces = torch.empty((N), device=xs.device)
     for i in range(N):
         traces[i] = torch.trace(xs[i])
     return traces
