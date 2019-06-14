@@ -25,7 +25,7 @@ setup(
                              'pygame'],
                     'ssm_gpy':  ['GPy'],
                     # TODO: upgrade to latest gpytorch (meant to be faster on small test sets!)
-                    'ssm_pytorch': ['gpytorch==0.3.2',
+                    'ssm_pytorch': ['gpytorch==0.2.1',
                                     'torch',
                                     'hessian @ https://github.com/mariogeiger/hessian/tarball/master#egg=hessian']},
 
