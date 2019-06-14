@@ -55,6 +55,10 @@ class DefaultConfig(object):
         """
         existing_keys = set(dir(self))
         for key, value in config.items():
+            if key.startswith('_'):
+                # This ignores things like doc strings.
+                continue
+
             if key in existing_keys:
                 raise ValueError(f'Param \'{key}\' already exists with value \'{value}\'')
 
