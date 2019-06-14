@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 
 from .ssm_pytorch import BatchKernel, MultiOutputGP, utilities
-from .utils import assert_shape
+from .utils import assert_shape, get_pytorch_device
 
 
 class CemSSM(ABC):
@@ -142,6 +142,7 @@ class GpCemSSM(CemSSM):
                                         likelihood=self._likelihood)
         else:
             self._model = model
+        self._model = self._model.to(get_pytorch_device())
         self._model.eval()
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -231,6 +232,7 @@ class McDropoutSSM(CemSSM):
         in_features = state_dimen + action_dimen
         out_features = state_dimen
         self._model = bnn.bayesian_model(in_features, out_features, hidden_features=[200, 200])
+        self._model = self._model.to(get_pytorch_device())
         self._optimizer = torch.optim.Adam(p for p in self._model.parameters() if p.requires_grad)
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
