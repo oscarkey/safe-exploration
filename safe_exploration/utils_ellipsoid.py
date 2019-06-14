@@ -15,7 +15,7 @@ import torch
 from numpy import sqrt, trace
 from torch import Tensor
 
-from utils import assert_shape, trace_batch
+from .utils import assert_shape, trace_batch
 
 
 def sample_inside_ellipsoid(samples, p_center, q_shape, c=1.):
