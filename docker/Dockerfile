@@ -34,14 +34,9 @@ RUN apt-get install -y --no-install-recommends python3.7-dev
 
 RUN curl --silent https://bootstrap.pypa.io/get-pip.py | python3.7
 
-#RUN curl -o ~/miniconda.sh -O  https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
-#     chmod +x ~/miniconda.sh && \
-#     ~/miniconda.sh -b -p /opt/conda && \
-#     rm ~/miniconda.sh && \
-#     /opt/conda/bin/conda install python=3.6 && \
-#     /opt/conda/bin/conda install numpy pyyaml scipy ipython cython mkl mkl-include && \
-#     /opt/conda/bin/conda clean -ya
-#ENV PATH /opt/conda/bin:$PATH
+# Install some big dependencies before we copy the code in, to avoid having to install them every we update the code.
+# TODO: there must be a better way to do this.
+RUN pip install torch casadi matplotlib numpy scikit-learn scipy GPy gpytorch pymongo dnspython
 
 # Section to get permissions right, and avoid running inside as root {{
 # Create a user matching the UID, and create/chmod home dir (== project directory)
@@ -57,7 +52,7 @@ RUN chown -R user:user /project
 USER user
 WORKDIR /project/app
 
-RUN pip install --user -e ".[test,visualization,ssm_gpy,ssm_pytorch]"
+RUN pip install --user -e ".[visualization,ssm_gpy,ssm_pytorch]"
 RUN pip install --user -e ./constrained-cem-mpc
 
 #ENV PYTHONPATH "$PYTHONPATH:/project/"
