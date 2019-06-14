@@ -233,6 +233,8 @@ class McDropoutSSM(CemSSM):
         out_features = state_dimen
         self._model = bnn.bayesian_model(in_features, out_features, hidden_features=[200, 200])
         self._model = self._model.to(get_pytorch_device())
+        self._model.eval()
+
         self._optimizer = torch.optim.Adam(p for p in self._model.parameters() if p.requires_grad)
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -271,6 +273,8 @@ class McDropoutSSM(CemSSM):
         pass
 
     def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
+        self._model.train()
+
         # TODO: should we reset the weights at the start of each training?
         print(f'Training BNN on {self.x_train.size(0)} data points for {self._training_iterations} iterations...')
         losses = []
@@ -282,6 +286,8 @@ class McDropoutSSM(CemSSM):
             losses.append(loss.item())
             self._optimizer.step()
         print(f'Training complete. Final losses: {losses[-4]:.2f} {losses[-3]:.2f} {losses[-2]:.2f} {losses[-1]:.2f}')
+
+        self._model.eval()
 
     @staticmethod
     def _gaussian_log_likelihood(targets, pred_means, pred_stds=None):
