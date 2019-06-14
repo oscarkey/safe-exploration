@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 from torch.autograd import grad
 
-from utils import assert_shape
+from ..utils import assert_shape
 
 __all__ = ['compute_jacobian', 'update_cholesky', 'SetTorchDtype']
 
