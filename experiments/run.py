@@ -73,6 +73,13 @@ def base_config():
     exact_gp_training_iterations = 200
 
 
+@ex.named_config
+def server_config():
+    """Contains appropriate flags for when running on a headless gpu server."""
+    render = False
+    visualize = False
+
+
 def check_config_conflicts(conf: DefaultConfig) -> Tuple[bool, str]:
     """ Check if there are conflicting options in the Config
 
