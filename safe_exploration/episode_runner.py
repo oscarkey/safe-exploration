@@ -10,6 +10,7 @@ from collections import namedtuple
 
 import numpy as np
 
+from .safempc_cem import MpcResult
 from . import utils_ellipsoid
 from .sampling_models import MonteCarloSafetyVerification
 from .utils import generate_initial_samples, unavailable
@@ -136,7 +137,7 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
 
     cc = []
     n_successful = 0
-    safe_controller_fallback_count = 0
+    mpc_results = []
     total_time_in_solver = 0
     safety_failure = False
     if plot_trajectory:
@@ -163,15 +164,14 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
             exit_code = 5
         else:
             t_start_solver = time.time()
-            action, mpc_success = solver.get_action(state)  # ,lqr_only = True)
+            action, mpc_result = solver.get_action(state)  # ,lqr_only = True)
             t_end_solver = time.time()
 
             t_solver = t_end_solver - t_start_solver
             total_time_in_solver += t_solver
 
-            exit_code = 1 if mpc_success else 0
-            if not mpc_success:
-                safe_controller_fallback_count += 1
+            exit_code = 1 if mpc_result in (MpcResult.FOUND_SOLUTION, MpcResult.PREVIOUS_SOLUTION) else 0
+            mpc_results.append(mpc_result)
 
             if verbosity > 0:
                 print(("total time solver in ms: {}".format(t_solver)))
@@ -268,7 +268,9 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
             break
 
     metrics.log_scalar('episode_length', n_successful, episode_id)
-    metrics.log_scalar('safe_controller_fallback_count', safe_controller_fallback_count, episode_id)
+    metrics.log_scalar('mpc_found_solution_count', mpc_results.count(MpcResult.FOUND_SOLUTION), episode_id)
+    metrics.log_scalar('mpc_previous_solution_count', mpc_results.count(MpcResult.PREVIOUS_SOLUTION), episode_id)
+    metrics.log_scalar('safe_controller_fallback_count', mpc_results.count(MpcResult.SAFE_CONTROLLER), episode_id)
     metrics.log_scalar('mean_time_in_solver', float(total_time_in_solver) / n_successful, episode_id)
 
     if n_successful == 0:

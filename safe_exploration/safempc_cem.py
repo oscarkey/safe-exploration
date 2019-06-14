@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Optional, Tuple, Union, List
 
 import matplotlib.pyplot as plt
@@ -17,6 +18,13 @@ from .safempc_simple import LqrFeedbackController
 from .ssm_cem import CemSSM
 from .utils import get_device
 from .visualization import utils_visualization
+
+
+class MpcResult(Enum):
+    """Describes the result of the MPC process when selecting an action."""
+    FOUND_SOLUTION = 1
+    PREVIOUS_SOLUTION = 2
+    SAFE_CONTROLLER = 3
 
 
 class PQFlattener:
@@ -205,7 +213,7 @@ class CemSafeMPC(SafeMPC):
         # TODO: attach the cost function to the mpc.
         pass
 
-    def get_action(self, state: ndarray) -> Tuple[ndarray, bool]:
+    def get_action(self, state: ndarray) -> Tuple[ndarray, MpcResult]:
         assert_shape(state, (self._state_dimen,))
 
         # If we don't have training data we skip solving the mpc as it won't be any use.
@@ -225,22 +233,25 @@ class CemSafeMPC(SafeMPC):
 
         if mpc_actions is not None:
             print('Found solution')
-            success = True
-            self._last_mpc_actions = mpc_actions
-            self._mpc_actions_executed = 0
-        else:
-            print('No solution found')
-            success = False
+            action = mpc_actions[0]
 
-        if self._mpc_actions_executed < self._last_mpc_actions.shape[0]:
+            self._last_mpc_actions = mpc_actions
+            self._mpc_actions_executed = 1
+
+            result = MpcResult.FOUND_SOLUTION
+
+        elif self._mpc_actions_executed < self._last_mpc_actions.shape[0]:
             print('Using existing solution')
             action = self._last_mpc_actions[self._mpc_actions_executed]
             self._mpc_actions_executed += 1
+            result = MpcResult.PREVIOUS_SOLUTION
+
         else:
             print('Using safe controller')
             action = self._get_safe_controller_action(state)
+            result = MpcResult.SAFE_CONTROLLER
 
-        return action, success
+        return action, result
 
     def get_action_verbose(self, state: ndarray):
         raise NotImplementedError
