@@ -19,7 +19,7 @@ from safe_exploration.episode_runner import run_episodic
 from safe_exploration.exploration_runner import run_exploration
 from safe_exploration.uncertainty_propagation_runner import run_uncertainty_propagation
 from safe_exploration.utils_config import load_config, create_env, create_solver
-from utils_sacred import SacredAggregatedMetrics
+from safe_exploration.utils_sacred import SacredAggregatedMetrics
 
 ex = sacred.Experiment()
 
