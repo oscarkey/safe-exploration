@@ -21,7 +21,7 @@ from .gp_reachability_casadi import lin_ellipsoid_safety_distance
 from .gp_reachability_casadi import multi_step_reachability as cas_multistep
 from .uncertainty_propagation_casadi import mean_equivalent_multistep, \
     multi_step_taylor_symbolic
-from .utils import dlqr, feedback_ctrl, array_of_vec_to_array_of_mat
+from .utils import dlqr, feedback_ctrl, array_of_vec_to_array_of_mat, get_device
 
 ATTR_NAMES_PERF = ['type_perf_traj', 'n_perf', 'r', 'perf_has_fb']
 DEFAULT_OPT_PERF = {'type_perf_traj': 'mean_equivalent', 'n_perf': 5, 'r': 1,
@@ -1101,7 +1101,9 @@ class SimpleSafeMPC(SafeMPC):
 
 class LqrFeedbackController:
 
-    def __init__(self, wx_feedback_cost, wu_feedback_cost, n_s: int, n_u: int, linearized_model_a, linearized_model_b):
+    def __init__(self, wx_feedback_cost, wu_feedback_cost, n_s: int, n_u: int, linearized_model_a, linearized_model_b,
+                 conf=None):
+        self._device = get_device(conf)
         self._wx_feedback_cost = wx_feedback_cost
         self._wu_feedback_cost = wu_feedback_cost
         self._n_s = n_s
@@ -1121,4 +1123,4 @@ class LqrFeedbackController:
 
     @lru_cache()
     def get_control_matrix_pytorch(self):
-        return torch.tensor(self.get_control_matrix(), device=utils.get_pytorch_device())
+        return torch.tensor(self.get_control_matrix(), device=self._device)

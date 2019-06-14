@@ -39,6 +39,9 @@ def base_config():
     # File name of the base config file.
     scenario_file = None
 
+    # Device to force Tensors to. None, or a valid pytorch device (e.g. cpu, cuda:0)
+    device = None
+
     # -- Environment
     render = True
     visualize = True

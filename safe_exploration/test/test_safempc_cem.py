@@ -7,6 +7,15 @@ from ..environments import CartPole, InvertedPendulum
 from ..safempc_cem import PQFlattener, EllipsoidTerminalConstraint, CemSafeMPC
 
 
+class FakeConfig:
+    mpc_time_horizon = 2
+    cem_num_rollouts = 20
+    cem_num_elites = 3
+    cem_num_iterations = 8
+    plot_cem_optimisation = False
+    device = None
+
+
 class TestPQFlattener:
     def test__flatten_unflatten__q_not_none__input_equals_output(self):
         flattener = PQFlattener(state_dimen=3)
@@ -32,23 +41,15 @@ class TestPQFlattener:
 def test__construct_constraints__contains_one_terminal_constraint():
     # TODO: check constraint is actually correct.
     env = CartPole()
-    constraints = safempc_cem.construct_constraints(env)
+    constraints = safempc_cem.construct_constraints(FakeConfig(), env)
     assert len([c for c in constraints if isinstance(c, EllipsoidTerminalConstraint)]) == 1
 
 
 def test__construct_constraints__contains_one_action_constraint():
     # TODO: check constraint is actually correct.
     env = CartPole()
-    constraints = safempc_cem.construct_constraints(env)
+    constraints = safempc_cem.construct_constraints(FakeConfig(), env)
     assert len([c for c in constraints if isinstance(c, ActionConstraint)]) == 1
-
-
-class FakeConfig:
-    mpc_time_horizon = 2
-    cem_num_rollouts = 20
-    cem_num_elites = 3
-    cem_num_iterations = 8
-    plot_cem_optimisation = False
 
 
 class TestCemSafeMPC:

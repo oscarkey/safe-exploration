@@ -6,6 +6,7 @@ from ..ssm_cem import GpCemSSM, McDropoutSSM
 class TestGpCemSSM:
     class FakeConfig:
         exact_gp_training_iterations = 200
+        device = None
 
     def test__x_train__no_training_data__returns_None(self):
         ssm = GpCemSSM(TestGpCemSSM.FakeConfig(), state_dimen=2, action_dimen=1)
@@ -43,6 +44,7 @@ class TestMcDropoutSSM:
         mc_dropout_training_iterations = 1000
         mc_dropout_hidden_features = [2, 2]
         mc_dropout_num_samples = 3
+        device = None
 
     def test__predict_without_jacobians__returns_correct_shape(self):
         ssm = McDropoutSSM(TestMcDropoutSSM.FakeConfig(), state_dimen=2, action_dimen=1)

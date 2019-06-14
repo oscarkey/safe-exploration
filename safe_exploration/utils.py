@@ -8,7 +8,7 @@ import functools
 import inspect
 import itertools
 import warnings
-from typing import Tuple
+from typing import Tuple, Optional, Any
 
 import numpy as np
 import scipy.linalg as sLa
@@ -689,6 +689,18 @@ def batch_vector_matrix_mul(x: Tensor, v: Tensor) -> Tensor:
     return torch.matmul(x, v.unsqueeze(2)).squeeze(2)
 
 
-def get_pytorch_device() -> str:
-    """Returns either the cpu, or the first gpu if one exists."""
-    return 'cuda:0' if torch.cuda.is_available() else 'cpu'
+def get_device(force_device: Optional[Tuple[str, Any]] = None) -> str:
+    """Returns the device to store tensors on. In order of priority: given force_device, first gpu if one exists, cpu.
+
+    :param force_device: one of None (to detect the device type), string giving a device name, conf giving the device
+    """
+    if force_device is not None and isinstance(force_device, str):
+        return force_device
+    elif force_device is not None:
+        # We assume it must be a config.
+        assert hasattr(force_device, 'device'), f'force_device must be string or config, was {force_device}'
+        return force_device.device
+    elif torch.cuda.is_available():
+        return 'cuda:0'
+    else:
+        return 'cpu'
