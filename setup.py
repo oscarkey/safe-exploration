@@ -11,7 +11,7 @@ setup(
                       'casadi',
                       'scikit-learn',
                       'scipy',
-                      'constrained-cem-mpc @ git+ssh://git@github.com/oscarkey/constrained-cem-mpc.git',
+                      # 'constrained-cem-mpc @ git+ssh://git@github.com/oscarkey/constrained-cem-mpc.git',
                       # We need sacred from master due to https://github.com/conda/conda-build/issues/3431
                       'sacred @ git+https://github.com/IDSIA/sacred/tarball/master#egg=sacred',
                       'pymongo',

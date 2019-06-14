@@ -1,3 +1,6 @@
 [submodule "safe_exploration/constrained_cem_mpc"]
 	path = constrained-cem-mpc
 	url = git@github.com:oscarkey/constrained-cem-mpc.git
+[submodule "constrained-cem-mpc"]
+	path = constrained-cem-mpc
+	url = git@github.com:oscarkey/constrained-cem-mpc.git

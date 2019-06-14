@@ -58,5 +58,6 @@ USER user
 WORKDIR /project/app
 
 RUN pip install -e ".[test,visualization,ssm_gpy,ssm_pytorch]"
+RUN pip install -e ./constrained-cem-mpc
 
 #ENV PYTHONPATH "$PYTHONPATH:/project/"
