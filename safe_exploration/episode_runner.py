@@ -54,6 +54,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
         cc_k = []
 
         for i in range(conf.n_ep):
+            print(f'Starting episode {i}/{conf.n_ep} in scenario {k}/{conf.n_scenarios}')
 
             xx, yy, cc, exit_codes_i, safety_failure = do_rollout(
                 env, conf.n_steps, episode_id=i, metrics=metrics,
