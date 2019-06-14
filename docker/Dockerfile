@@ -37,7 +37,8 @@ RUN curl --silent https://bootstrap.pypa.io/get-pip.py | python3.7
 # Install some big dependencies before we copy the code in, to avoid having to install them every we update the code.
 # TODO: there must be a better way to do this.
 RUN pip install torch casadi matplotlib numpy scikit-learn scipy GPy gpytorch pymongo dnspython pygame pytest \
-                pytest-mock gym polytope sacred jsonpickle
+                pytest-mock gym polytope jsonpickle
+RUN pip install https://github.com/IDSIA/sacred/tarball/master#egg=sacred
 
 # Section to get permissions right, and avoid running inside as root {{
 # Create a user matching the UID, and create/chmod home dir (== project directory)
