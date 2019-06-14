@@ -9,13 +9,13 @@ from numpy import ndarray
 from polytope import Polytope
 from torch import Tensor
 
-from . import utils
 from . import gp_reachability_pytorch
 from .environments import Environment
 from .gp_reachability_pytorch import onestep_reachability
 from .safempc import SafeMPC
 from .safempc_simple import LqrFeedbackController
 from .ssm_cem import CemSSM
+from .utils import get_pytorch_device
 from .visualization import utils_visualization
 
 
@@ -96,8 +96,8 @@ class EllipsoidTerminalConstraint(Constraint):
 
     def __init__(self, state_dimen: int, safe_polytope_a: np.ndarray, safe_polytope_b: np.ndarray):
         self._pq_flattener = PQFlattener(state_dimen)
-        self._polytope_a = torch.tensor(safe_polytope_a, device=utils.get_pytorch_device())
-        self._polytope_b = torch.tensor(safe_polytope_b, device=utils.get_pytorch_device())
+        self._polytope_a = torch.tensor(safe_polytope_a, device=get_pytorch_device())
+        self._polytope_b = torch.tensor(safe_polytope_b, device=get_pytorch_device())
 
     def __call__(self, trajectory, actions) -> float:
         # Add batch dimension.
@@ -120,8 +120,10 @@ class EllipsoidTerminalConstraint(Constraint):
 def construct_constraints(env: Environment):
     """Creates the polytopic constraints for the MPC problem from the values in the config file."""
     h_mat_safe, h_safe, h_mat_obs, h_obs = env.get_safety_constraints(normalize=True)
-    return [ActionConstraint(box2torchpoly([[env.u_min.item(), env.u_max.item()], ])),  #
-            EllipsoidTerminalConstraint(env.n_s, h_mat_safe, h_safe)]
+    action_constraint = ActionConstraint(box2torchpoly([[env.u_min.item(), env.u_max.item()], ])).to(
+        get_pytorch_device())
+    terminal_constraint = EllipsoidTerminalConstraint(env.n_s, h_mat_safe, h_safe)
+    return [action_constraint, terminal_constraint]
 
 
 class DynamicsFuncWrapper(DynamicsFunc):
@@ -144,8 +146,8 @@ class CemSafeMPC(SafeMPC):
 
         self._state_dimen = env.n_s
         self._action_dimen = env.n_u
-        self._l_mu = torch.tensor(env.l_mu, device=utils.get_pytorch_device())
-        self._l_sigma = torch.tensor(env.l_sigm, device=utils.get_pytorch_device())
+        self._l_mu = torch.tensor(env.l_mu, device=get_pytorch_device())
+        self._l_sigma = torch.tensor(env.l_sigm, device=get_pytorch_device())
         self._get_random_action = env.random_action
         self._pq_flattener = PQFlattener(env.n_s)
         self._ssm = ssm
@@ -154,8 +156,8 @@ class CemSafeMPC(SafeMPC):
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
-        self._linearized_model_a = torch.tensor(linearized_model_a, device=utils.get_pytorch_device())
-        self._linearized_model_b = torch.tensor(linearized_model_b, device=utils.get_pytorch_device())
+        self._linearized_model_a = torch.tensor(linearized_model_a, device=get_pytorch_device())
+        self._linearized_model_b = torch.tensor(linearized_model_b, device=get_pytorch_device())
 
         if lqr is None:
             lqr = LqrFeedbackController(wx_feedback_cost, wu_feedback_cost, env.n_s, env.n_u, linearized_model_a,
@@ -209,7 +211,7 @@ class CemSafeMPC(SafeMPC):
         # If we don't have training data we skip solving the mpc as it won't be any use.
         # This makes the first episode much faster (during which we gather training data)
         if self._has_training_data:
-            state_batch = torch.tensor(state, device=utils.get_pytorch_device()).unsqueeze(0)
+            state_batch = torch.tensor(state, device=get_pytorch_device()).unsqueeze(0)
             mpc_actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
             mpc_actions = mpc_actions.detach().cpu().numpy() if mpc_actions is not None else mpc_actions
 
@@ -276,8 +278,8 @@ class CemSafeMPC(SafeMPC):
         return np.dot(self._lqr.get_control_matrix(), state)
 
     def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
-        x = torch.tensor(x, device=utils.get_pytorch_device())
-        y = torch.tensor(y, device=utils.get_pytorch_device())
+        x = torch.tensor(x, device=get_pytorch_device())
+        y = torch.tensor(y, device=get_pytorch_device())
         self._ssm.update_model(x, y, opt_hyp, replace_old)
         self._has_training_data = True
 
@@ -286,7 +288,7 @@ class CemSafeMPC(SafeMPC):
         return [None] * self.state_dimen
 
     def ssm_predict(self, z: ndarray) -> Tuple[ndarray, ndarray]:
-        mean, sigma = self._ssm.predict_raw(torch.tensor(z, device=utils.get_pytorch_device()))
+        mean, sigma = self._ssm.predict_raw(torch.tensor(z, device=get_pytorch_device()))
         return mean.detach().cpu().numpy(), sigma.detach().cpu().numpy()
 
     def eval_prior(self, states: ndarray, actions: ndarray):

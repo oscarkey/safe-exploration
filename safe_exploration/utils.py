@@ -172,7 +172,7 @@ def compute_remainder_overapproximations_pytorch(q: Tensor, k_fb: Tensor, l_mu: 
     assert l_mu.dim() == 2
     assert l_sigma.dim() == 2
 
-    batch_eye = torch.eye(n_s).repeat((N, 1, 1))
+    batch_eye = torch.eye(n_s, device=k_fb.device).repeat((N, 1, 1))
     s = torch.cat((batch_eye, k_fb.transpose(1, 2)), dim=2)
     b = torch.matmul(s, s.transpose(1, 2))
     qb = torch.matmul(q, b)
