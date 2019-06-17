@@ -103,6 +103,20 @@ class EllipsoidTerminalConstraint(Constraint):
     """Represents the terminal constraint of the MPC problem, for ellipsoid states and a polytopic constraint."""
 
     def __init__(self, state_dimen: int, safe_polytope_a: np.ndarray, safe_polytope_b: np.ndarray, device: str):
+        self._constraint = EllipsoidStateConstraint(state_dimen, safe_polytope_a, safe_polytope_b, device)
+        # _plot_rollouts cheekily uses these to visualize the safe area.
+        self._polytope_a = torch.tensor(safe_polytope_a, device=device)
+        self._polytope_b = torch.tensor(safe_polytope_b, device=device)
+
+    def __call__(self, trajectory, actions) -> float:
+        # Pass to the state constraint, but removing all but the last state.
+        return self._constraint(trajectory[-1:, :], actions[-1:, :])
+
+
+class EllipsoidStateConstraint(Constraint):
+    """Represents constraint that all states must satisfy, for ellipsoid states and a polytopic constraint."""
+
+    def __init__(self, state_dimen: int, safe_polytope_a: np.ndarray, safe_polytope_b: np.ndarray, device: str):
         self._pq_flattener = PQFlattener(state_dimen)
         self._polytope_a = torch.tensor(safe_polytope_a, device=device)
         self._polytope_b = torch.tensor(safe_polytope_b, device=device)
@@ -115,19 +129,20 @@ class EllipsoidTerminalConstraint(Constraint):
 
         inside = gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, self._polytope_a, self._polytope_b)
 
-        if inside[0] == 1:
-            return 0
-        else:
-            return 10
+        return (inside.size(0) - inside.sum()) * 10
 
 
 def construct_constraints(conf, env: Environment):
     """Creates the polytopic constraints for the MPC problem from the values in the config file."""
     h_mat_safe, h_safe, h_mat_obs, h_obs = env.get_safety_constraints(normalize=True)
-    action_constraint = ActionConstraint(
-        box2torchpoly([[env.u_min.item(), env.u_max.item()], ]).to(get_device(conf)))
-    terminal_constraint = EllipsoidTerminalConstraint(env.n_s, h_mat_safe, h_safe, get_device(conf))
-    return [action_constraint, terminal_constraint]
+    action_constraint = ActionConstraint(box2torchpoly([[env.u_min.item(), env.u_max.item()], ]).to(get_device(conf)))
+
+    if conf.use_state_constraint:
+        constraint = EllipsoidStateConstraint(env.n_s, h_mat_safe, h_safe, get_device(conf))
+    else:
+        constraint = EllipsoidTerminalConstraint(env.n_s, h_mat_safe, h_safe, get_device(conf))
+
+    return [action_constraint, constraint]
 
 
 class DynamicsFuncWrapper(DynamicsFunc):

@@ -14,6 +14,7 @@ class FakeConfig:
     cem_num_iterations = 8
     plot_cem_optimisation = False
     device = None
+    use_state_constraint = False
 
 
 class TestPQFlattener:

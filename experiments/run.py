@@ -64,6 +64,8 @@ def base_config():
     cem_num_iterations = 8
     # Whether to plot the ellipsoids generated during the CEM optimisation process.
     plot_cem_optimisation = False
+    # If True then constrain all the states, otherwise just the terminal state.
+    use_state_constraint = True
 
     # -- MC dropout SSM
     mc_dropout_training_iterations = 1000
