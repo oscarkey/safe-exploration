@@ -159,28 +159,61 @@ def test__onestep_reachability__sigma_same_as_gp_output(before_test_onestep_reac
     assert pred_sigma.shape == (N, n_s)
 
 
-def test__is_ellipsoid_inside_polytope__inside__returns_true():
-    poly = polytope.box2poly(([[0., 10.], [0., 10.]]))
+def test__lin_ellipsoid_safety_distance__returns_same_as_numpy_impl():
+    p = torch.tensor([[0., 0.], [1., 3.], [5., 10.]])
+    q = .2 * torch.tensor([[[.6, .21], [.21, .55]], [[.5, .2], [.2, .65]], [[.7, .21], [.21, .59]]])
+    poly = polytope.box2poly([[0., 10.], [0., 10.]])
     A = torch.tensor(poly.A)
     b = torch.tensor(poly.b).unsqueeze(1)
-    p = torch.tensor([[5., 5.]]).transpose(0, 1)
-    q = torch.tensor([[2., 1.], [1., 2.]])
-    assert reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b) is True
+
+    np_res0 = reachability_np.lin_ellipsoid_safety_distance(p[0].unsqueeze(1).numpy(), q[0].numpy(), A.numpy(),
+                                                            b.numpy())
+    np_res1 = reachability_np.lin_ellipsoid_safety_distance(p[1].unsqueeze(1).numpy(), q[1].numpy(), A.numpy(),
+                                                            b.numpy())
+    np_res2 = reachability_np.lin_ellipsoid_safety_distance(p[2].unsqueeze(1).numpy(), q[2].numpy(), A.numpy(),
+                                                            b.numpy())
+    pt_res = reachability_pt.lin_ellipsoid_safety_distance(p, q, A, b)
+
+    assert pt_res.size() == (3, 4)
+    assert np.allclose(pt_res[0].numpy(), np_res0.squeeze(1))
+    assert np.allclose(pt_res[1].numpy(), np_res1.squeeze(1))
+    assert np.allclose(pt_res[2].numpy(), np_res2.squeeze(1))
+
+
+def test__is_ellipsoid_inside_polytope__inside__returns_true():
+    poly = polytope.box2poly([[0., 10.], [0., 10.]])
+    A = torch.tensor(poly.A)
+    b = torch.tensor(poly.b).unsqueeze(1)
+    p = torch.tensor([[5., 5.]])
+    q = torch.tensor([[[2., 1.], [1., 2.]]])
+
+    res = reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b)
+
+    assert res.size() == (1,)
+    assert res[0] == 1
 
 
 def test__is_ellipsoid_inside_polytope__partially_out__returns_false():
-    poly = polytope.box2poly(([[0., 10.], [0., 10.]]))
+    poly = polytope.box2poly([[0., 10.], [0., 10.]])
     A = torch.tensor(poly.A)
     b = torch.tensor(poly.b).unsqueeze(1)
-    p = torch.tensor([[0., 0.]]).transpose(0, 1)
-    q = torch.tensor([[2., 1.], [1., 2.]])
-    assert reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b) is False
+    p = torch.tensor([[0., 0.]])
+    q = torch.tensor([[[2., 1.], [1., 2.]]])
+
+    res = reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b)
+
+    assert res.size() == (1,)
+    assert res[0] == 0
 
 
 def test__is_ellipsoid_inside_polytope__outside__returns_false():
-    poly = polytope.box2poly(([[0., 10.], [0., 10.]]))
+    poly = polytope.box2poly([[0., 10.], [0., 10.]])
     A = torch.tensor(poly.A)
     b = torch.tensor(poly.b).unsqueeze(1)
-    p = torch.tensor([[20., 20.]]).transpose(0, 1)
-    q = torch.tensor([[2., 1.], [1., 2.]])
-    assert reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b) is False
+    p = torch.tensor([[20., 20.]])
+    q = torch.tensor([[[2., 1.], [1., 2.]]])
+
+    res = reachability_pt.is_ellipsoid_inside_polytope(p, q, A, b)
+
+    assert res.size() == (1,)
+    assert res[0] == 0

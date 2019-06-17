@@ -113,13 +113,9 @@ class EllipsoidTerminalConstraint(Constraint):
 
         p, q = self._pq_flattener.unflatten(trajectory[:, -1])
 
-        # Remove batch dimension.
-        p = p.squeeze(0)
-        q = q.squeeze(0) if q is not None else q
+        inside = gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, self._polytope_a, self._polytope_b)
 
-        p = p.unsqueeze(1)
-
-        if gp_reachability_pytorch.is_ellipsoid_inside_polytope(p, q, self._polytope_a, self._polytope_b):
+        if inside[0] == 1:
             return 0
         else:
             return 10

@@ -153,33 +153,43 @@ def lin_ellipsoid_safety_distance(p_center: Tensor, q_shape: Tensor, h_mat: Tens
     of the form:
         h_mat * x <= h_vec.
 
-    :param p_center: [n_s x 1] The center of the state ellipsoid
-    :param q_shape: [n_s x n_s] The shape matrix of the state ellipsoid
+    :param p_center: [N x n_s] The center of the state ellipsoids, N is batch dimen
+    :param q_shape: [N x n_s x n_s] The shape matrix of the state ellipsoids, N is batch dimen
     :param h_mat: [m x n_s] The shape matrix of the safe polytope (see above)
     :param h_vec: [m x 1] The additive vector of the safe polytope (see above)
 
-    :returns: d_safety: [m] The distance of the ellipsoid to the polytope. If d < 0 (elementwise), the ellipsoid is
+    :returns: d_safety: [N x m] The distance of each ellipsoid to the polytope. If d < 0 (elementwise), the ellipsoid is
     inside the poltyope (safe), otherwise safety is not guaranteed.
     """
+    N = p_center.size(0)
     m, n_s = h_mat.shape
-    assert_shape(p_center, (n_s, 1))
-    assert_shape(q_shape, (n_s, n_s))
+    assert_shape(p_center, (N, n_s))
+    assert_shape(q_shape, (N, n_s, n_s))
     assert_shape(h_vec, (m, 1))
 
-    d_center = torch.mm(h_mat, p_center)
+    h_mat_batch = h_mat.repeat((N, 1, 1))
+    h_vec_batch = h_vec.repeat((N, 1, 1))
+
+    d_center = batch_vector_matrix_mul(h_mat, p_center)
     # MISSING SQRT (?)
     d_shape = c_safety * torch.sqrt(
-        torch.sum(torch.mm(q_shape, h_mat.transpose(0, 1)) * h_mat.transpose(0, 1), dim=0)[:, None])
-    d_safety = d_center + d_shape - h_vec
+        torch.sum(torch.matmul(q_shape, h_mat.transpose(0, 1)) * h_mat_batch.transpose(1, 2), dim=1)[:, :, None])
+    d_safety = d_center + d_shape.squeeze(2) - h_vec_batch.squeeze(2)
 
     return d_safety
 
 
-def is_ellipsoid_inside_polytope(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor) -> bool:
-    """Returns True if the ellipsoid with center p and shape q is inside the polytope, otherwise False.
+def is_ellipsoid_inside_polytope(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor) -> Tensor:
+    """Computes which of a batch of ellipsoids are inside the given polytope.
 
     The polytope is of the form  h_mat * x <= h_vec.
+
+    :param p_center: [N x n_s] The center of the state ellipsoids, N is batch dimen
+    :param q_shape: [N x n_s x n_s] The shape matrix of the state ellipsoids, N is batch dimen
+    :param h_mat: [m x n_s] The shape matrix of the safe polytope (see above)
+    :param h_vec: [m x 1] The additive vector of the safe polytope (see above)
+    :returns: [N], 1 if an ellipsoid is inside the polytope, otherwise 0
     """
     d_safety = lin_ellipsoid_safety_distance(p_center, q_shape, h_mat, h_vec)
-    # The ellipsoid is safely inside if none of the values of d_safety are >= 0.
-    return not (d_safety >= 0).any()
+    # Each ellipsoid is safely inside if none of the values of d_safety are >= 0.
+    return (d_safety >= 0).sum(dim=1) == 0
