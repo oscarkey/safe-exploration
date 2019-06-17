@@ -299,9 +299,9 @@ def ellipsoid_from_rectangle_pytorch(u_b: Tensor) -> Tensor:
                         the batch
     :returns: [N x n x n] shape matrices covering the ellipsoids
     """
-    assert u_b.dim() == 2, f"Expected u_b to be [N x n], was {u_b.size()}"
-    assert torch.all(u_b > 0), "all elements of u_b need to be greater than zero! " \
-                               "(otherwise the ellipsoid wouldn't be zero-centered)"
+    assert u_b.dim() == 2, f'Expected u_b to be [N x n], was {u_b.size()}'
+    # If some element u_b <=0 then the ellipsoid wouldn't be zero-centered.
+    assert torch.all(u_b > 0), f'All elements of u_b must be >0: {u_b}'
     n = u_b.shape[1]
     d = n * u_b ** 2
     q = torch.diag_embed(d)
