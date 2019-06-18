@@ -231,7 +231,7 @@ class McDropoutSSM(CemSSM):
 
         in_features = state_dimen + action_dimen
         out_features = state_dimen
-        self._model = bnn.bayesian_model(in_features, out_features, hidden_features=[200, 200])
+        self._model = bnn.bayesian_model(in_features, out_features, hidden_features=conf.mc_dropout_hidden_features)
         self._model = self._model.to(get_device(conf))
         self._model.eval()
 
