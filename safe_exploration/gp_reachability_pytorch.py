@@ -3,12 +3,13 @@
 This is a copy of gp_reachability, but converted to PyTorch. Thus it works more efficiently with CemSafeMPC, which also
 uses PyTorch.
 """
+import datetime
 from typing import Tuple, Optional
 
 import torch
 from torch import Tensor
 
-from .ssm_cem import CemSSM
+from .ssm_cem import CemSSM, GpCemSSM
 from .utils import print_ellipsoid, assert_shape, compute_remainder_overapproximations_pytorch, batch_vector_matrix_mul
 from .utils_ellipsoid import ellipsoid_from_rectangle_pytorch, sum_two_ellipsoids_pytorch
 
@@ -72,6 +73,10 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         rkhs_bounds = c_safety * torch.sqrt(sigm_0)
 
+        if torch.isnan(rkhs_bounds).any():
+            _log_nan(ssm,
+                     f'nan in rkhs_bounds: rkhs_bounds={rkhs_bounds} sigm_0={sigm_0} p_center={p_center}, u_p={u_p}')
+
         q_1 = ellipsoid_from_rectangle_pytorch(rkhs_bounds)
 
         p_lin = batch_vector_matrix_mul(a, p_center) + batch_vector_matrix_mul(b, u_p)
@@ -118,6 +123,11 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         l_sigma_batch = l_sigma.repeat((N, 1))
         ub_mean, ub_sigma = compute_remainder_overapproximations_pytorch(q_shape, k_fb_batch, l_mu_batch, l_sigma_batch)
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0) + ub_sigma)
+
+        if torch.isnan(b_sigma_eps).any():
+            _log_nan(ssm,
+                     f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
+                     f'q_shape={q_shape}, jac_mu={jac_mu}')
 
         Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps.squeeze(1))
         p_lagrange_sigm = torch.zeros((N, n_s), device=Q_lagrange_sigm.device)
@@ -193,3 +203,10 @@ def is_ellipsoid_inside_polytope(p_center: Tensor, q_shape: Tensor, h_mat: Tenso
     d_safety = lin_ellipsoid_safety_distance(p_center, q_shape, h_mat, h_vec)
     # Each ellipsoid is safely inside if none of the values of d_safety are >= 0.
     return (d_safety >= 0).sum(dim=1) == 0
+
+
+def _log_nan(ssm: GpCemSSM, message: str):
+    state = {'likelihood': ssm._likelihood.state_dict(), 'model': ssm._model.state_dict()}
+    file_name = f'ssm_nan_dump_{datetime.datetime.utcnow()}.pt'
+    torch.save(state, file_name)
+    raise ValueError(message)
