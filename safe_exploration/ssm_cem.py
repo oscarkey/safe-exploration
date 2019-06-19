@@ -1,10 +1,12 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
+import math
 from abc import abstractmethod, ABC
 from typing import Tuple, Optional
 
 import bnn
 import gpytorch
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -218,7 +220,7 @@ class GpCemSSM(CemSSM):
 
 
 class McDropoutSSM(CemSSM):
-    """BNN, approximated using MC dropout, state space model.
+    """BNN, approximated using concrete mc dropout, state space model.
 
     Uses the "bnn" package from https://github.com/anassinator/bnn
     """
@@ -228,9 +230,14 @@ class McDropoutSSM(CemSSM):
 
         self._training_iterations = conf.mc_dropout_training_iterations
         self._num_particles = conf.mc_dropout_num_samples
+        self._predict_std = conf.mc_dropout_predict_std
+        self._state_dimen = state_dimen
 
         in_features = state_dimen + action_dimen
-        out_features = state_dimen
+
+        # Double the regression outputs. We need one for the mean and one for the predicted std (if enabled)
+        out_features = state_dimen * 2 if self._predict_std else state_dimen
+
         self._model = bnn.bayesian_model(in_features, out_features, hidden_features=conf.mc_dropout_hidden_features)
         self._model = self._model.to(get_device(conf))
         self._model.eval()
@@ -258,15 +265,17 @@ class McDropoutSSM(CemSSM):
         assert_shape(z, (N, self.num_states + self.num_actions))
 
         z_particles = z.repeat((self._num_particles, 1, 1))
+
         output = self._model(z_particles)
+        pred_means = output[:, :, :self._state_dimen]
 
-        # TODO: Do we need to predict the variance too? See:
-        # https://github.com/anassinator/bnn/blob/master/examples/sin_x.ipynb
+        if self._predict_std:
+            pred_log_stds = output[:, :, self._state_dimen:]
+            pred_means_with_noise = pred_means + pred_log_stds.exp() * torch.randn_like(pred_means)
+        else:
+            pred_means_with_noise = pred_means
 
-        pred_mean = output.mean(dim=0)
-        pred_var = output.var(dim=0)
-
-        return pred_mean, pred_var
+        return pred_means_with_noise.mean(dim=0), pred_means_with_noise.var(dim=0)
 
     def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
         # Nothing to do. We do not store the training data, just incorporate it in the model in _train_model().
@@ -276,24 +285,37 @@ class McDropoutSSM(CemSSM):
         self._model.train()
 
         # TODO: should we reset the weights at the start of each training?
-        print(f'Training BNN on {self.x_train.size(0)} data points for {self._training_iterations} iterations...')
+        print(f'Training BNN on {x_train.size(0)} data points for {self._training_iterations} iterations...')
         losses = []
         for i in range(self._training_iterations):
             self._optimizer.zero_grad()
+
             output = self._model(x_train, resample=True)
-            loss = (-self._gaussian_log_likelihood(y_train, output) + 1e-2 * self._model.regularization()).mean()
+            pred_means = output[:, :self._state_dimen]
+            pred_log_stds = output[:, self._state_dimen:] if self._predict_std else None
+
+            loss = (-self._gaussian_log_likelihood(y_train.unsqueeze(1), pred_means,
+                                                   pred_log_stds) + 1e-2 * self._model.regularization()).mean()
+
             loss.backward()
-            losses.append(loss.item())
             self._optimizer.step()
+
+            losses.append(loss.item())
         print(f'Training complete. Final losses: {losses[-4]:.2f} {losses[-3]:.2f} {losses[-2]:.2f} {losses[-1]:.2f}')
 
         self._model.eval()
 
     @staticmethod
-    def _gaussian_log_likelihood(targets, pred_means, pred_stds=None):
+    def _gaussian_log_likelihood(targets, pred_means, pred_log_stds):
         """Taken from https://github.com/anassinator/bnn/blob/master/examples/sin_x.ipynb"""
         deltas = pred_means - targets
-        return -(deltas ** 2).sum(-1) * 0.5
+
+        if pred_log_stds is not None:
+            pred_stds = pred_log_stds.exp()
+            # TODO: does the np.log below cause a speed problem?
+            return - ((deltas / pred_stds) ** 2).sum(-1) * 0.5 - pred_stds.log().sum(-1) - np.log(2 * math.pi) * 0.5
+        else:
+            return - (deltas ** 2).sum(-1) * 0.5
 
 
 def test_plot(ssm: CemSSM, train_x: Tensor, train_y: Tensor):

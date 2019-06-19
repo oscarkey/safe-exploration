@@ -43,7 +43,8 @@ class TestMcDropoutSSM:
     class FakeConfig:
         mc_dropout_training_iterations = 1000
         mc_dropout_hidden_features = [2, 2]
-        mc_dropout_num_samples = 3
+        mc_dropout_num_samples = 12
+        mc_dropout_predict_std = True
         device = None
 
     def test__predict_without_jacobians__returns_correct_shape(self):
