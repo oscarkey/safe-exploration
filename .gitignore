@@ -103,7 +103,9 @@ ENV/
 
 # Pycharm
 .idea
-**/*results*
+**/results_exploration
+**/results_journal
+**/safe_exploration_results
 
 # File with authentication details for sacred
 sacred_auth_details.py
