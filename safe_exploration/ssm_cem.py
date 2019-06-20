@@ -8,7 +8,7 @@ import gpytorch
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from .ssm_pytorch import BatchKernel, MultiOutputGP, utilities
 from .utils import assert_shape, get_device
@@ -231,6 +231,7 @@ class McDropoutSSM(CemSSM):
         self._training_iterations = conf.mc_dropout_training_iterations
         self._num_particles = conf.mc_dropout_num_samples
         self._predict_std = conf.mc_dropout_predict_std
+        self._reinitialize_on_train = conf.mc_dropout_reinitialize
         self._state_dimen = state_dimen
 
         in_features = state_dimen + action_dimen
@@ -282,6 +283,9 @@ class McDropoutSSM(CemSSM):
         pass
 
     def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
+        if self._reinitialize_on_train:
+            self._reinitialize_weights()
+
         self._model.train()
 
         # TODO: should we reset the weights at the start of each training?
@@ -301,7 +305,7 @@ class McDropoutSSM(CemSSM):
             self._optimizer.step()
 
             losses.append(loss.item())
-        print(f'Training complete. Final losses: {losses[-4]:.2f} {losses[-3]:.2f} {losses[-2]:.2f} {losses[-1]:.2f}')
+        print(f'Training complete. Final losses: {losses[-4:]}')
 
         self._model.eval()
 
@@ -316,6 +320,14 @@ class McDropoutSSM(CemSSM):
             return - ((deltas / pred_stds) ** 2).sum(-1) * 0.5 - pred_stds.log().sum(-1) - np.log(2 * math.pi) * 0.5
         else:
             return - (deltas ** 2).sum(-1) * 0.5
+
+    def _reinitialize_weights(self):
+        # The BNN only contains linear and dropout layers, thus we just call reset on the linear layers.
+        def parameters_reset(module):
+            if isinstance(module, nn.Linear):
+                module.reset_parameters()
+
+        self._model.apply(parameters_reset)
 
 
 def test_plot(ssm: CemSSM, train_x: Tensor, train_y: Tensor):

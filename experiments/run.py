@@ -76,6 +76,8 @@ def base_config():
     mc_dropout_num_samples = 200
     # Whether to predict the aleatoric uncertainty as well as computing the epistemic uncertainty. (?)
     mc_dropout_predict_std = True
+    # Whether to reinitialize the network weights before training.
+    mc_dropout_reinitialize = True
 
     # -- Exact GP SSM
     exact_gp_training_iterations = 200
