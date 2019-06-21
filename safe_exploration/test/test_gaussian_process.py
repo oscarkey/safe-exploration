@@ -7,7 +7,7 @@ from ..ssm_pytorch.gaussian_process import ZeroMeanWithGrad
 
 try:
     import torch
-    from safe_exploration.ssm_pytorch import BatchMean, BatchKernel, MultiOutputGP, LinearMean, GPyTorchSSM
+    from safe_exploration.ssm_pytorch import MultiOutputGP, LinearMean, GPyTorchSSM
     import gpytorch
     from torch.nn.functional import softplus
 except:
@@ -17,78 +17,6 @@ except:
 @pytest.fixture(autouse = True)
 def check_has_ssm_pytorch_module(check_has_ssm_pytorch):
     pass
-
-class TestBatchMean(object):
-
-    @pytest.fixture(scope='module')
-    def means(self):
-        mean1 = gpytorch.means.ConstantMean()
-        mean1.constant[0, 0] = 1
-        mean2 = gpytorch.means.ConstantMean()
-        mean2.constant[0, 0] = 2
-        mean = BatchMean([mean1, mean2])
-        return mean1, mean2, mean
-
-    def test_index(self, means):
-        """Make sure indexing the means works."""
-        mean1, mean2, mean = means
-        assert mean1 is mean[0]
-        assert mean2 is mean[1]
-
-    def test_iter(self, means):
-        mean1, mean2, mean = means
-        mean11, mean22 = mean
-        assert mean1 is mean11
-        assert mean2 is mean22
-
-    def test_output(self, means):
-        mean1, mean2, mean = means
-
-        test_x = torch.linspace(0, 2, 5).unsqueeze(-1)
-        test_x = test_x.expand(2, *test_x.shape)
-
-        res = mean(test_x)
-
-        torch.testing.assert_allclose(res[0], mean1(test_x[0]))
-        torch.testing.assert_allclose(res[1], mean2(test_x[1]))
-
-        torch.testing.assert_allclose(res[0], 1)
-        torch.testing.assert_allclose(res[1], 2)
-
-
-class TestBatchKernel(object):
-
-    @pytest.fixture(scope='module')
-    def covariances(self):
-        cov1 = gpytorch.kernels.RBFKernel()
-        cov2 = gpytorch.kernels.RBFKernel()
-        cov = BatchKernel([cov1, cov2])
-
-
-        return cov1, cov2, cov
-
-    def test_index(self, covariances):
-        """Make sure indexing the covariances works."""
-        cov1, cov2, cov = covariances
-        assert cov1 is cov[0]
-        assert cov2 is cov[1]
-
-    def test_iter(self, covariances):
-        cov1, cov2, cov = covariances
-        cov11, cov22 = cov
-        assert cov1 is cov11
-        assert cov2 is cov22
-
-    def test_output(self, covariances):
-        cov1, cov2, cov = covariances
-
-        test_x = torch.linspace(0, 2, 5).unsqueeze(-1)
-        test_x = test_x.expand(2, *test_x.shape)
-
-        res = cov(test_x).evaluate()
-
-        torch.testing.assert_allclose(res[0], cov1(test_x[0]).evaluate())
-        torch.testing.assert_allclose(res[1], cov2(test_x[1]).evaluate())
 
 
 class TestLinearMean(object):
@@ -168,7 +96,7 @@ class TestMultiOutputGP(object):
         train_x = torch.tensor([-0.5, -0.1, 0., 0.1, 1.])[:, None]
         train_y = 0.5 * train_x.t()
 
-        model = MultiOutputGP(train_x, train_y, kernel, likelihood, mean=mean)
+        model = MultiOutputGP(train_x, train_y, kernel, likelihood, mean=mean, num_outputs=1)
         model.eval()
 
         test_x = torch.linspace(-1, 2, 5)
@@ -181,12 +109,12 @@ class TestMultiOutputGP(object):
         # Setup composite mean
         mean1 = gpytorch.means.ConstantMean()
         mean2 = gpytorch.means.ConstantMean()
-        mean = BatchMean([mean1, mean2])
+        mean = gpytorch.means.ConstantMean(batch_size=2)
 
         # Setup composite kernel
         cov1 = gpytorch.kernels.RBFKernel()
         cov2 = gpytorch.kernels.RBFKernel()
-        kernel = BatchKernel([cov1, cov2])
+        kernel = gpytorch.kernels.RBFKernel(batch_size=2)
 
         # Training data
         train_x = torch.randn(5, 2)
@@ -194,7 +122,7 @@ class TestMultiOutputGP(object):
 
         # Combined GP
         likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=2)
-        gp = MultiOutputGP(torch.rand_like(train_x), torch.rand_like(train_y), kernel, likelihood, mean=mean)
+        gp = MultiOutputGP(torch.rand_like(train_x), torch.rand_like(train_y), kernel, likelihood, mean=mean, num_outputs=2)
         # We initialized with random training data so we can test set_train_data here.
         gp.set_train_data(train_x, train_y)
 
@@ -237,18 +165,18 @@ class TestMultiOutputGP(object):
 
     def test__init__training_data_none__does_not_crash(self):
         state_dimen = 2
-        kernel = BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen)
+        kernel = gpytorch.kernels.RBFKernel(batch_size=state_dimen)
         likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
 
-        MultiOutputGP(train_x=None, train_y=None, kernel=kernel, likelihood=likelihood)
+        MultiOutputGP(train_x=None, train_y=None, kernel=kernel, likelihood=likelihood, num_outputs=state_dimen)
 
     def test__set_train_data__training_data_none__does_not_crash(self):
         state_dimen = 2
-        kernel = BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen)
+        kernel = gpytorch.kernels.RBFKernel(batch_size=state_dimen)
         likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
         train_x = torch.tensor([[1, 2], [3, 4]])
         train_y = torch.tensor([10, 11])
-        gp = MultiOutputGP(train_x, train_y, kernel, likelihood)
+        gp = MultiOutputGP(train_x, train_y, kernel, likelihood, num_outputs=state_dimen)
 
         gp.set_train_data(None, None)
 

@@ -11,6 +11,8 @@ import pytest
 import os.path
 from casadi.tools import capture_stdout
 from casadi import MX,vertcat,sum1,sum2
+import gpytorch
+import torch
 
 from ..gp_reachability_casadi import lin_ellipsoid_safety_distance
 from ..state_space_models import StateSpaceModel, CasadiSSMEvaluator
@@ -146,7 +148,7 @@ def gpy_torch_ssm_init(request,check_has_ssm_pytorch):
     n_s, n_u, linearize_mean = request.param
 
     n_data = 10
-    kernel = BatchKernel([gpytorch.kernels.RBFKernel()]*n_s)
+    kernel = gpytorch.kernels.RBFKernel(batch_size=n_s)
 
     likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=n_s)
     train_x = torch.randn(n_data, n_s+n_u)
@@ -202,7 +204,7 @@ class TestDerivativesCasadiSSMEvaluator(object):
 
         self.compute_jacobians(dummy_ssm,casadi_ssm,n_s,n_u)
 
-    #@pytest.mark.skip(reason = "Still need to fully implement the GPytorchSSM to fit the CasadiSSMEvaluator")
+    @pytest.mark.skip(reason = "CasadiSSMEvaluator not currently used")
     def test_jacobians_no_error_thrown_gpytorch_ssm(self,gpy_torch_ssm_init):
         """ """
         ssm, n_s, n_u, linearize_mean = gpy_torch_ssm_init

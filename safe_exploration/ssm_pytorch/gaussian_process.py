@@ -1,11 +1,13 @@
 """Gaussian process utlilities for gpytorch."""
-
+from typing import Optional
 
 import gpytorch
 import hessian
 import numpy as np
 import torch
 from gpytorch.distributions import MultivariateNormal
+from gpytorch.kernels import Kernel
+from gpytorch.likelihoods import Likelihood
 from gpytorch.means import Mean
 from torch import Tensor
 from torch.nn import ModuleList
@@ -13,73 +15,7 @@ from torch.nn import ModuleList
 from safe_exploration.state_space_models import StateSpaceModel
 from .utilities import compute_jacobian
 
-__all__ = ['BatchMean', 'BatchKernel', 'LinearMean', 'MultiOutputGP', 'GPyTorchSSM']
-
-
-class BatchMean(gpytorch.means.Mean):
-    """Combine different mean functions across batches.
-    Parameters
-    ----------
-    base_means : list
-        List of mean functions used for each batch.
-    """
-
-    def __init__(self, base_means):
-        super(BatchMean, self).__init__()
-
-        self.base_means = ModuleList(base_means)
-
-    @property
-    def batch_size(self):
-        """Return the batch_size of the underlying model."""
-        return len(self.base_kernels)
-
-    def __getitem__(self, item):
-        """Retrieve the ith mean."""
-        return self.base_means[item]
-
-    def __iter__(self):
-        """Iterate over the means."""
-        yield from self.base_means
-
-    def forward(self, input):
-        """Evaluate the mean functions and combine to a `b x len(input[0])` matrix."""
-        return torch.stack([mean(x) for x, mean in zip(input, self.base_means)])
-
-
-class BatchKernel(gpytorch.kernels.Kernel):
-    """Combine different covariance functions across batches.
-    Parameters
-    ----------
-    base_kernels : list
-        List of base kernels used for each batch.
-    """
-
-    def __init__(self, base_kernels):
-        super(BatchKernel, self).__init__(batch_size=len(base_kernels))
-        self.base_kernels = ModuleList(base_kernels)
-
-    def __getitem__(self, item):
-        """Retrieve the ith kernel."""
-        return self.base_kernels[item]
-
-    def __iter__(self):
-        """Iterate over the kernels."""
-        yield from self.base_kernels
-
-    def forward(self, x1, x2, diag=False, batch_dims=None, **params):
-        """Evaluate the kernel functions and combine them."""
-        kernels = [kernel.forward(x1[i], x2[i], **params).squeeze(0)
-                   for i, kernel in enumerate(self.base_kernels)]
-        if diag:
-            kernels = [kernel.diag() for kernel in kernels]
-
-        return torch.stack(kernels)
-
-    def size(self, x1, x2):
-        """Return the size of the resulting covariance matrix."""
-        non_batch_size = (x1.size(-2), x2.size(-2))
-        return torch.Size((x1.size(0),) + non_batch_size)
+__all__ = ['LinearMean', 'MultiOutputGP', 'GPyTorchSSM']
 
 
 class LinearMean(gpytorch.means.Mean):
@@ -98,8 +34,7 @@ class LinearMean(gpytorch.means.Mean):
     def __init__(self, matrix, trainable=False, prior=None):
         super().__init__()
         if trainable:
-            self.register_parameter(name='matrix',
-                                    parameter=torch.nn.Parameter(matrix))
+            self.register_parameter(name='matrix', parameter=torch.nn.Parameter(matrix))
             if prior is not None:
                 self.register_prior('matrix_prior', prior, 'matrix')
         else:
@@ -137,40 +72,40 @@ class ZeroMeanWithGrad(Mean):
     This is because we often want to compute the jacobian of the output of the GP. This requires the output, and thus
     the mean, to have a gradient.
     """
+
     def forward(self, x: Tensor) -> Tensor:
         return torch.zeros((x.size(0), x.size(1)), dtype=x.dtype, device=x.device, requires_grad=x.requires_grad)
 
 
 class MultiOutputGP(gpytorch.models.ExactGP):
     """A GP model that uses the gpytorch batch mode for multi-output predictions.
+
     The main difference to simple batch mode, is that the model assumes that all GPs
     use the same input data. Moreover, even for single-input data it outputs predictions
     together with a singular dimension for the batchsize.
-    Parameters
-    ----------
-    train_x : torch.tensor
+
+    :param train_x: torch.tensor
         A (n x d) tensor with n data points of d dimensions each.
-    train_y : torch.tensor
+    :param train_y: torch.tensor
         A (n x o) tensor with n data points across o output dimensions.
-    kernel : gpytorch.kernels.Kernel
-        A kernel with appropriate batchsize. See `BatchKernel`.
-    likelihood : gpytorch.likelihoods.Likelihood
+    :param kernel: gpytorch.kernels.Kernel
+        A kernel with appropriate batchsize.
+    :param likelihood: gpytorch.likelihoods.Likelihood
         A GP likelihood with appropriate batchsize.
-    mean : gpytorch.means.Mean, optional
+    :param mean: gpytorch.means.Mean, optional
         The mean function with appropriate batchsize. See `BatchMean`. Defaults to
-        `gpytorch.means.ZeroMean()`.
+        `gpytorch.means.ZeroMeanWithGrad()`.
     """
 
-    def __init__(self, train_x, train_y, kernel, likelihood, mean=None):
+    def __init__(self, train_x: Optional[Tensor], train_y: Optional[Tensor], kernel: Kernel, likelihood: Likelihood,
+                 num_outputs: int, mean: Mean = None):
         train_x, train_y = self._process_training_data(train_x, train_y)
 
-        super(MultiOutputGP, self).__init__(train_x, train_y, likelihood)
+        super().__init__(train_x, train_y, likelihood)
 
-        if mean is None:
-            mean = ZeroMeanWithGrad()
-
-        self.mean = mean
-        self.kernel = kernel
+        self._mean = mean if mean is not None else ZeroMeanWithGrad()
+        self._kernel = kernel
+        self._num_outputs = num_outputs
 
     @staticmethod
     def _process_training_data(train_x, train_y):
@@ -178,22 +113,14 @@ class MultiOutputGP(gpytorch.models.ExactGP):
             return None, None
 
         assert (train_y.dim() == 1 and train_x.shape[0] == train_y.shape[0]) or train_x.shape[0] == train_y.shape[1], (
-            f"We require x:[N x n] y:[N] or x:[N x n] y:[n x N]. We got x:{train_x.shape} y:{train_y.shape}"
-        )
-
-        if train_y.dim() > 1:
-            # Try to remove the first data row if it's empty
-            train_y = train_y.squeeze(0)
-
-        if train_y.dim() > 1:
-            train_x = train_x.expand(len(train_y), *train_x.shape)
+            f"We require x:[N x n] y:[N] or x:[N x n] y:[m x N]. We got x:{train_x.shape} y:{train_y.shape}")
 
         return train_x, train_y
 
     @property
     def batch_size(self):
-        """Return the batch size of the model."""
-        return self.kernel.batch_size
+        """Return the number of outputs of the model."""
+        return self._num_outputs
 
     def set_train_data(self, inputs=None, targets=None, strict=True):
         """Set the GP training data."""
@@ -211,20 +138,15 @@ class MultiOutputGP(gpytorch.models.ExactGP):
 
     def __call__(self, *args, **kwargs):
         """Evaluate the underlying batch_mode model."""
-        if self.batch_size > 1:
-            args = [arg.unsqueeze(-1) if arg.ndimension() == 1 else arg for arg in args]
-            # Expand input arguments across batches
-            args = list(map(lambda x: x.expand(self.batch_size, *x.shape), args))
         normal = super().__call__(*args, **kwargs)
-
         if self.batch_size > 1:
             return normal
         else:
             return WrappedNormal(normal)
 
     def forward(self, x):
-        """Compute the resulting batch-distribution."""
-        return MultivariateNormal(self.mean(x), self.kernel(x))
+        x = x.expand((self._num_outputs,) + x.size())
+        return MultivariateNormal(self._mean(x), self._kernel(x))
 
 
 class GPyTorchSSM(StateSpaceModel):
@@ -263,7 +185,8 @@ class GPyTorchSSM(StateSpaceModel):
 
         """
 
-        inp = torch.cat((torch.from_numpy(np.array(states, dtype=np.float32)), torch.from_numpy(np.array(actions, dtype=np.float32))), dim=1)
+        inp = torch.cat((torch.from_numpy(np.array(states, dtype=np.float32)),
+                         torch.from_numpy(np.array(actions, dtype=np.float32))), dim=1)
         inp.requires_grad = True
         n_in = self.num_states + self.num_actions
 
@@ -350,9 +273,7 @@ class GPyTorchSSM(StateSpaceModel):
         """
 
         out = self._predict(torch.from_numpy(np.array(states, dtype=np.float32)),
-                            torch.from_numpy(np.array(actions, dtype=np.float32)),
-                            jacobians,
-                                full_cov)
+                            torch.from_numpy(np.array(actions, dtype=np.float32)), jacobians, full_cov)
         return tuple([var.detach().numpy() for var in out])
 
     def linearize_predict(self, states, actions, jacobians=False, full_cov=False):
@@ -392,9 +313,7 @@ class GPyTorchSSM(StateSpaceModel):
                                           inputs, i.e. (1 x n) arrays, when computing jacobians.""")
 
         out = self._predict(torch.from_numpy(np.array(states, dtype=np.float32)),
-                            torch.from_numpy(np.array(actions, dtype=np.float32)),
-                            True,
-                            full_cov)
+                            torch.from_numpy(np.array(actions, dtype=np.float32)), True, full_cov)
 
         jac_mean = out[2]
         self._linearize_forward_cache = torch.cat((out[0], out[1], jac_mean.view(-1, 1)))

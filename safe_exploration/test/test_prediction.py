@@ -20,8 +20,7 @@ class TestSampleTrajectoriesIndependent(object):
 
     def test_2d(self, check_has_ssm_pytorch):
         with torch.no_grad():
-            kernel = mps.BatchKernel([gpytorch.kernels.MaternKernel(active_dims=[0]),
-                                      gpytorch.kernels.MaternKernel(active_dims=[1])])
+            kernel = gpytorch.kernels.MaternKernel(active_dims=[0], batch_size=2)
             mean = mps.LinearMean(torch.tensor([[0.5, 0],
                                                 [0, 0.5]]))
             likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=2)
@@ -31,7 +30,7 @@ class TestSampleTrajectoriesIndependent(object):
             train_x = torch.cat([train_x, train_x], dim=1)
             train_y = 0.5 * train_x.t()
 
-            model = mps.MultiOutputGP(train_x, train_y, kernel, likelihood, mean=mean)
+            model = mps.MultiOutputGP(train_x, train_y, kernel, likelihood, mean=mean, num_outputs=2)
             model.eval()
 
             trajs = sample_trajectories_independent(model=model,
@@ -68,7 +67,7 @@ class TestSampleTrajectoriesIndependent(object):
             train_x = torch.tensor([-0.5, -0.1, 0., 0.1, 1.])[:, None]
             train_y = 0.5 * train_x.squeeze(-1)
 
-            model = mps.MultiOutputGP(train_x, train_y, kernel, likelihood, mean=mean)
+            model = mps.MultiOutputGP(train_x, train_y, kernel, likelihood, mean=mean, num_outputs=1)
             model.eval()
 
             trajs = sample_trajectories_independent(model=model,

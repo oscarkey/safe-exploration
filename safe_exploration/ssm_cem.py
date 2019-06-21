@@ -8,9 +8,14 @@ import gpytorch
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from GPy.likelihoods import Likelihood
+from gpytorch.distributions import MultivariateNormal
+from gpytorch.kernels import ScaleKernel, RBFKernel, Kernel
+from gpytorch.models.exact_gp import ExactGP
 from torch import Tensor, nn
 
-from .ssm_pytorch import BatchKernel, MultiOutputGP, utilities
+from .ssm_pytorch import MultiOutputGP, utilities
+from .ssm_pytorch.gaussian_process import ZeroMeanWithGrad
 from .utils import assert_shape, get_device
 
 
@@ -139,9 +144,9 @@ class GpCemSSM(CemSSM):
 
         self._likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
         if model is None:
-            self._model = MultiOutputGP(train_x=None, train_y=None,
-                                        kernel=BatchKernel([gpytorch.kernels.RBFKernel()] * state_dimen),
-                                        likelihood=self._likelihood)
+            kernel = ScaleKernel(RBFKernel(batch_size=state_dimen), batch_size=state_dimen)
+            self._model = MultiOutputGP(train_x=None, train_y=None, likelihood=self._likelihood, kernel=kernel,
+                                        num_outputs=state_dimen)
         else:
             self._model = model
         self._model = self._model.to(get_device(conf))
@@ -181,7 +186,7 @@ class GpCemSSM(CemSSM):
     def predict_raw(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         N = z.size(0)
         assert_shape(z, (N, self.num_states + self.num_actions))
-        pred = self._model(z)
+        pred = self._likelihood(self._model(z))
         return pred.mean, pred.variance
 
     def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
