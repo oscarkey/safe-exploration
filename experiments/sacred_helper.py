@@ -65,6 +65,7 @@ def base_config():
     mc_dropout_reinitialize = True
 
     # -- Exact GP SSM
+    exact_gp_code_version = 2
     exact_gp_training_iterations = 200
 
 
