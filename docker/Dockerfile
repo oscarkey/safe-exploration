@@ -37,7 +37,7 @@ RUN curl --silent https://bootstrap.pypa.io/get-pip.py | python3.7
 # Install some big dependencies before we copy the code in, to avoid having to install them every we update the code.
 # TODO: there must be a better way to do this.
 RUN pip install torch
-RUN pip install casadi matplotlib numpy scikit-learn scipy GPy gpytorch==0.2.1 pymongo dnspython pygame pytest \
+RUN pip install casadi matplotlib numpy scikit-learn scipy GPy gpytorch==0.3.2 pymongo dnspython pygame pytest \
                 pytest-mock gym polytope jsonpickle
 RUN pip install https://github.com/IDSIA/sacred/tarball/master#egg=sacred
 
