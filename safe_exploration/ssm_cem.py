@@ -273,15 +273,14 @@ class McDropoutSSM(CemSSM):
         z_particles = z.repeat((self._num_particles, 1, 1))
 
         output = self._model(z_particles)
-        pred_means = output[:, :, :self._state_dimen]
+        preds = output[:, :, :self._state_dimen]
 
         if self._predict_std:
             pred_log_stds = output[:, :, self._state_dimen:]
-            pred_means_with_noise = pred_means + pred_log_stds.exp() * torch.randn_like(pred_means)
+            preds_with_noise = preds + pred_log_stds.exp() * torch.randn_like(preds)
+            return preds_with_noise.mean(dim=0), preds_with_noise.var(dim=0)
         else:
-            pred_means_with_noise = pred_means
-
-        return pred_means_with_noise.mean(dim=0), pred_means_with_noise.var(dim=0)
+            return preds.mean(dim=0), preds.var(dim=0)
 
     def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
         # Nothing to do. We do not store the training data, just incorporate it in the model in _train_model().
