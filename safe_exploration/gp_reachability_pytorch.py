@@ -83,13 +83,14 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         p_1 = p_lin + mu_0
 
         if verbose > 0:
-            print_ellipsoid(p_1, q_1, text="uncertainty first state")
+            print_ellipsoid(p_1.detach().cpu().numpy(), q_1.detach().cpu().numpy(), text="uncertainty first state")
 
         return p_1.detach(), q_1.detach(), sigm_0.detach()
     else:
         # The state is a (ellipsoid) set.
         if verbose > 0:
-            print_ellipsoid(p_center, q_shape, text="initial uncertainty ellipsoid")
+            print_ellipsoid(p_center.detach().cpu().numpy(), q_shape.detach().cpu().numpy(),
+                            text="initial uncertainty ellipsoid")
         # compute the linearization centers
         x_bar = p_center  # center of the state ellipsoid
         # Derivation: u_bar = k_fb*(u_bar-u_bar) + k_ff = k_ff
@@ -97,12 +98,13 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         if verbose > 0:
             print("\nApplying action:")
-            print(u_bar)
+            print(u_bar.detach().cpu().numpy())
         # compute the zero and first order matrices
         mu_0, sigm_0, jac_mu = ssm.predict_with_jacobians(x_bar, u_bar)
 
         if verbose > 0:
-            print_ellipsoid(mu_0, torch.diag(sigm_0.squeeze()), text="predictive distribution")
+            print_ellipsoid(mu_0.detach().cpu().numpy(), torch.diag(sigm_0.squeeze()).detach().cpu().numpy(),
+                            text="predictive distribution")
 
         a_mu = jac_mu[:, :, :n_s]
         b_mu = jac_mu[:, :, n_s:]
@@ -114,7 +116,8 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         Q_0 = torch.bmm(H, torch.bmm(q_shape, H.transpose(1, 2)))
 
         if verbose > 0:
-            print_ellipsoid(p_0, Q_0, text="linear transformation uncertainty")
+            print_ellipsoid(p_0.detach().cpu().numpy(), Q_0.detach().cpu().numpy(),
+                            text="linear transformation uncertainty")
 
         # computing the box approximate to the lagrange remainder
         # k_fb, l_mu and l_sigma are the same for every trajectory in the batch, so just repeat them.
@@ -125,21 +128,22 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0) + ub_sigma)
 
         if torch.isnan(b_sigma_eps).any():
-            _log_nan(ssm,
-                     f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
-                     f'q_shape={q_shape}, jac_mu={jac_mu}')
+            _log_nan(ssm, f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
+            f'q_shape={q_shape}, jac_mu={jac_mu}')
 
         Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps.squeeze(1))
         p_lagrange_sigm = torch.zeros((N, n_s), device=Q_lagrange_sigm.device)
 
         if verbose > 0:
-            print_ellipsoid(p_lagrange_sigm, Q_lagrange_sigm, text="overapproximation lagrangian sigma")
+            print_ellipsoid(p_lagrange_sigm.detach().cpu().numpy(), Q_lagrange_sigm.detach().cpu().numpy(),
+                            text="overapproximation lagrangian sigma")
 
         Q_lagrange_mu = ellipsoid_from_rectangle_pytorch(ub_mean.squeeze(1))
         p_lagrange_mu = torch.zeros((N, n_s), device=Q_lagrange_mu.device)
 
         if verbose > 0:
-            print_ellipsoid(p_lagrange_mu, Q_lagrange_mu, text="overapproximation lagrangian mu")
+            print_ellipsoid(p_lagrange_mu.detach().cpu().numpy(), Q_lagrange_mu.detach().cpu().numpy(),
+                            text="overapproximation lagrangian mu")
 
         p_sum_lagrange, Q_sum_lagrange = sum_two_ellipsoids_pytorch(p_lagrange_sigm, Q_lagrange_sigm, p_lagrange_mu,
                                                                     Q_lagrange_mu)
@@ -147,10 +151,11 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         p_1, q_1 = sum_two_ellipsoids_pytorch(p_sum_lagrange, Q_sum_lagrange, p_0, Q_0)
 
         if verbose > 0:
-            print_ellipsoid(p_1, q_1, text="accumulated uncertainty current step")
+            print_ellipsoid(p_1.detach().cpu().numpy(), q_1.detach().cpu().numpy(),
+                            text="accumulated uncertainty current step")
 
             print("volume of ellipsoid summed individually")
-            print((torch.det(torch.cholesky(q_1))))
+            print((torch.det(torch.cholesky(q_1))).detach().cpu().numpy())
 
         return p_1.detach(), q_1.detach(), sigm_0.detach()
 

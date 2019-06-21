@@ -221,9 +221,10 @@ def print_ellipsoid(p_center, q_shape, text="ellipsoid", visualize=False):
     print(("===== {} =====".format(text)))
     print("center:")
     print(p_center)
-    print("==========")
-    print("diagonal of shape matrix:")
-    print((diag(q_shape)))
+    if q_shape.ndim in (1,2):
+        print("==========")
+        print("diagonal of shape matrix:")
+        print((diag(q_shape)))
     print("===============")
 
 
