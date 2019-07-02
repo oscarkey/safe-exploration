@@ -11,8 +11,8 @@ from bnn import BDropout, CDropout
 from gpytorch.kernels import ScaleKernel, RBFKernel
 from torch import Tensor, nn
 
-from .ssm_pytorch import MultiOutputGP, utilities
-from .utils import assert_shape, get_device
+from ssm_pytorch import MultiOutputGP, utilities
+from utils import assert_shape, get_device
 
 
 class CemSSM(ABC):

@@ -7,16 +7,18 @@ Created on Tue Nov 21 09:44:58 2017
 import warnings
 from importlib import import_module
 from os.path import abspath, exists, split
+from typing import Optional
 
 import numpy as np
 
 from experiments.journal_experiment_configs.default_config import DefaultConfig
+from utils_sacred import SacredAggregatedMetrics
 from . import safempc_cem
 from .cautious_mpc import CautiousMPC
 from .environments import InvertedPendulum, CartPole, Environment
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
-from .ssm_cem import CemSSM, GpCemSSM, McDropoutSSM
+from .ssm_cem.ssm_cem import CemSSM, GpCemSSM, McDropoutSSM
 from .utils import dlqr, unavailable
 
 try:

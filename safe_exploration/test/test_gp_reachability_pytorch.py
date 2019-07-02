@@ -9,8 +9,8 @@ from utils import assert_shape
 from .test_ssm_cem import TestGpCemSSM
 from .. import gp_reachability as reachability_np
 from .. import gp_reachability_pytorch as reachability_pt
-from ..ssm_cem import CemSSM
-from ..ssm_cem import GpCemSSM
+from ..ssm_cem.ssm_cem import CemSSM
+from ..ssm_cem.ssm_cem import GpCemSSM
 from ..state_space_models import StateSpaceModel
 
 

@@ -15,7 +15,7 @@ from .environments import Environment
 from .gp_reachability_pytorch import onestep_reachability
 from .safempc import SafeMPC
 from .safempc_simple import LqrFeedbackController
-from .ssm_cem import CemSSM
+from .ssm_cem.ssm_cem import CemSSM
 from .utils import get_device
 from .visualization import utils_visualization
 

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from safe_exploration.ssm_cem import McDropoutSSM
+from ssm_cem.ssm_cem import McDropoutSSM
 from safe_exploration.ssm_pytorch.gaussian_process import ZeroMeanWithGrad
 
 

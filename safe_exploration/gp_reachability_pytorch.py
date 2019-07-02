@@ -9,7 +9,7 @@ from typing import Tuple, Optional
 import torch
 from torch import Tensor
 
-from .ssm_cem import CemSSM, GpCemSSM
+from .ssm_cem.ssm_cem import CemSSM, GpCemSSM
 from .utils import print_ellipsoid, assert_shape, compute_remainder_overapproximations_pytorch, batch_vector_matrix_mul
 from .utils_ellipsoid import ellipsoid_from_rectangle_pytorch, sum_two_ellipsoids_pytorch
 

@@ -3,7 +3,7 @@ import random
 import numpy as np
 import torch
 
-from ..ssm_cem import GpCemSSM, McDropoutSSM
+from ..ssm_cem.ssm_cem import GpCemSSM, McDropoutSSM
 
 
 class TestGpCemSSM:
