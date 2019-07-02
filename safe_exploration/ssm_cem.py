@@ -5,7 +5,6 @@ from typing import Tuple, Optional
 
 import bnn
 import gpytorch
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from bnn import BDropout, CDropout
@@ -338,22 +337,3 @@ class McDropoutSSM(CemSSM):
                 module.reset_parameters()
 
         self._model.apply(parameters_reset)
-
-
-def test_plot(ssm: CemSSM, train_x: Tensor, train_y: Tensor):
-    states = torch.range(0., 5., 0.1).unsqueeze(1)
-    actions = torch.empty((states.size(0), 0), device=train_x.device)
-    mu, std = ssm.predict_without_jacobians(states, actions)
-
-    xs = states.squeeze(1).detach().cpu().numpy()
-    mu = mu.detach().cpu().numpy()
-    std = std.detach().cpu().numpy()
-
-    plt.plot(xs, mu)
-
-    for i in range(1, 4):
-        plt.gca().fill_between(xs.flat, (mu - i * std).flat, (mu + i * std).flat, color="#dddddd", alpha=1.0 / i,
-                               label="Confidence")
-
-    plt.scatter(train_x.squeeze(1).detach().cpu().numpy(), train_y.squeeze(1).detach().cpu().numpy())
-    plt.show()
