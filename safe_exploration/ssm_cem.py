@@ -8,14 +8,11 @@ import gpytorch
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from GPy.likelihoods import Likelihood
-from gpytorch.distributions import MultivariateNormal
-from gpytorch.kernels import ScaleKernel, RBFKernel, Kernel
-from gpytorch.models.exact_gp import ExactGP
+from bnn import BDropout, CDropout
+from gpytorch.kernels import ScaleKernel, RBFKernel
 from torch import Tensor, nn
 
 from .ssm_pytorch import MultiOutputGP, utilities
-from .ssm_pytorch.gaussian_process import ZeroMeanWithGrad
 from .utils import assert_shape, get_device
 
 
@@ -225,7 +222,7 @@ class GpCemSSM(CemSSM):
 
 
 class McDropoutSSM(CemSSM):
-    """BNN, approximated using concrete mc dropout, state space model.
+    """A BNN state space model, approximated using concrete mc dropout.
 
     Uses the "bnn" package from https://github.com/anassinator/bnn
     """
@@ -249,6 +246,15 @@ class McDropoutSSM(CemSSM):
         self._model.eval()
 
         self._optimizer = torch.optim.Adam(p for p in self._model.parameters() if p.requires_grad)
+
+    @property
+    def dropout_probabilities(self) -> [float]:
+        ps = []
+        for layer in self._model.children():
+            if isinstance(layer, (CDropout, BDropout)):
+                # p is the inverse of the dropout rate.
+                ps.append(1 - layer.p)
+        return ps
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
