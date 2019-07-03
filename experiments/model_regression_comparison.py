@@ -145,7 +145,7 @@ def _conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter: int, d
 
 @ex.automain
 def regression_comparison_main(_run):
-    conf = _run.config
+    conf = EasyDict(_run.config)
 
     x_train = torch.rand(20) * 8 - 4
     y_train = torch.sin(x_train) + 1e-1 * torch.randn_like(x_train)
