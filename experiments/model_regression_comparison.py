@@ -66,6 +66,10 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 
 def _plot(x_train, y_train, x_test, preds, file_name: Optional[str] = None):
+    x_train = x_train.detach().cpu().numpy()
+    y_train = y_train.detach().cpu().numpy()
+    x_test = x_test.detach().cpu().numpy()
+
     axes = plt.axes()
 
     plt.axis([-8, 8, -4, 4])
@@ -75,14 +79,14 @@ def _plot(x_train, y_train, x_test, preds, file_name: Optional[str] = None):
     axes.plot(xs, np.sin(xs))
 
     # Plot the trainin data.
-    axes.scatter(x_train.detach().cpu().numpy(), y_train.detach().cpu().numpy(), zorder=10, s=4)
+    axes.scatter(x_train, y_train, zorder=10, s=4)
 
     pred_mean, pred_var = preds
     pred_mean = pred_mean.squeeze(1).detach().cpu().numpy()
     pred_std = pred_var.squeeze(1).sqrt().detach().cpu().numpy()
 
     # Plot the mean line.
-    axes.plot(x_test.detach().cpu().numpy(), pred_mean)
+    axes.plot(x_test, pred_mean)
 
     # Plot the uncertainty.
     for i in range(1, 4):
