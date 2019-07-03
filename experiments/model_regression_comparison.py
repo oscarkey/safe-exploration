@@ -157,6 +157,54 @@ def regression_comparison_main(_run):
 
     run = functools.partial(_run_mcdropout, x_train=x_train, y_train=y_train, x_test=x_test)
 
+    # Search over training iterations and repeats for gal implementation.
     run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+
+    # Search over training iterations and repeats.
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+
+    # Search over training iterations and repeats for fixed dropout probabilities.
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=3000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=3000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=3000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=5000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=5000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=5000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=7000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=7000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=7000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.1))
+
+    # Search over different dropout probabilities.
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.05))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.2))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.3))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.4))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.5))
 
     # run_gp(axes, x_train, y_train, x_test)
