@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch import nn, optim, Tensor
 
-from utils import get_device
+from ..utils import get_device
 from .ssm_cem import CemSSM
 from ..ssm_pytorch import utilities
 
