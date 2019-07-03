@@ -151,9 +151,9 @@ def regression_comparison_main(_run):
     y_train = torch.sin(x_train) + 1e-1 * torch.randn_like(x_train)
     x_test = torch.linspace(-8, 8, 160)
 
-    x_train.to(get_device(conf))
-    y_train.to(get_device(conf))
-    x_test.to(get_device(conf))
+    x_train = x_train.to(get_device(conf))
+    y_train = y_train.to(get_device(conf))
+    x_test = x_test.to(get_device(conf))
 
     run = functools.partial(_run_mcdropout, x_train=x_train, y_train=y_train, x_test=x_test)
 
