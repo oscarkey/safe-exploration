@@ -9,10 +9,11 @@ import numpy as np
 import torch
 from bnn import BDropout, CDropout
 from gpytorch.kernels import ScaleKernel, RBFKernel
-from torch import Tensor, nn
+from torch import Tensor
+from torch.nn import Module
 
-from ssm_pytorch import MultiOutputGP, utilities
-from utils import assert_shape, get_device
+from ..ssm_pytorch import MultiOutputGP, utilities
+from ..utils import assert_shape, get_device
 
 
 class CemSSM(ABC):
@@ -230,21 +231,27 @@ class McDropoutSSM(CemSSM):
         super().__init__(state_dimen, action_dimen)
 
         self._training_iterations = conf.mc_dropout_training_iterations
-        self._num_particles = conf.mc_dropout_num_samples
+        self._num_mc_samples = conf.mc_dropout_num_samples
         self._predict_std = conf.mc_dropout_predict_std
         self._reinitialize_on_train = conf.mc_dropout_reinitialize
         self._state_dimen = state_dimen
 
+        self._model_constructor = self._get_model_constructor(conf, state_dimen, action_dimen)
+        self._model = self._model_constructor()
+        self._model.eval()
+
+    def _get_model_constructor(self, conf, state_dimen: int, action_dimen: int):
         in_features = state_dimen + action_dimen
 
         # Double the regression outputs. We need one for the mean and one for the predicted std (if enabled)
         out_features = state_dimen * 2 if self._predict_std else state_dimen
 
-        self._model = bnn.bayesian_model(in_features, out_features, hidden_features=conf.mc_dropout_hidden_features)
-        self._model = self._model.to(get_device(conf))
-        self._model.eval()
+        def constructor() -> Module:
+            model = bnn.bayesian_model(in_features, out_features, hidden_features=conf.mc_dropout_hidden_features)
+            model = model.to(get_device(conf))
+            return model
 
-        self._optimizer = torch.optim.Adam(p for p in self._model.parameters() if p.requires_grad)
+        return constructor
 
     @property
     def dropout_probabilities(self) -> [float]:
@@ -267,7 +274,6 @@ class McDropoutSSM(CemSSM):
         return pred_mean, pred_var, pred_mean_jac
 
     def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
-        # To get the variance, we sample _num_particles times from the network.
         z = self._join_states_actions(states, actions)
         return self.predict_raw(z)
 
@@ -275,7 +281,8 @@ class McDropoutSSM(CemSSM):
         N = z.size(0)
         assert_shape(z, (N, self.num_states + self.num_actions))
 
-        z_particles = z.repeat((self._num_particles, 1, 1))
+        # To get the variance, we sample _num_particles times from the network.
+        z_particles = z.repeat((self._num_mc_samples, 1, 1))
 
         output = self._model(z_particles)
         preds = output[:, :, :self._state_dimen]
@@ -293,15 +300,18 @@ class McDropoutSSM(CemSSM):
 
     def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
         if self._reinitialize_on_train:
-            self._reinitialize_weights()
+            # Construct an entirely new model to ensure all parameters are reinitialized correctly.
+            self._model = self._model_constructor()
 
         self._model.train()
+
+        optimizer = torch.optim.Adam(p for p in self._model.parameters() if p.requires_grad)
 
         # TODO: should we reset the weights at the start of each training?
         print(f'Training BNN on {x_train.size(0)} data points for {self._training_iterations} iterations...')
         losses = []
         for i in range(self._training_iterations):
-            self._optimizer.zero_grad()
+            optimizer.zero_grad()
 
             output = self._model(x_train, resample=True)
             pred_means = output[:, :self._state_dimen]
@@ -311,7 +321,7 @@ class McDropoutSSM(CemSSM):
                                                    pred_log_stds) + 1e-2 * self._model.regularization()).mean()
 
             loss.backward()
-            self._optimizer.step()
+            optimizer.step()
 
             losses.append(loss.item())
         print(f'Training complete. Final losses: {losses[-4:]}')
@@ -329,11 +339,3 @@ class McDropoutSSM(CemSSM):
             return - ((deltas / pred_stds) ** 2).sum(-1) * 0.5 - pred_stds.log().sum(-1) - np.log(2 * math.pi) * 0.5
         else:
             return - (deltas ** 2).sum(-1) * 0.5
-
-    def _reinitialize_weights(self):
-        # The BNN only contains linear and dropout layers, thus we just call reset on the linear layers.
-        def parameters_reset(module):
-            if isinstance(module, nn.Linear):
-                module.reset_parameters()
-
-        self._model.apply(parameters_reset)
