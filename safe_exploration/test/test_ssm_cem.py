@@ -116,6 +116,15 @@ class TestMcDropoutSSM:
 
         assert not torch.allclose(mean1, mean2)
 
+    def test__get_dropout_probabilities__returns_value_per_layer(self):
+        config = TestMcDropoutSSM.FakeConfig()
+        config.mc_dropout_hidden_features = [2, 2, 10, 2, 8]
+        ssm = McDropoutSSM(config, state_dimen=2, action_dimen=1)
+
+        ps = ssm.get_dropout_probabilities()
+
+        assert len(ps) == 5
+
     @staticmethod
     def _seed_rng():
         random.seed(1)

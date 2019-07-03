@@ -1,7 +1,7 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
 import math
 from abc import abstractmethod, ABC
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict
 
 import bnn
 import gpytorch
@@ -253,13 +253,12 @@ class McDropoutSSM(CemSSM):
 
         return constructor
 
-    @property
-    def dropout_probabilities(self) -> [float]:
-        ps = []
-        for layer in self._model.children():
+    def get_dropout_probabilities(self) -> Dict[str, float]:
+        ps = dict()
+        for i, layer in enumerate(self._model.children()):
             if isinstance(layer, (CDropout, BDropout)):
                 # p is the inverse of the dropout rate.
-                ps.append(1 - layer.p)
+                ps[f'layer_{i}'] = 1 - layer.p.item()
         return ps
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
