@@ -63,6 +63,12 @@ def base_config():
     mc_dropout_predict_std = True
     # Whether to reinitialize the network weights before training.
     mc_dropout_reinitialize = True
+    # Whether to use a fixed dropout probability or concrete dropout. One of 'fixed' or 'concrete'.
+    mc_dropout_type = 'concrete'
+    # The initial dropout rate, if mc_dropout_type = 'concrete'.
+    mc_dropout_concrete_initial_probability = 0.5
+    # The dropout rate, if mc_dropout_type = 'fixed'.
+    mc_dropout_fixed_probability = 0.1
 
     # -- Exact GP SSM
     exact_gp_code_version = 2

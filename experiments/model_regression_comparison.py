@@ -1,14 +1,21 @@
 """Script to compare exact gp and mc dropout models on a simple regression task."""
+import functools
+import os
+from typing import Optional
 
 import gpytorch
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from easydict import EasyDict
 from torch import Tensor
 
+from experiments import sacred_helper
+from safe_exploration.ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 from safe_exploration.ssm_cem.ssm_cem import McDropoutSSM
 from safe_exploration.ssm_pytorch.gaussian_process import ZeroMeanWithGrad
-from ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
+
+ex = sacred_helper.get_experiment()
 
 
 class GP:
@@ -57,11 +64,8 @@ class ExactGPModel(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
-def _plot(axes, x_train, y_train, x_test, preds):
-    should_show = False
-    if axes is None:
-        axes = plt.axes()
-        should_show = True
+def _plot(x_train, y_train, x_test, preds, file_name: Optional[str] = None):
+    axes = plt.axes()
 
     plt.axis([-8, 8, -4, 4])
 
@@ -84,51 +88,67 @@ def _plot(axes, x_train, y_train, x_test, preds):
         axes.fill_between(x_test, (pred_mean - i * pred_std).flat, (pred_mean + i * pred_std).flat, color="#dddddd",
                           alpha=1.0 / i)
 
-    if should_show:
+    if file_name is not None:
+        print(f'Saved fig to {file_name}')
+        plt.savefig(file_name)
+    else:
         plt.show()
 
 
-class McDropoutSSMConfig:
-    mc_dropout_num_samples = 100
-    mc_dropout_predict_std = False
-    device = None
-    mc_dropout_reinitialize = True
-
-    def __init__(self, hidden_features, num_training_iterations):
-        self.mc_dropout_hidden_features = hidden_features
-        self.mc_dropout_training_iterations = num_training_iterations
-
-
-def run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size: int, training_iter: int):
-    hidden_features = [hidden_layer_size, hidden_layer_size]
-    conf = McDropoutSSMConfig(hidden_features, training_iter)
-    # mcdropout = McDropoutSSM(conf, state_dimen=1, action_dimen=0)
-    mcdropout = GalConcreteDropoutSSM(conf, state_dimen=1, action_dimen=0)
+def _run_mcdropout(conf, x_train, y_train, x_test):
+    if conf.impl == 'lib':
+        mcdropout = McDropoutSSM(conf, state_dimen=1, action_dimen=0)
+    elif conf.impl == 'gal':
+        mcdropout = GalConcreteDropoutSSM(conf, state_dimen=1, action_dimen=0)
+    else:
+        raise ValueError(f'Unknown impl {conf.impl}')
 
     mcdropout._train_model(x_train.unsqueeze(1), y_train)
 
-    _plot(axes, x_train, y_train, x_test, mcdropout.predict_raw(x_test.unsqueeze(1)))
-    print('dropout probabilities:', mcdropout.get_dropout_probabilities())
+    folder = 'results_regression'
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+    file_name = f'{folder}/{conf.name}.png'
+    # file_name = None
+    _plot(x_train, y_train, x_test, mcdropout.predict_raw(x_test.unsqueeze(1)), file_name)
+    print(f'final p \'{conf.name}\': {mcdropout.get_dropout_probabilities()}')
 
 
-def run_gp(axes, x_train, y_train, x_test):
+def _run_gp(x_train, y_train, x_test):
     gp = GP(x_train, y_train)
     gp.train(x_train, y_train, iterations=50)
 
-    _plot(axes, x_train, y_train, x_test, gp.predict(x_test.unsqueeze(1)))
+    _plot(x_train, y_train, x_test, gp.predict(x_test.unsqueeze(1)))
 
 
-def main():
+@ex.capture
+def _conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter: int, dropout_type: str, dropout_p: float):
+    conf = EasyDict(_run.config)
+    conf.mc_dropout_predict_std = True
+    conf.mc_dropout_reinitialize = True
+    conf.mc_dropout_hidden_features = [hidden_layer_size, hidden_layer_size]
+    conf.mc_dropout_training_iterations = training_iter
+    conf.mc_dropout_type = dropout_type
+    conf.mc_dropout_concrete_initial_probability = dropout_p
+    conf.mc_dropout_fixed_probability = dropout_p
+
+    conf.impl = impl
+    if impl == 'gal':
+        assert dropout_type == 'concrete'
+        assert dropout_p == 0.1
+
+    conf.name = f'{impl}_{dropout_type}_iter={training_iter}_hiddensize={hidden_layer_size}_p={dropout_p:.3f}_{i}'
+
+    return conf
+
+
+@ex.automain
+def regression_comparison_main():
     x_train = torch.rand(20) * 8 - 4
     y_train = torch.sin(x_train) + 1e-1 * torch.randn_like(x_train)
-
     x_test = torch.linspace(-8, 8, 160)
+    run = functools.partial(_run_mcdropout, x_train=x_train, y_train=y_train, x_test=x_test)
 
-    axes = None
+    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+
     # run_gp(axes, x_train, y_train, x_test)
-    run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size=20, training_iter=1)
-    run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size=20, training_iter=5000)
-
-
-if __name__ == '__main__':
-    main()
