@@ -14,7 +14,7 @@ from experiments import sacred_helper
 from safe_exploration.ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 from safe_exploration.ssm_cem.ssm_cem import McDropoutSSM
 from safe_exploration.ssm_pytorch.gaussian_process import ZeroMeanWithGrad
-from utils import get_device
+from safe_exploration.utils import get_device
 
 ex = sacred_helper.get_experiment()
 
