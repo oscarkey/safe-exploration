@@ -697,11 +697,12 @@ def get_device(force_device: Optional[Tuple[str, Any]] = None) -> str:
     """
     if force_device is not None and isinstance(force_device, str):
         return force_device
-    elif force_device is not None:
-        # We assume it must be a config.
-        assert hasattr(force_device, 'device'), f'force_device must be string or config, was {force_device}'
+    # If it's not a device we assume it must be a config
+    elif force_device is not None and hasattr(force_device, 'device'):
         return force_device.device
-    elif torch.cuda.is_available():
+    elif force_device is not None and not hasattr(force_device, 'device'):
+        raise ValueError(f'force_device must be string or config, was {force_device}')
+    elif force_device is None and torch.cuda.is_available():
         return 'cuda:0'
     else:
         return 'cpu'
