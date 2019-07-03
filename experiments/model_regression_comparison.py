@@ -6,8 +6,9 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from ssm_cem.ssm_cem import McDropoutSSM
+from safe_exploration.ssm_cem.ssm_cem import McDropoutSSM
 from safe_exploration.ssm_pytorch.gaussian_process import ZeroMeanWithGrad
+from ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 
 
 class GP:
@@ -100,11 +101,14 @@ class McDropoutSSMConfig:
 
 def run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size: int, training_iter: int):
     hidden_features = [hidden_layer_size, hidden_layer_size]
-    mcdropout = McDropoutSSM(McDropoutSSMConfig(hidden_features, training_iter), state_dimen=1, action_dimen=0)
+    conf = McDropoutSSMConfig(hidden_features, training_iter)
+    # mcdropout = McDropoutSSM(conf, state_dimen=1, action_dimen=0)
+    mcdropout = GalConcreteDropoutSSM(conf, state_dimen=1, action_dimen=0)
 
     mcdropout._train_model(x_train.unsqueeze(1), y_train)
 
     _plot(axes, x_train, y_train, x_test, mcdropout.predict_raw(x_test.unsqueeze(1)))
+    print('dropout probabilities:', mcdropout.get_dropout_probabilities())
 
 
 def run_gp(axes, x_train, y_train, x_test):
@@ -121,10 +125,8 @@ def main():
     x_test = torch.linspace(-8, 8, 160)
 
     axes = None
-    run_gp(axes, x_train, y_train, x_test)
-    run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size=20, training_iter=10000)
-    run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size=20, training_iter=5000)
-    run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size=20, training_iter=5000)
+    # run_gp(axes, x_train, y_train, x_test)
+    run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size=20, training_iter=1)
     run_mcdropout(axes, x_train, y_train, x_test, hidden_layer_size=20, training_iter=5000)
 
 
