@@ -14,6 +14,7 @@ from experiments import sacred_helper
 from safe_exploration.ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 from safe_exploration.ssm_cem.ssm_cem import McDropoutSSM
 from safe_exploration.ssm_pytorch.gaussian_process import ZeroMeanWithGrad
+from utils import get_device
 
 ex = sacred_helper.get_experiment()
 
@@ -143,10 +144,17 @@ def _conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter: int, d
 
 
 @ex.automain
-def regression_comparison_main():
+def regression_comparison_main(_run):
+    conf = _run.config
+
     x_train = torch.rand(20) * 8 - 4
     y_train = torch.sin(x_train) + 1e-1 * torch.randn_like(x_train)
     x_test = torch.linspace(-8, 8, 160)
+
+    x_train.to(get_device(conf))
+    y_train.to(get_device(conf))
+    x_test.to(get_device(conf))
+
     run = functools.partial(_run_mcdropout, x_train=x_train, y_train=y_train, x_test=x_test)
 
     run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
