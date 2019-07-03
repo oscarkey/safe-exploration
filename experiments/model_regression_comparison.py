@@ -96,6 +96,7 @@ def _plot(x_train, y_train, x_test, preds, file_name: Optional[str] = None):
     if file_name is not None:
         print(f'Saved fig to {file_name}')
         plt.savefig(file_name)
+        plt.clf()
     else:
         plt.show()
 
@@ -162,8 +163,8 @@ def regression_comparison_main(_run):
     run = functools.partial(_run_mcdropout, x_train=x_train, y_train=y_train, x_test=x_test)
 
     # Search over training iterations and repeats for gal implementation.
-    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=1, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=1, dropout_type='concrete', dropout_p=0.1))
     run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
     run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
     run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
