@@ -326,6 +326,10 @@ class McDropoutSSM(CemSSM):
 
         optimizer = torch.optim.Adam(p for p in self._model.parameters() if p.requires_grad)
 
+        # The size of y_train may be [N], but we require [N x n].
+        if y_train.dim() == 1:
+            y_train = y_train.unsqueeze(1)
+
         # TODO: should we reset the weights at the start of each training?
         print(f'Training BNN on {x_train.size(0)} data points for {self._training_iterations} iterations...')
         losses = []
@@ -336,7 +340,7 @@ class McDropoutSSM(CemSSM):
             pred_means = output[:, :self._state_dimen]
             pred_log_stds = output[:, self._state_dimen:] if self._predict_std else None
 
-            loss = (-self._gaussian_log_likelihood(y_train.unsqueeze(1), pred_means,
+            loss = (-self._gaussian_log_likelihood(y_train, pred_means,
                                                    pred_log_stds) + 1e-2 * self._model.regularization()).mean()
 
             loss.backward()
