@@ -119,7 +119,6 @@ def _heteroscedastic_loss(true, mean, log_var):
 
 
 _batch_size = 20
-_l = 1e-4  # Lengthscale
 
 
 class GalConcreteDropoutSSM(CemSSM):
@@ -140,6 +139,7 @@ class GalConcreteDropoutSSM(CemSSM):
         self._num_samples = conf.mc_dropout_num_samples
         self._training_iterations = conf.mc_dropout_training_iterations
         self._hidden_features = conf.mc_dropout_hidden_features
+        self._length_scale = conf.mc_dropout_lengthscale
         self._device = get_device(conf)
 
         self._model_constructor = self._get_model_constructor(state_dimen, action_dimen)
@@ -201,7 +201,7 @@ class GalConcreteDropoutSSM(CemSSM):
             y_train = y_train.unsqueeze(1)
 
         N = x_train.shape[0]
-        weight_regularizer = _l ** 2. / N
+        weight_regularizer = self._length_scale ** 2. / N
         dropout_regularizer = 2. / N
         model = self._model_constructor(weight_regularizer, dropout_regularizer)
         model.train()
