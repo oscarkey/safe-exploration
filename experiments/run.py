@@ -72,15 +72,13 @@ def _run_scenario(_run, scenario_file: Optional[str]):
 
     env = create_env(conf.env_name, conf.env_options)
 
-    solver, safe_policy = create_solver(conf, env)
-
     task = conf.task
     if task == "exploration":
         run_exploration(conf, conf.visualize)
     elif task == "episode_setting":
         run_episodic(conf, metrics)
-
     elif task == "uncertainty_propagation":
+        solver, safe_policy = create_solver(conf, env)
         run_uncertainty_propagation(env, solver, conf)
 
 
