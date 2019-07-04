@@ -70,7 +70,7 @@ def base_config():
     # The dropout rate, if mc_dropout_type = 'fixed'.
     mc_dropout_fixed_probability = 0.1
     # Whether to apply dropout to the input layer.
-    mc_dropout_on_input = False
+    mc_dropout_on_input = True
 
     # -- Exact GP SSM
     exact_gp_code_version = 2
