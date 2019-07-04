@@ -1,7 +1,7 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
 import math
 from abc import abstractmethod, ABC
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, List
 
 import bnn
 import gpytorch
@@ -244,22 +244,34 @@ class McDropoutSSM(CemSSM):
         in_features = state_dimen + action_dimen
         # Double the regression outputs. We need one for the mean and one for the predicted std (if enabled)
         out_features = state_dimen * 2 if self._predict_std else state_dimen
-        hidden_features = conf.mc_dropout_hidden_features
 
         def constructor() -> Module:
-            if conf.mc_dropout_type == 'fixed':
-                dropout_layers = [BDropout(rate=conf.mc_dropout_fixed_probability) for _ in hidden_features]
-            elif conf.mc_dropout_type == 'concrete':
-                dropout_layers = [CDropout(rate=conf.mc_dropout_concrete_initial_probability) for _ in hidden_features]
-            else:
-                raise ValueError(f'Unknown dropout type {conf.mc_dropout_type}')
-
-            model = bnn.bayesian_model(in_features, out_features, hidden_features=hidden_features,
-                                       dropout_layers=dropout_layers)
+            input_dropout, dropout_layers = self._get_dropout_layers(conf)
+            model = bnn.bayesian_model(in_features, out_features, hidden_features=conf.mc_dropout_hidden_features,
+                                       dropout_layers=dropout_layers, input_dropout=input_dropout)
             model = model.to(get_device(conf))
             return model
 
         return constructor
+
+    @staticmethod
+    def _get_dropout_layers(conf) -> Tuple[Module, List[Module]]:
+        hidden_features = conf.mc_dropout_hidden_features
+
+        if conf.mc_dropout_type == 'fixed':
+            p = conf.mc_dropout_fixed_probability
+            input_dropout = BDropout(rate=p) if conf.mc_dropout_on_input else None
+            dropout_layers = [BDropout(rate=p) for _ in hidden_features]
+
+        elif conf.mc_dropout_type == 'concrete':
+            p = conf.mc_dropout_concrete_initial_probability
+            input_dropout = CDropout(rate=p) if conf.mc_dropout_on_input else None
+            dropout_layers = [CDropout(rate=p) for _ in hidden_features]
+
+        else:
+            raise ValueError(f'Unknown dropout type {conf.mc_dropout_type}')
+
+        return input_dropout, dropout_layers
 
     def get_dropout_probabilities(self) -> Dict[str, float]:
         ps = dict()
