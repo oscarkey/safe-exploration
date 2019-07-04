@@ -7,17 +7,16 @@ Created on Tue Nov 21 09:44:58 2017
 import warnings
 from importlib import import_module
 from os.path import abspath, exists, split
-from typing import Optional
 
 import numpy as np
 
 from experiments.journal_experiment_configs.default_config import DefaultConfig
-from utils_sacred import SacredAggregatedMetrics
 from . import safempc_cem
 from .cautious_mpc import CautiousMPC
 from .environments import InvertedPendulum, CartPole, Environment
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
+from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 from .ssm_cem.ssm_cem import CemSSM, GpCemSSM, McDropoutSSM
 from .utils import dlqr, unavailable
 
@@ -33,6 +32,8 @@ def _create_cem_ssm(conf: DefaultConfig, env: Environment) -> CemSSM:
         return GpCemSSM(conf, env.n_s, env.n_u)
     elif conf.cem_ssm == 'mc_dropout':
         return McDropoutSSM(conf, env.n_s, env.n_u)
+    elif conf.cem_ssm == 'mc_dropout_gal':
+        return GalConcreteDropoutSSM(conf, env.n_s, env.n_u)
     else:
         raise ValueError(f'Unknown value for cem_ssm, {conf.cem_ssm}')
 

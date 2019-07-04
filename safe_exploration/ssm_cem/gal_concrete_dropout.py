@@ -9,9 +9,9 @@ import numpy as np
 import torch
 from torch import nn, optim, Tensor
 
-from ..utils import get_device
 from .ssm_cem import CemSSM
 from ..ssm_pytorch import utilities
+from ..utils import get_device
 
 
 class _ConcreteDropout(nn.Module):
@@ -70,16 +70,17 @@ class _ConcreteDropout(nn.Module):
 
 
 class _Model(nn.Module):
-    def __init__(self, hidden_features: List[int], weight_regularizer, dropout_regularizer):
+    def __init__(self, in_features: int, out_features: int, hidden_features: List[int], weight_regularizer,
+                 dropout_regularizer):
         super(_Model, self).__init__()
 
         assert len(hidden_features) == 2, f'We only support networks with two hidden layers, got {hidden_features}'
 
-        self.linear1 = nn.Linear(1, hidden_features[0])
+        self.linear1 = nn.Linear(in_features, hidden_features[0])
         self.linear2 = nn.Linear(hidden_features[0], hidden_features[1])
 
-        self.linear3_mu = nn.Linear(hidden_features[1], 1)
-        self.linear3_logvar = nn.Linear(hidden_features[1], 1)
+        self.linear3_mu = nn.Linear(hidden_features[1], out_features)
+        self.linear3_logvar = nn.Linear(hidden_features[1], out_features)
 
         self.conc_drop1 = _ConcreteDropout(weight_regularizer=weight_regularizer,
                                            dropout_regularizer=dropout_regularizer)
@@ -130,14 +131,31 @@ class GalConcreteDropoutSSM(CemSSM):
 
     def __init__(self, conf, state_dimen: int, action_dimen: int):
         super().__init__(state_dimen, action_dimen)
+
+        assert conf.mc_dropout_on_input is True
+        assert conf.mc_dropout_type == 'concrete'
+        assert conf.mc_dropout_predict_std is True
+        # TODO: use parameter mc_dropout_concrete_initial_probability
+
         self._num_samples = conf.mc_dropout_num_samples
         self._training_iterations = conf.mc_dropout_training_iterations
         self._hidden_features = conf.mc_dropout_hidden_features
         self._device = get_device(conf)
 
+        self._model_constructor = self._get_model_constructor(state_dimen, action_dimen)
         # Use any value for weight_regularizer and dropout_regularizer as we don't yet have any data.
-        self._model = _Model(self._hidden_features, weight_regularizer=1.0, dropout_regularizer=1.0)
-        self._model.to(self._device)
+        self._model = self._model_constructor(weight_regularizer=1.0, dropout_regularizer=1.0)
+
+    def _get_model_constructor(self, state_dimen: int, action_dimen: int):
+        in_features = state_dimen + action_dimen
+        out_features = state_dimen
+
+        def constructor(weight_regularizer, dropout_regularizer):
+            model = _Model(in_features, out_features, self._hidden_features, weight_regularizer, dropout_regularizer)
+            model.to(self._device)
+            return model
+
+        return constructor
 
     def get_dropout_probabilities(self) -> Dict[str, float]:
         return self._model.get_dropout_probabilities()
@@ -168,7 +186,8 @@ class GalConcreteDropoutSSM(CemSSM):
 
         epistemic_uncertainty = means.var(0)
         aleatoric_uncertainty = log_vars.mean(0).exp()
-        total_var = epistemic_uncertainty + aleatoric_uncertainty
+        # TODO: Include aleatoric uncertainty.
+        total_var = epistemic_uncertainty
 
         return pred_mean, total_var
 
@@ -182,10 +201,9 @@ class GalConcreteDropoutSSM(CemSSM):
             y_train = y_train.unsqueeze(1)
 
         N = x_train.shape[0]
-        wr = _l ** 2. / N
-        dr = 2. / N
-        model = _Model(self._hidden_features, wr, dr)
-        model.to(self._device)
+        weight_regularizer = _l ** 2. / N
+        dropout_regularizer = 2. / N
+        model = self._model_constructor(weight_regularizer, dropout_regularizer)
         model.train()
         optimizer = optim.Adam(model.parameters())
 
@@ -204,7 +222,7 @@ class GalConcreteDropoutSSM(CemSSM):
                 loss.backward()
                 optimizer.step()
 
-                if i % 500 == 0:
-                    print(f'Training epoch {i}/{self._training_iterations - 1}, loss={loss.item()}')
+            if i % 500 == 0:
+                print(f'Training epoch {i}/{self._training_iterations - 1}, loss={loss.item()}')
 
         self._model = model
