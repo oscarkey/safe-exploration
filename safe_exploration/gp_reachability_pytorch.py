@@ -3,13 +3,12 @@
 This is a copy of gp_reachability, but converted to PyTorch. Thus it works more efficiently with CemSafeMPC, which also
 uses PyTorch.
 """
-import datetime
 from typing import Tuple, Optional
 
 import torch
 from torch import Tensor
 
-from .ssm_cem.ssm_cem import CemSSM, GpCemSSM
+from .ssm_cem.ssm_cem import CemSSM
 from .utils import print_ellipsoid, assert_shape, compute_remainder_overapproximations_pytorch, batch_vector_matrix_mul
 from .utils_ellipsoid import ellipsoid_from_rectangle_pytorch, sum_two_ellipsoids_pytorch
 
@@ -73,9 +72,9 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         rkhs_bounds = c_safety * torch.sqrt(sigm_0)
 
-        if torch.isnan(rkhs_bounds).any():
-            _log_nan(ssm,
-                     f'nan in rkhs_bounds: rkhs_bounds={rkhs_bounds} sigm_0={sigm_0} p_center={p_center}, u_p={u_p}')
+        if _has_zero_or_nan(rkhs_bounds):
+            raise ValueError(f'nan/zero in rkhs_bounds: rkhs_bounds={rkhs_bounds} sigm_0={sigm_0} p_center={p_center}, '
+                             f'u_p={u_p}')
 
         q_1 = ellipsoid_from_rectangle_pytorch(rkhs_bounds)
 
@@ -127,7 +126,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         ub_mean, ub_sigma = compute_remainder_overapproximations_pytorch(q_shape, k_fb_batch, l_mu_batch, l_sigma_batch)
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0) + ub_sigma)
 
-        if torch.isnan(b_sigma_eps).any():
+        if _has_zero_or_nan(b_sigma_eps):
             _log_nan(ssm, f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
             f'q_shape={q_shape}, jac_mu={jac_mu}')
 
@@ -210,8 +209,5 @@ def is_ellipsoid_inside_polytope(p_center: Tensor, q_shape: Tensor, h_mat: Tenso
     return (d_safety >= 0).sum(dim=1) == 0
 
 
-def _log_nan(ssm: GpCemSSM, message: str):
-    state = {'likelihood': ssm._likelihood.state_dict(), 'model': ssm._model.state_dict()}
-    file_name = f'ssm_nan_dump_{datetime.datetime.utcnow()}.pt'
-    torch.save(state, file_name)
-    raise ValueError(message)
+def _has_zero_or_nan(x: Tensor):
+    return (x == 0).any() > 0 or torch.isnan(x).any()
