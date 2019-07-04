@@ -72,10 +72,10 @@ def _plot(x_train, y_train, x_test, preds, file_name: Optional[str] = None):
 
     axes = plt.axes()
 
-    plt.axis([-8, 8, -4, 4])
+    plt.axis([-12, 12, -4, 4])
 
     # Plot the base sin function.
-    xs = np.arange(-4, 4, 0.05)
+    xs = np.arange(-12, 12, 0.05)
     axes.plot(xs, np.sin(xs))
 
     # Plot the trainin data.
@@ -155,9 +155,10 @@ def _conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter: int, d
 def regression_comparison_main(_run):
     conf = EasyDict(_run.config)
 
-    x_train = torch.rand(20) * 8 - 4
-    y_train = torch.sin(x_train) + 1e-1 * torch.randn_like(x_train)
-    x_test = torch.linspace(-8, 8, 160)
+    # Create x training data between -4 and -1 and 1 and 4, so we have a gap between the two sections.
+    x_train = torch.cat([torch.rand(10) * 3 - 4, torch.rand(10) * 3 + 1])
+    y_train = torch.sin(x_train)
+    x_test = torch.linspace(-12, 12, 160)
 
     x_train = x_train.to(get_device(conf))
     y_train = y_train.to(get_device(conf))
@@ -236,5 +237,3 @@ def regression_comparison_main(_run):
     run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.3))
     run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.4))
     run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.5))
-
-    # run_gp(axes, x_train, y_train, x_test)
