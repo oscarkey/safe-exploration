@@ -242,20 +242,20 @@ class McDropoutSSM(CemSSM):
 
     def _get_model_constructor(self, conf, state_dimen: int, action_dimen: int):
         in_features = state_dimen + action_dimen
-
         # Double the regression outputs. We need one for the mean and one for the predicted std (if enabled)
         out_features = state_dimen * 2 if self._predict_std else state_dimen
+        hidden_features = conf.mc_dropout_hidden_features
 
         def constructor() -> Module:
             if conf.mc_dropout_type == 'fixed':
-                dropout = BDropout(rate=conf.mc_dropout_fixed_probability)
+                dropout_layers = [BDropout(rate=conf.mc_dropout_fixed_probability) for _ in hidden_features]
             elif conf.mc_dropout_type == 'concrete':
-                dropout = CDropout(rate=conf.mc_dropout_concrete_initial_probability)
+                dropout_layers = [CDropout(rate=conf.mc_dropout_concrete_initial_probability) for _ in hidden_features]
             else:
                 raise ValueError(f'Unknown dropout type {conf.mc_dropout_type}')
 
-            model = bnn.bayesian_model(in_features, out_features, hidden_features=conf.mc_dropout_hidden_features,
-                                       dropout_layers=dropout)
+            model = bnn.bayesian_model(in_features, out_features, hidden_features=hidden_features,
+                                       dropout_layers=dropout_layers)
             model = model.to(get_device(conf))
             return model
 
