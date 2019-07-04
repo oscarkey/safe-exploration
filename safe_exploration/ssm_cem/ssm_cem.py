@@ -11,6 +11,7 @@ from bnn import BDropout, CDropout
 from gpytorch.kernels import ScaleKernel, RBFKernel
 from torch import Tensor
 from torch.nn import Module
+import torch.nn.functional as F
 
 from ..ssm_pytorch import MultiOutputGP, utilities
 from ..utils import assert_shape, get_device
@@ -240,6 +241,16 @@ class McDropoutSSM(CemSSM):
         self._model = self._model_constructor()
         self._model.eval()
 
+        self._loss_function = self._get_loss_function(conf)
+
+    def _get_loss_function(self, conf):
+        if conf.mc_dropout_type == 'fixed':
+            return self._fixed_dropout_loss
+        elif conf.mc_dropout_type == 'concrete':
+            return self._concrete_dropout_loss
+        else:
+            raise ValueError(f'Unknown dropout type {conf.mc_dropout_type}')
+
     def _get_model_constructor(self, conf, state_dimen: int, action_dimen: int):
         in_features = state_dimen + action_dimen
         # Double the regression outputs. We need one for the mean and one for the predicted std (if enabled)
@@ -340,8 +351,7 @@ class McDropoutSSM(CemSSM):
             pred_means = output[:, :self._state_dimen]
             pred_log_stds = output[:, self._state_dimen:] if self._predict_std else None
 
-            loss = (-self._gaussian_log_likelihood(y_train, pred_means,
-                                                   pred_log_stds) + 1e-2 * self._model.regularization()).mean()
+            loss = self._loss_function(y_train, pred_means, pred_log_stds)
 
             loss.backward()
             optimizer.step()
@@ -350,6 +360,16 @@ class McDropoutSSM(CemSSM):
         print(f'Training complete. Final losses: {losses[-4:]}')
 
         self._model.eval()
+
+    def _fixed_dropout_loss(self, targets, pred_means, pred_log_stds):
+        if pred_log_stds is not None:
+            raise ValueError('Predicting aleatoric uncertainty is not supported for fixed dropout.')
+
+        return F.mse_loss(pred_means, targets) + 1e-2 * self._model.regularization()
+
+    def _concrete_dropout_loss(self, targets, pred_means, pred_log_stds):
+        return (-self._gaussian_log_likelihood(targets, pred_means,
+                                                       pred_log_stds) + 1e-2 * self._model.regularization()).mean()
 
     @staticmethod
     def _gaussian_log_likelihood(targets, pred_means, pred_log_stds):
