@@ -128,7 +128,8 @@ def _run_gp(x_train, y_train, x_test):
 
 
 @ex.capture
-def _conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter: int, dropout_type: str, dropout_p: float):
+def _conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter: int, dropout_type: str, dropout_p: float,
+          input_dropout=False):
     conf = EasyDict(_run.config)
     conf.mc_dropout_predict_std = True
     conf.mc_dropout_reinitialize = True
@@ -137,13 +138,15 @@ def _conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter: int, d
     conf.mc_dropout_type = dropout_type
     conf.mc_dropout_concrete_initial_probability = dropout_p
     conf.mc_dropout_fixed_probability = dropout_p
+    conf.mc_dropout_on_input = input_dropout
 
     conf.impl = impl
     if impl == 'gal':
         assert dropout_type == 'concrete'
         assert dropout_p == 0.1
 
-    conf.name = f'{impl}_{dropout_type}_iter={training_iter}_hiddensize={hidden_layer_size}_p={dropout_p:.3f}_{i}'
+    conf.name = f'{impl}_{dropout_type}_iter={training_iter}_hiddensize={hidden_layer_size}_p={dropout_p:.3f}' \
+        f'_inputdropout={input_dropout}_{i}'
 
     return conf
 
@@ -162,19 +165,41 @@ def regression_comparison_main(_run):
 
     run = functools.partial(_run_mcdropout, x_train=x_train, y_train=y_train, x_test=x_test)
 
-    # Search over training iterations and repeats for gal implementation.
-    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=5000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
-    run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=7000, dropout_type='concrete', dropout_p=0.1))
+    # Search over hidden layer sizes, gal implementation
     run(_conf(i=0, impl='gal', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
     run(_conf(i=1, impl='gal', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
     run(_conf(i=2, impl='gal', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='gal', hidden_layer_size=64, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='gal', hidden_layer_size=64, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='gal', hidden_layer_size=64, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='gal', hidden_layer_size=128, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='gal', hidden_layer_size=128, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='gal', hidden_layer_size=128, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+
+    # Search over hidden layer sizes, lib implementation
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=64, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=64, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=64, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=0, impl='lib', hidden_layer_size=128, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=1, impl='lib', hidden_layer_size=128, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+    run(_conf(i=2, impl='lib', hidden_layer_size=128, training_iter=9000, dropout_type='concrete', dropout_p=0.1))
+
+    # Include dropout on input, lib implementation.
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1,
+              input_dropout=True))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1,
+              input_dropout=True))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='concrete', dropout_p=0.1,
+              input_dropout=True))
+    run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.1,
+              input_dropout=True))
+    run(_conf(i=1, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.1,
+              input_dropout=True))
+    run(_conf(i=2, impl='lib', hidden_layer_size=20, training_iter=9000, dropout_type='fixed', dropout_p=0.1,
+              input_dropout=True))
 
     # Search over training iterations and repeats.
     run(_conf(i=0, impl='lib', hidden_layer_size=20, training_iter=3000, dropout_type='concrete', dropout_p=0.1))
