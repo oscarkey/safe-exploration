@@ -14,6 +14,7 @@ from safe_exploration.environments import InvertedPendulum, Environment
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
 from safe_exploration.ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 from safe_exploration.ssm_cem.ssm_cem import GpCemSSM, CemSSM
+from safe_exploration.utils import get_device
 from safe_exploration.visualization import utils_visualization
 
 ex = sacred_helper.get_experiment()
@@ -52,13 +53,17 @@ def _pretty_print_metrics(metrics: Dict[str, float]) -> str:
     return result
 
 
-def _train_and_plot_for_ssm(env: Environment, ssm: CemSSM, x_train, y_train, x_test, axes, linestyle='-'):
-    ssm.update_model(torch.tensor(x_train), torch.tensor(y_train), opt_hyp=True)
+def _train_and_plot_for_ssm(conf, env: Environment, ssm: CemSSM, x_train, y_train, x_test, axes, linestyle='-'):
+    device = get_device(conf)
+    x_train = torch.tensor(x_train).to(device)
+    y_train = torch.tensor(y_train).to(device)
+    ssm.update_model(x_train, y_train, opt_hyp=True)
 
-    states = torch.zeros((x_test.shape[0], env.n_s))
-    actions = torch.tensor(x_test)
+    states = torch.zeros((x_test.shape[0], env.n_s)).to(device)
+    actions = torch.tensor(x_test).to(device)
 
-    ps, qs, _ = onestep_reachability(states, ssm, actions, torch.tensor(env.l_mu), torch.tensor(env.l_sigm), verbose=0)
+    ps, qs, _ = onestep_reachability(states, ssm, actions, torch.tensor(env.l_mu).to(device),
+                                     torch.tensor(env.l_sigm).to(device), verbose=0)
 
     for i in range(ps.size(0)):
         p = ps[i].unsqueeze(1).detach().cpu().numpy()
@@ -82,10 +87,10 @@ def _run_experiment(env: Environment, x_train, y_train, x_test, save_to_file, co
         ax1.scatter(y_test[0], y_test[1], color=_get_color(i), s=4)
 
     mc_dropout = GalConcreteDropoutSSM(conf, env.n_s, env.n_u)
-    _train_and_plot_for_ssm(env, mc_dropout, x_train, y_train, x_test, axes=ax1)
+    _train_and_plot_for_ssm(conf, env, mc_dropout, x_train, y_train, x_test, axes=ax1)
 
     gp = GpCemSSM(conf, env.n_s, env.n_u)
-    _train_and_plot_for_ssm(env, gp, x_train, y_train, x_test, axes=ax1, linestyle='--')
+    _train_and_plot_for_ssm(conf, env, gp, x_train, y_train, x_test, axes=ax1, linestyle='--')
 
     plt.figtext(0, 0, _pretty_print_metrics(mc_dropout.collect_metrics()), wrap=True)
 
