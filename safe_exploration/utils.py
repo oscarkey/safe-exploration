@@ -559,7 +559,7 @@ class unavailable:
 
                 """
 
-                args_name = inspect.getargspec(func)[0]
+                args_name = inspect.getfullargspec(func)[0]
                 args_dict = dict(zip(args_name, args))
 
                 default_kwargs = self.get_default_kwargs(func)
@@ -622,7 +622,7 @@ class unavailable:
         def_kwargs: dict
             Dictionary containing the  keyword arguments and default values of func
         """
-        f_spec = inspect.getargspec(func)
+        f_spec = inspect.getfullargspec(func)
         f_vars = f_spec.args
         f_defaults = f_spec.defaults
 
