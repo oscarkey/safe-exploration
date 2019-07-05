@@ -120,25 +120,26 @@ class TestMcDropoutSSM:
 
         assert not torch.allclose(mean1, mean2)
 
-    def test__get_dropout_probabilities__no_input_dropout__returns_value_per_layer(self):
+    def test__collect_metrics__no_input_dropout__returns_dropout_p_per_layer(self):
         config = TestMcDropoutSSM.FakeConfig()
         config.mc_dropout_hidden_features = [2, 2, 10, 2]
         config.mc_dropout_on_input = False
         ssm = McDropoutSSM(config, state_dimen=2, action_dimen=1)
 
-        ps = ssm.get_dropout_probabilities()
+        ps = ssm.collect_metrics()
 
-        assert ps.keys() == {'layer_1', 'layer_4', 'layer_7', 'layer_10'}
+        assert ps.keys() == {'dropout_p_layer_1', 'dropout_p_layer_4', 'dropout_p_layer_7', 'dropout_p_layer_10'}
 
-    def test__get_dropout_probabilities__input_dropout__returns_value_per_layer(self):
+    def test__collect_metrics__input_dropout__returns_dropout_p_per_layer(self):
         config = TestMcDropoutSSM.FakeConfig()
         config.mc_dropout_hidden_features = [2, 2, 10, 2]
         config.mc_dropout_on_input = True
         ssm = McDropoutSSM(config, state_dimen=2, action_dimen=1)
 
-        ps = ssm.get_dropout_probabilities()
+        ps = ssm.collect_metrics()
 
-        assert ps.keys() == {'layer_0', 'layer_2', 'layer_5', 'layer_8', 'layer_11'}
+        assert ps.keys() == {'dropout_p_layer_0', 'dropout_p_layer_2', 'dropout_p_layer_5', 'dropout_p_layer_8',
+                             'dropout_p_layer_11'}
 
     @staticmethod
     def _seed_rng():

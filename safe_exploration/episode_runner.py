@@ -272,6 +272,8 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
     metrics.log_scalar('mpc_previous_solution_count', mpc_results.count(MpcResult.PREVIOUS_SOLUTION), episode_id)
     metrics.log_scalar('safe_controller_fallback_count', mpc_results.count(MpcResult.SAFE_CONTROLLER), episode_id)
     metrics.log_scalar('mean_time_in_solver', float(total_time_in_solver) / n_successful, episode_id)
+    if solver is not None:
+        metrics.log_scalars(solver.collect_metrics(), episode_id)
 
     if n_successful == 0:
         warnings.warn("Agent survived 0 steps, cannot collect data")

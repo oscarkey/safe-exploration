@@ -6,7 +6,7 @@ Created on Thu Sep 28 09:28:15 2017
 """
 import warnings
 from functools import lru_cache
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Dict
 
 import casadi as cas
 import numpy as np
@@ -1097,6 +1097,9 @@ class SimpleSafeMPC(SafeMPC):
 
     def information_gain(self) -> Union[ndarray, List[None]]:
         return self.ssm.information_gain()
+
+    def collect_metrics(self) -> Dict[str, float]:
+        raise NotImplementedError
 
 
 class LqrFeedbackController:

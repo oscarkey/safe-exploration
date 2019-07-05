@@ -7,11 +7,11 @@ import bnn
 import gpytorch
 import numpy as np
 import torch
+import torch.nn.functional as F
 from bnn import BDropout, CDropout
 from gpytorch.kernels import ScaleKernel, RBFKernel
 from torch import Tensor
 from torch.nn import Module
-import torch.nn.functional as F
 
 from ..ssm_pytorch import MultiOutputGP, utilities
 from ..utils import assert_shape, get_device
@@ -123,6 +123,14 @@ class CemSSM(ABC):
         assert_shape(actions, (N, self.num_actions))
         return torch.cat((states, actions), dim=1)
 
+    @abstractmethod
+    def collect_metrics(self) -> Dict[str, float]:
+        """Returns interesting metrics for the current state of the model.
+
+        :returns: pairs (metric key, metric value) to log
+        """
+        pass
+
 
 class GpCemSSM(CemSSM):
     """A SSM using an exact GP from GPyTorch, for the CEM implementation of SafeMPC.
@@ -221,6 +229,10 @@ class GpCemSSM(CemSSM):
         self._model.eval()
         self._likelihood.eval()
 
+    def collect_metrics(self) -> Dict[str, float]:
+        # Currently we don't have any metrics.
+        return {}
+
 
 class McDropoutSSM(CemSSM):
     """A BNN state space model, approximated using concrete mc dropout.
@@ -283,14 +295,6 @@ class McDropoutSSM(CemSSM):
             raise ValueError(f'Unknown dropout type {conf.mc_dropout_type}')
 
         return input_dropout, dropout_layers
-
-    def get_dropout_probabilities(self) -> Dict[str, float]:
-        ps = dict()
-        for i, layer in enumerate(self._model.children()):
-            if isinstance(layer, (CDropout, BDropout)):
-                # p is the inverse of the dropout rate.
-                ps[f'layer_{i}'] = 1 - layer.p.item()
-        return ps
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
@@ -369,7 +373,7 @@ class McDropoutSSM(CemSSM):
 
     def _concrete_dropout_loss(self, targets, pred_means, pred_log_stds):
         return (-self._gaussian_log_likelihood(targets, pred_means,
-                                                       pred_log_stds) + 1e-2 * self._model.regularization()).mean()
+                                               pred_log_stds) + 1e-2 * self._model.regularization()).mean()
 
     @staticmethod
     def _gaussian_log_likelihood(targets, pred_means, pred_log_stds):
@@ -382,3 +386,15 @@ class McDropoutSSM(CemSSM):
             return - ((deltas / pred_stds) ** 2).sum(-1) * 0.5 - pred_stds.log().sum(-1) - np.log(2 * math.pi) * 0.5
         else:
             return - (deltas ** 2).sum(-1) * 0.5
+
+    def collect_metrics(self) -> Dict[str, float]:
+        dropout_ps = self._get_dropout_probabilities()
+        return dropout_ps
+
+    def _get_dropout_probabilities(self) -> Dict[str, float]:
+        ps = dict()
+        for i, layer in enumerate(self._model.children()):
+            if isinstance(layer, (CDropout, BDropout)):
+                # p is the inverse of the dropout rate.
+                ps[f'dropout_p_layer_{i}'] = 1 - layer.p.item()
+        return ps

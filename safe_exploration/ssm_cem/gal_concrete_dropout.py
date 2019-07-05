@@ -157,9 +157,6 @@ class GalConcreteDropoutSSM(CemSSM):
 
         return constructor
 
-    def get_dropout_probabilities(self) -> Dict[str, float]:
-        return self._model.get_dropout_probabilities()
-
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
         pred_mean, pred_var = self.predict_raw(z)
@@ -226,3 +223,8 @@ class GalConcreteDropoutSSM(CemSSM):
                 print(f'Training epoch {i}/{self._training_iterations - 1}, loss={loss.item()}')
 
         self._model = model
+
+    def collect_metrics(self) -> Dict[str, float]:
+        dropout_ps = self._model.get_dropout_probabilities()
+        metrics = {'dropout_p_' + k: v for k, v in dropout_ps.items()}
+        return metrics

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, Union, List, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -317,3 +317,7 @@ class CemSafeMPC(SafeMPC):
         a = self._linearized_model_a.cpu().numpy()
         b = self._linearized_model_b.cpu().numpy()
         return np.dot(states, a.T) + np.dot(actions, b.T)
+
+    def collect_metrics(self) -> Dict[str, float]:
+        # Currently we don't have any metrics of our own, so just return those from the ssm.
+        return self._ssm.collect_metrics()

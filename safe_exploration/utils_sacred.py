@@ -14,6 +14,14 @@ class SacredAggregatedMetrics:
         """Add metric_name=value at t=counter to the logs. Does not send logs to Sacred, call flush() for this."""
         self._metrics[metric_name][counter].append(value)
 
+    def log_scalars(self, metrics: Dict[str, float], counter):
+        """Adds a set of metric_name=value pairs at t=counter to the logs.
+
+        Does not send the logs to Sacred, call flush() for this.
+        """
+        for k, v in metrics.items():
+            self.log_scalar(k, v, counter)
+
     def flush(self):
         """Uploads the metrics in the buffer, and their aggregation, to Sacred. Then clears the buffer."""
         self._upload_metric_means()

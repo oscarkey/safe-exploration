@@ -1,6 +1,6 @@
 """Contains the base class for Safe MPC implementations."""
 from abc import ABC, abstractmethod
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Dict
 
 from numpy import ndarray
 
@@ -66,4 +66,12 @@ class SafeMPC(ABC):
 
     @abstractmethod
     def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
+        pass
+
+    @abstractmethod
+    def collect_metrics(self) -> Dict[str, float]:
+        """Returns interesting metrics for the current state of the algorithm.
+
+        :returns: pairs (metric key, metric value) to log
+        """
         pass

@@ -16,6 +16,37 @@ class TestSacredAggregatedMetrics:
 
         metrics.log_scalar('metric1', 3.0, 1)
 
+    def test__log_scalars__adds_metrics_to_queue(self, mocker):
+        _run = self._create_run(mocker)
+        metrics = SacredAggregatedMetrics(_run)
+
+        collected_metrics_s1_e1 = {'metric1': 0.0, 'metric2': 100.0}
+
+        collected_metrics_s1_e2 = {'metric1': 10.0, }
+
+        collected_metrics_s2_e1 = {'metric1': 10.0, }
+
+        collected_metrics_s2_e2 = {'metric1': 20.0, }
+
+        metrics.log_scalars(collected_metrics_s1_e1, 1)
+        metrics.log_scalars(collected_metrics_s1_e2, 1)
+        metrics.log_scalars(collected_metrics_s2_e1, 2)
+        metrics.log_scalars(collected_metrics_s2_e2, 2)
+
+        metrics.flush()
+
+        expected_metrics = {  #
+            'metric1': {  #
+                1: [0.0, 10.0],  #
+                2: [10.0, 20.0]  #
+            },  #
+            'metric2': {  #
+                1: [100.0]  #
+            }  #
+        }
+
+        assert _run.info['all_metrics'] == expected_metrics
+
     def test__flush__uploads_means_to_sacred(self, mocker):
         _run = self._create_run(mocker)
         _run.info = {}
