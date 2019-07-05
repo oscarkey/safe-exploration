@@ -67,7 +67,7 @@ def plot_ellipsoid_3D(p, q, ax, n_points=100):
 
 
 @unavailable(not _has_matplotlib, "matplotlib")
-def plot_ellipsoid_2D(p, q, ax, n_points=100, color="r"):
+def plot_ellipsoid_2D(p, q, ax, n_points=100, **kwargs):
     """ Plot an ellipsoid in 2D
 
     TODO: Untested!
@@ -80,6 +80,7 @@ def plot_ellipsoid_2D(p, q, ax, n_points=100, color="r"):
         Shape matrix of the ellipsoid
     ax: matplotlib.Axes object
         Ax on which to plot the ellipsoid
+    n_points: number of points to use to draw the ellipsoid
 
     Returns
     -------
@@ -93,6 +94,6 @@ def plot_ellipsoid_2D(p, q, ax, n_points=100, color="r"):
     t = np.linspace(0, 2 * np.pi, n_points)
     z = [np.cos(t), np.sin(t)]
     ellipse = np.dot(r, z) + p
-    handle, = ax.plot(ellipse[0, :], ellipse[1, :], color)
+    handle, = ax.plot(ellipse[0, :], ellipse[1, :], **kwargs)
 
     return ax, handle
