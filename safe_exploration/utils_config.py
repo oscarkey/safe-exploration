@@ -39,6 +39,11 @@ def _create_cem_ssm(conf: DefaultConfig, env: Environment) -> CemSSM:
 
 
 @unavailable(not _has_ssm_gpy, "ssm_gpy")
+def _create_simple_gp(conf, env):
+    return SimpleGPModel(conf.gp_ns_out, conf.gp_ns_in, env.n_u, m=conf.m,
+                         kern_types=conf.kern_types, Z=conf.Z)
+
+
 def create_solver(conf, env: Environment):
     """ Create a solver from a set of options and environment information"""
     lin_model = None
@@ -63,9 +68,6 @@ def create_solver(conf, env: Environment):
     k_lqr, _, _ = dlqr(a_true, b_true, q, r)
     k_fb = -k_lqr
     safe_policy = lambda x: np.dot(k_fb, x)
-
-    gp = SimpleGPModel(conf.gp_ns_out, conf.gp_ns_in, env.n_u, m=conf.m,
-                       kern_types=conf.kern_types, Z=conf.Z)
 
     dt = env.dt
     ctrl_bounds = np.hstack(
@@ -94,6 +96,7 @@ def create_solver(conf, env: Environment):
         perf_opts_safempc["r"] = conf.r
         perf_opts_safempc["perf_has_fb"] = conf.perf_has_fb
 
+        gp = _create_simple_gp(conf, env)
         solver = SimpleSafeMPC(conf.n_safe, gp, env_opts_safempc, wx_cost, wu_cost,
                                beta_safety=conf.beta_safety,
                                safe_policy=safe_policy,
@@ -107,6 +110,7 @@ def create_solver(conf, env: Environment):
     elif conf.solver_type == "cautious_mpc":
         T = conf.T
 
+        gp = _create_simple_gp(conf, env)
         solver = CautiousMPC(T, gp, env_opts_safempc, conf.beta_safety,
                              lin_trafo_gp_input=lin_trafo_gp_input, perf_trajectory=conf.type_perf_traj, k_fb=k_fb)
     else:
