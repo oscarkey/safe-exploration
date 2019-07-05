@@ -72,7 +72,8 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         rkhs_bounds = c_safety * torch.sqrt(sigm_0)
 
-        if _has_zero_or_nan(rkhs_bounds):
+        rkhs_bounds, fix_success = _fix_zeros_nans(rkhs_bounds)
+        if not fix_success:
             raise ValueError(f'nan/zero in rkhs_bounds: rkhs_bounds={rkhs_bounds} sigm_0={sigm_0} p_center={p_center}, '
                              f'u_p={u_p}')
 
@@ -126,9 +127,10 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         ub_mean, ub_sigma = compute_remainder_overapproximations_pytorch(q_shape, k_fb_batch, l_mu_batch, l_sigma_batch)
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0) + ub_sigma)
 
-        if _has_zero_or_nan(b_sigma_eps):
-            _log_nan(ssm, f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
-            f'q_shape={q_shape}, jac_mu={jac_mu}')
+        b_sigma_eps, fix_success = _fix_zeros_nans(b_sigma_eps)
+        if not fix_success:
+            raise ValueError(f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
+                             f'q_shape={q_shape}, jac_mu={jac_mu}')
 
         Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps.squeeze(1))
         p_lagrange_sigm = torch.zeros((N, n_s), device=Q_lagrange_sigm.device)
@@ -209,5 +211,13 @@ def is_ellipsoid_inside_polytope(p_center: Tensor, q_shape: Tensor, h_mat: Tenso
     return (d_safety >= 0).sum(dim=1) == 0
 
 
-def _has_zero_or_nan(x: Tensor):
-    return (x == 0).any() > 0 or torch.isnan(x).any()
+def _fix_zeros_nans(x: Tensor) -> Tuple[Tensor, bool]:
+    if torch.isnan(x).any():
+        return torch.empty(), False
+
+    if (x == 0).any():
+        print('WARNING: found 0 in var but carried on')
+        x[x == 0] = 1e-4
+        return x, True
+
+    return x, True
