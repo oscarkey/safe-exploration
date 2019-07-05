@@ -100,7 +100,7 @@ def _run_experiment(env: Environment, x_train, y_train, x_test, save_to_file, co
             os.mkdir(folder)
         file_name = f'{folder}/{conf.name}.png'
         plt.savefig(file_name)
-        plt.gcf()
+        plt.clf()
     else:
         plt.show()
 
