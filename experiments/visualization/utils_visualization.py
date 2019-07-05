@@ -53,31 +53,3 @@ def plot_ellipsoid_3D(p, q, ax, n_points = 100):
     # plot the result
     ax.plot_wireframe(x, y, z,  rstride=4, cstride=4, color='b', alpha=0.2)
     return ax
-
-def plot_ellipsoid_2D(p, q, ax, n_points = 100, color = "r"):
-    """ Plot an ellipsoid in 2D
-
-    TODO: Untested!
-
-    Parameters
-    ----------
-    p: 3x1 array[float]
-        Center of the ellipsoid
-    q: 3x3 array[float]
-        Shape matrix of the ellipsoid
-    ax: matplotlib.Axes object
-        Ax on which to plot the ellipsoid
-
-    Returns
-    -------
-    ax: matplotlib.Axes object
-        The Ax containing the ellipsoid
-    """
-    plt.sca(ax)
-    r = nLa.cholesky(q).T; #checks spd inside the function
-    t = np.linspace(0, 2*np.pi, n_points);
-    z = [np.cos(t), np.sin(t)];
-    ellipse = np.dot(r,z) + p;
-    handle, = ax.plot(ellipse[0,:], ellipse[1,:],color)
-
-    return ax, handle
