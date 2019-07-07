@@ -1,7 +1,7 @@
 """Demonstrates the uncertainty estimates of gp vs mc dropout on single steps in the environment."""
 import functools
 import os
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,8 +12,7 @@ from numpy import ndarray
 from experiments import sacred_helper
 from safe_exploration.environments import InvertedPendulum, Environment
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
-from safe_exploration.ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
-from safe_exploration.ssm_cem.ssm_cem import GpCemSSM, CemSSM
+from safe_exploration.ssm_cem.ssm_cem import GpCemSSM, CemSSM, McDropoutSSM
 from safe_exploration.utils import get_device
 from safe_exploration.visualization import utils_visualization
 
@@ -76,6 +75,8 @@ def _run_experiment(env: Environment, x_train, y_train, x_test, save_to_file, co
     # Adjust the axes rectange to make room for the footnote text containing dropout probabilities.
     ax1 = plt.axes([0.125, 0.15, 0.885, 0.85])
 
+    plt.tight_layout()
+
     ax1.set_xlabel('angular velocity')
     ax1.set_ylabel('angle from vertical')
 
@@ -86,7 +87,8 @@ def _run_experiment(env: Environment, x_train, y_train, x_test, save_to_file, co
         y_test = _sample(env, x_test[i])
         ax1.scatter(y_test[0], y_test[1], color=_get_color(i), s=4)
 
-    mc_dropout = GalConcreteDropoutSSM(conf, env.n_s, env.n_u)
+    # mc_dropout = GalConcreteDropoutSSM(conf, env.n_s, env.n_u)
+    mc_dropout = McDropoutSSM(conf, env.n_s, env.n_u)
     _train_and_plot_for_ssm(conf, env, mc_dropout, x_train, y_train, x_test, axes=ax1)
 
     gp = GpCemSSM(conf, env.n_s, env.n_u)
@@ -106,12 +108,21 @@ def _run_experiment(env: Environment, x_train, y_train, x_test, save_to_file, co
 
 
 @ex.capture
-def _conf(_run, i, training_iter, lengthscale):
+def _conf(_run, i, training_iter, lengthscale, fixed_p: Optional[float]):
     conf = EasyDict(_run.config)
     conf.mc_dropout_training_iterations = training_iter
     conf.mc_dropout_lengthscale = lengthscale
 
-    conf.name = f'ls={lengthscale:.6f}_iter={training_iter}_{i}'
+    if fixed_p is not None:
+        conf.cem_ssm = 'mc_dropout'
+        conf.mc_dropout_type = 'fixed'
+        conf.mc_dropout_predict_std = False
+    else:
+        conf.cem_ssm = 'mc_dropout_gal'
+        conf.mc_dropout_type = 'concrete'
+        conf.mc_dropout_predict_std = True
+
+    conf.name = f'ls={lengthscale:.6f}_p={fixed_p}_iter={training_iter}_{i}'
 
     return conf
 
@@ -128,19 +139,11 @@ def single_step_compare_main(_run):
     save_to_file = True
     run = functools.partial(_run_experiment, env, x_train, y_train, x_test, save_to_file)
 
-    run(_conf(i=0, training_iter=3000, lengthscale=1e-4))
-    run(_conf(i=1, training_iter=3000, lengthscale=1e-4))
-    run(_conf(i=2, training_iter=3000, lengthscale=1e-4))
-    run(_conf(i=0, training_iter=6000, lengthscale=1e-4))
-    run(_conf(i=1, training_iter=6000, lengthscale=1e-4))
-    run(_conf(i=2, training_iter=6000, lengthscale=1e-4))
-    run(_conf(i=0, training_iter=9000, lengthscale=1e-4))
-    run(_conf(i=1, training_iter=9000, lengthscale=1e-4))
-    run(_conf(i=2, training_iter=9000, lengthscale=1e-4))
-
-    run(_conf(i=0, training_iter=9000, lengthscale=1e-1))
-    run(_conf(i=0, training_iter=9000, lengthscale=1e-2))
-    run(_conf(i=0, training_iter=9000, lengthscale=1e-3))
-    run(_conf(i=0, training_iter=9000, lengthscale=1e-4))
-    run(_conf(i=0, training_iter=9000, lengthscale=1e-5))
-    run(_conf(i=0, training_iter=9000, lengthscale=1e-6))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.0001))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.001))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.01))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.1))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.2))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.3))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.4))
+    run(_conf(i=0, training_iter=3000, lengthscale=1e-4, fixed_p=0.5))
