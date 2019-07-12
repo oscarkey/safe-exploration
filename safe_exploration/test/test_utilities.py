@@ -2,8 +2,8 @@
 
 import pytest
 
-from .test_ssm_cem import TestGpCemSSM
-from ..ssm_cem.ssm_cem import GpCemSSM
+from .test_gp_ssm_cem import TestGpCemSSM
+from ..ssm_cem.gp_ssm_cem import GpCemSSM
 from ..ssm_pytorch.utilities import compute_jacobian_fast, tile
 
 try:

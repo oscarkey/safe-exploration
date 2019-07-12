@@ -17,7 +17,8 @@ from .environments import InvertedPendulum, CartPole, Environment
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
-from .ssm_cem.ssm_cem import CemSSM, GpCemSSM, McDropoutSSM
+from .ssm_cem.ssm_cem import CemSSM, McDropoutSSM
+from .ssm_cem.gp_ssm_cem import GpCemSSM
 from .utils import dlqr, unavailable
 
 try:
