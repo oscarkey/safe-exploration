@@ -118,9 +118,9 @@ def _run_mcdropout(conf, x_train, y_train, x_test):
         os.mkdir(folder)
     file_name = f'{folder}/{conf.name}.png'
     # file_name = None
-    text = f'{conf.name}: {mcdropout.get_dropout_probabilities()}'
+    text = f'{conf.name}: {mcdropout.collect_metrics()}'
     _plot(x_train, y_train, x_test, mcdropout.predict_raw(x_test.unsqueeze(1)), text, file_name)
-    print(f'final p \'{conf.name}\': {mcdropout.get_dropout_probabilities()}')
+    print(f'final p \'{conf.name}\': {mcdropout.collect_metrics()}')
 
 
 def _run_gp(x_train, y_train, x_test):
