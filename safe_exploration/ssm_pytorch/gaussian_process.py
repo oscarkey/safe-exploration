@@ -136,14 +136,6 @@ class MultiOutputGP(gpytorch.models.ExactGP):
         output = super().__call__(*self.train_inputs)
         return -mml(output, self.train_targets).sum()
 
-    def __call__(self, *args, **kwargs):
-        """Evaluate the underlying batch_mode model."""
-        normal = super().__call__(*args, **kwargs)
-        if self.batch_size > 1:
-            return normal
-        else:
-            return WrappedNormal(normal)
-
     def forward(self, x):
         x = x.expand((self._num_outputs,) + x.size())
         return MultivariateNormal(self._mean(x), self._kernel(x))
