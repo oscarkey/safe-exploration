@@ -7,6 +7,7 @@ class TestGpCemSSM:
     class FakeConfig:
         exact_gp_training_iterations = 200
         device = None
+        exact_gp_kernel = 'rbf'
 
     def test__x_train__no_training_data__returns_None(self):
         ssm = GpCemSSM(TestGpCemSSM.FakeConfig(), state_dimen=2, action_dimen=1)

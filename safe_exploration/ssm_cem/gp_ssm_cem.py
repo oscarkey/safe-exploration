@@ -3,7 +3,8 @@ from typing import Optional, Tuple, Dict
 
 import gpytorch
 import torch
-from gpytorch.kernels import ScaleKernel, RBFKernel
+import torch.nn as nn
+from gpytorch.kernels import ScaleKernel, RBFKernel, LinearKernel, Kernel
 from torch import Tensor
 
 from .ssm_cem import CemSSM
@@ -29,13 +30,24 @@ class GpCemSSM(CemSSM):
 
         self._likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
         if model is None:
-            kernel = ScaleKernel(RBFKernel(batch_size=state_dimen), batch_size=state_dimen)
-            self._model = MultiOutputGP(train_x=None, train_y=None, likelihood=self._likelihood, kernel=kernel,
+            self._model = MultiOutputGP(train_x=None, train_y=None, likelihood=self._likelihood,
+                                        kernel=self._create_kernel(conf, state_dimen, action_dimen),
                                         num_outputs=state_dimen)
         else:
             self._model = model
         self._model = self._model.to(get_device(conf))
         self._model.eval()
+
+    def _create_kernel(self, conf, state_dimen: int, action_dimen: int) -> Kernel:
+        if conf.exact_gp_kernel == 'rbf':
+            kernel = RBFKernel(batch_size=state_dimen)
+        elif conf.exact_gp_kernel == 'nn':
+            kernel = NNFeatureKernel(batch_size=state_dimen, in_dimen=state_dimen + action_dimen)
+        else:
+            raise ValueError(f'Unknown kernel {conf.exact_gp_kernel}')
+
+        # TODO: work out why we need ScaleKernel.
+        return ScaleKernel(kernel, batch_size=state_dimen)
 
     def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         z = self._join_states_actions(states, actions)
@@ -85,10 +97,9 @@ class GpCemSSM(CemSSM):
         self._model.train()
         self._likelihood.train()
 
-        # self._model.parameters() includes GaussianLikelihood parameters
+        # self._model.parameters() includes likelihood parameters
         optimizer = torch.optim.Adam([{'params': self._model.parameters()}, ], lr=0.1)
 
-        # "Loss" for GPs - the marginal log likelihood
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self._likelihood, self._model)
 
         print(f'Training GP on {self.x_train.size(0)} data points for {self._training_iterations} iterations...')
@@ -111,3 +122,37 @@ class GpCemSSM(CemSSM):
     def collect_metrics(self) -> Dict[str, float]:
         # Currently we don't have any metrics.
         return {}
+
+
+class NNFeatureKernel(LinearKernel):
+    """A dot product kernel, where the input points are transformed by a neural network.
+
+    Implements k(x, x') = v phi(x)^T phi(x'), where phi is a fully connected network of some size.
+    """
+    def __init__(self, in_dimen: int, **kwargs):
+        super().__init__(**kwargs)
+        self._in_dimen = in_dimen
+        self._net = nn.Sequential(  #
+            nn.Linear(in_dimen, 8),  #
+            nn.ReLU(),  #
+            nn.Linear(8, 8),  #
+            nn.ReLU(),  #
+            nn.Linear(8, in_dimen),  #
+            nn.PReLU())
+
+        for param_name, param_data in self._net.named_parameters():
+            # GPyTorch param names can't contain ".".
+            param_name = param_name.replace('.', '_')
+            self.register_parameter(f'net_{param_name}', param_data)
+
+    def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **kwargs):
+        if last_dim_is_batch is not False:
+            raise NotImplementedError
+        if diag is not False:
+            raise NotImplementedError
+
+        x1_batched = x1.view(-1, self._in_dimen)
+        x2_batched = x2.view(-1, self._in_dimen)
+        x1_features = self._net(x1_batched).view(x1.size())
+        x2_features = self._net(x2_batched).view(x2.size())
+        return super().forward(x1_features, x2_features, diag, last_dim_is_batch, **kwargs)
