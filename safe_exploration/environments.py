@@ -10,25 +10,26 @@ import warnings
 from typing import Tuple, Optional
 
 import numpy as np
-from numpy import ndarray
-
-from .utils import unavailable
 from casadi import reshape as cas_reshape
+from numpy import ndarray
 from numpy.matlib import repmat
 from scipy.integrate import ode, odeint
 from scipy.signal import cont2discrete
 from scipy.spatial import ConvexHull
-from .visualization.utils_visualization import plot_ellipsoid_2D
 
+from .utils import unavailable
+from .visualization.utils_visualization import plot_ellipsoid_2D
 
 try:
     import matplotlib.pyplot as plt
+
     _has_matplotlib = True
 except:
     _has_matplotlib = False
 
 try:
     import pygame
+
     _has_pygame = True
 except:
     _has_pygame = False
@@ -62,8 +63,8 @@ class Environment(metaclass=abc.ABCMeta):
         verbosity
     """
 
-    def __init__(self, name, n_s, n_u, dt, init_m, init_std, plant_noise,
-                 u_min, u_max, target, verbosity=0, p_origin=None):
+    def __init__(self, name, n_s, n_u, dt, init_m, init_std, plant_noise, u_min, u_max, target, verbosity=0,
+                 p_origin=None):
         self.name = name
         self.n_s = n_s
         self.n_u = n_u
@@ -197,8 +198,7 @@ class Environment(metaclass=abc.ABCMeta):
         if init_m is None:
             init_m = self.init_m
 
-        samples = (repmat(init_std, n_samples, 1) * np.random.randn(n_samples, self.n_s)
-                   + repmat(init_m, n_samples, 1))
+        samples = (repmat(init_std, n_samples, 1) * np.random.randn(n_samples, self.n_s) + repmat(init_m, n_samples, 1))
         return samples.T.squeeze()
 
     def normalize(self, state=None, action=None):
@@ -250,14 +250,12 @@ class Environment(metaclass=abc.ABCMeta):
         if x_center is None:
             x_center = self.p_origin
         else:
-            raise NotImplementedError(
-                "For now we only allow linearization at the origin!")
+            raise NotImplementedError("For now we only allow linearization at the origin!")
 
         if u_center is None:
             u_center = np.zeros((self.n_s,))
         else:
-            raise NotImplementedError(
-                "For now we only allow linearization at the origin!")
+            raise NotImplementedError("For now we only allow linearization at the origin!")
 
         jac_ct = self.jac_dynamics()
 
@@ -287,8 +285,7 @@ class Environment(metaclass=abc.ABCMeta):
         """
 
         action = self.norm[1] * action  # unnormalize
-        action_clipped = np.clip(np.nan_to_num(action), self.u_min,
-                                 self.u_max)  # clip to normalized max action
+        action_clipped = np.clip(np.nan_to_num(action), self.u_min, self.u_max)  # clip to normalized max action
 
         self.odesolver.set_f_params(action)
         old_state = np.copy(self.current_state)
@@ -298,8 +295,7 @@ class Environment(metaclass=abc.ABCMeta):
         constr_sat, exit_code = self._check_constraints()
         done = not constr_sat
 
-        new_state_noise_obs = self.state_to_obs(np.copy(self.current_state),
-                                                add_noise=True)
+        new_state_noise_obs = self.state_to_obs(np.copy(self.current_state), add_noise=True)
         new_state_obs = self.state_to_obs(np.copy(self.current_state))
 
         if self.odesolver.successful():
@@ -338,12 +334,9 @@ class InvertedPendulum(Environment):
     TODO: Need to define a safety/fail criterion
     """
 
-    def __init__(self, name="InvertedPendulum", l=.5, m=.15, g=9.82, b=0.,
-                 dt=.05, init_m=0., init_std=.01,
-                 plant_noise=np.array([0.01, 0.01]) ** 2,
-                 u_min=np.array([-1.]), u_max=np.array([1.]),
-                 target=np.array([0.0, 0.0]),
-                 verbosity=1, norm_x=None, norm_u=None):
+    def __init__(self, name="InvertedPendulum", l=.5, m=.15, g=9.82, b=0., dt=.05, init_m=0., init_std=.01,
+                 plant_noise=np.array([0.01, 0.01]) ** 2, u_min=np.array([-1.]), u_max=np.array([1.]),
+                 target=np.array([0.0, 0.0]), verbosity=1, norm_x=None, norm_u=None):
         """
         Parameters
         ----------
@@ -370,8 +363,7 @@ class InvertedPendulum(Environment):
         target: 2x0 1darray[float], optional
             The target state
         """
-        super(InvertedPendulum, self).__init__(name, 2, 1, dt, init_m, init_std,
-                                               plant_noise, u_min, u_max, target,
+        super(InvertedPendulum, self).__init__(name, 2, 1, dt, init_m, init_std, plant_noise, u_min, u_max, target,
                                                verbosity)
         self.odesolver = ode(self._dynamics)
         self.l = l
@@ -387,12 +379,10 @@ class InvertedPendulum(Environment):
         warnings.warn("Normalization turned off for now. Need to look into it")
         max_deg = 30
         if norm_x is None:
-            norm_x = np.array([1., 1.])
-            # norm_x = np.array([np.sqrt(g/l), np.deg2rad(max_deg)])
+            norm_x = np.array([1., 1.])  # norm_x = np.array([np.sqrt(g/l), np.deg2rad(max_deg)])
 
         if norm_u is None:
-            norm_u = np.array([1.])
-            # norm_u = np.array([g*m*l*np.sin(np.deg2rad(max_deg))])
+            norm_u = np.array([1.])  # norm_u = np.array([g*m*l*np.sin(np.deg2rad(max_deg))])
 
         self.norm = [norm_x, norm_u]
         self.inv_norm = [arr ** -1 for arr in self.norm]
@@ -441,8 +431,7 @@ class InvertedPendulum(Environment):
 
         inertia = self.m * self.l ** 2
         dz = np.zeros((2, 1))
-        dz[0] = self.g / self.l * np.sin(
-            state[1]) + action / inertia - self.b / inertia * state[0]
+        dz[0] = self.g / self.l * np.sin(state[1]) + action / inertia - self.b / inertia * state[0]
         dz[1] = state[0]
 
         return dz
@@ -516,15 +505,13 @@ class InvertedPendulum(Environment):
             x = self.current_state
             if normalize:
                 x, _ = self.normalize(x)
-        assert len(
-            x) == self.n_s, "x needs to have the same number of states as the dynamics"
+        assert len(x) == self.n_s, "x needs to have the same number of states as the dynamics"
         plt.sca(ax)
         ax.plot(x[0], x[1], color=color, marker="o", mew=1.2)
         return ax
 
     @unavailable(not _has_matplotlib, "matplotlib")
-    def plot_ellipsoid_trajectory(self, p, q, vis_safety_bounds=True, ax=None,
-                                  color="r"):
+    def plot_ellipsoid_trajectory(self, p, q, vis_safety_bounds=True, ax=None, color="r"):
         """ Plot the reachability ellipsoids given in observation space
 
         TODO: Need more principled way to transform ellipsoid to internal states
@@ -553,7 +540,6 @@ class InvertedPendulum(Environment):
             p_i = cas_reshape(p[i, :], (n_s, 1)) + self.p_origin.reshape((n_s, 1))
             q_i = cas_reshape(q[i, :], (self.n_s, self.n_s))
             ax, handles[i] = plot_ellipsoid_2D(p_i, q_i, ax, color=color)
-            # ax = plot_ellipsoid_2D(p_i,q_i,ax,color = color)
 
         if vis_safety_bounds:
             ax = self.plot_safety_bounds(ax)
@@ -564,8 +550,7 @@ class InvertedPendulum(Environment):
         return ax, handles
 
     @unavailable(not _has_matplotlib, "matplotlib")
-    def plot_safety_bounds(self, ax=None, plot_safe_bounds=True,
-                           plot_obs=False, normalize=True, color=(0., 0., 0.)):
+    def plot_safety_bounds(self, ax=None, plot_safe_bounds=True, plot_obs=False, normalize=True, color=(0., 0., 0.)):
         """ Given a 2D axes object, plot the safety bounds on it
 
         Parameters
@@ -624,8 +609,7 @@ class InvertedPendulum(Environment):
         height_safe: float
             The height of the obstacle free rectangle
         """
-        raise DeprecationWarning(
-            "We replace rectangles with polygons. Simpler for drawing")
+        raise DeprecationWarning("We replace rectangles with polygons. Simpler for drawing")
         dtheta_max_safe = self.h_safe[0]
         dtheta_min_safe = -self.h_safe[1]
         theta_max_safe = self.h_safe[2]
@@ -674,9 +658,9 @@ class InvertedPendulum(Environment):
         # 2*max_dtheta + c*max_rad <= 1
         # => c = (1+2*max_dtheta) / max_rad
         # for max_deg = 30, max_dtheta = 1.5 => c \approx 7.62
-        corners_polygon = np.array([[-max_dtheta, max_rad],
-                                    [max_dtheta_theta_0, 0.0],
-                                    [max_dtheta, -max_rad],
+        corners_polygon = np.array([[-max_dtheta, max_rad],  #
+                                    [max_dtheta_theta_0, 0.0],  #
+                                    [max_dtheta, -max_rad],  #
                                     [-max_dtheta_theta_0, 0.0]])
 
         ch = ConvexHull(corners_polygon)
@@ -754,12 +738,10 @@ class CartPole(Environment):
     """
 
     def __init__(self, name='CartPole', dt=0.1, l=0.5, m=0.5, M=0.5, b=0.1, g=9.82,
-                 init_m=np.array([0.0, 0.0, 0.0, 0.0]), visualize=True, init_std=0.0,
-                 u_min=np.array([-4.0]), u_max=np.array([4.0]),
-                 norm_x=None, norm_u=None, plant_noise=np.array([0.02, 0.05, 0.02, 0.05]) ** 2, verbosity=1):
-        super(CartPole, self).__init__(name, 4, 1, dt, init_m, init_std,
-                                       plant_noise,
-                                       u_min, u_max,
+                 init_m=np.array([0.0, 0.0, 0.0, 0.0]), visualize=True, init_std=0.0, u_min=np.array([-4.0]),
+                 u_max=np.array([4.0]), norm_x=None, norm_u=None, plant_noise=np.array([0.02, 0.05, 0.02, 0.05]) ** 2,
+                 verbosity=1):
+        super(CartPole, self).__init__(name, 4, 1, dt, init_m, init_std, plant_noise, u_min, u_max,
                                        np.array([0.0, l, 0.0]), verbosity)
 
         self.ns_ode = 4
@@ -775,8 +757,7 @@ class CartPole(Environment):
         self.g = g
         self.visualize = visualize
 
-        self.l_mu = np.array(
-            [.05, .05, .05, .05])  # TODO: This should be somewhere else
+        self.l_mu = np.array([.05, .05, .05, .05])  # TODO: This should be somewhere else
         self.l_sigm = np.array([.05, .05, .05, .05])
 
         self.idx_angles = np.array([2])
@@ -861,16 +842,15 @@ class CartPole(Environment):
         cart_x = self.current_state[0]
         cart_coords = (cart_x - 0.2, cart_x + 0.2, -0.1, 0.1)
 
-        cart_height = float(((cart_coords[3] - cart_coords[2]) / float(
-            axis[3] - axis[2])) * float(scrhght))
+        cart_height = float(((cart_coords[3] - cart_coords[2]) / float(axis[3] - axis[2])) * float(scrhght))
         # cart rectangle image coords
         img_coords_cart = [0, 0, 0, 0]
-        img_coords_cart[0] = float(((cart_coords[0] - axis[0]) / float(
-            axis[1] - axis[0])) * float(scrwidt))  # left side x coordinate
-        img_coords_cart[1] = scrhght - cart_height - float(((cart_coords[3] - axis[
-            2]) / float(axis[3] - axis[2])) * float(scrhght))  # top y coord
-        img_coords_cart[2] = float(((cart_coords[1] - cart_coords[0]) / float(
-            axis[1] - axis[0])) * float(scrwidt))  # width
+        img_coords_cart[0] = float(
+            ((cart_coords[0] - axis[0]) / float(axis[1] - axis[0])) * float(scrwidt))  # left side x coordinate
+        img_coords_cart[1] = scrhght - cart_height - float(
+            ((cart_coords[3] - axis[2]) / float(axis[3] - axis[2])) * float(scrhght))  # top y coord
+        img_coords_cart[2] = float(
+            ((cart_coords[1] - cart_coords[0]) / float(axis[1] - axis[0])) * float(scrwidt))  # width
         img_coords_cart[3] = cart_height  # height
 
         cart_color = (255, 255, 0)
@@ -921,9 +901,8 @@ class CartPole(Environment):
         dz[1] = (action - m * l * np.square(omega) * np.sin(theta) - b * omega * np.cos(
             theta) + 0.5 * m * g * l * np.sin(2 * theta)) * l / det
         dz[2] = omega  # the angle
-        dz[3] = (action * np.cos(theta) - 0.5 * m * l * np.square(omega) * np.sin(
-            2 * theta) - b * (m + M) * omega / (m * l) + (m + M) * g * np.sin(
-            theta)) / det
+        dz[3] = (action * np.cos(theta) - 0.5 * m * l * np.square(omega) * np.sin(2 * theta) - b * (m + M) * omega / (
+                m * l) + (m + M) * g * np.sin(theta)) / det
 
         return dz
 
@@ -936,9 +915,9 @@ class CartPole(Environment):
         b = self.b
         g = self.g
 
-        A = np.array([[0, 1, 0, 0],
-                      [0, 0, .5 * g * m / M, -b * .5 / (M * l)],
-                      [0, 0, 0, 1],
+        A = np.array([[0, 1, 0, 0],  #
+                      [0, 0, .5 * g * m / M, -b * .5 / (M * l)],  #
+                      [0, 0, 0, 1],  #
                       [0, 0, g * (m + M) / (l * M), -b * (m + M) / (m * M * l ** 2)]])
 
         B = np.array([0, 1. / M, 0, 1 / (M * l)]).reshape((-1, self.n_u))
@@ -997,11 +976,9 @@ class CartPole(Environment):
         h_7_vec = np.array([3.0])[:, None]
 
         # normalize safety bounds
-        self.h_mat_safe = np.vstack(
-            (h_0_mat, h_1_mat, h_2_mat, h_3_mat, h_4_mat, h_5_mat, h_6_mat, h_7_mat))
+        self.h_mat_safe = np.vstack((h_0_mat, h_1_mat, h_2_mat, h_3_mat, h_4_mat, h_5_mat, h_6_mat, h_7_mat))
 
-        self.h_safe = np.vstack(
-            (h_0_vec, h_1_vec, h_2_vec, h_3_vec, h_4_vec, h_5_vec, h_6_vec, h_7_vec))
+        self.h_safe = np.vstack((h_0_vec, h_1_vec, h_2_vec, h_3_vec, h_4_vec, h_5_vec, h_6_vec, h_7_vec))
 
         # Obstacle
 
@@ -1023,16 +1000,14 @@ class CartPole(Environment):
         h_3_mat = -h_2_mat
         h_3_vec = h_2_vec
 
-        self.h_mat_obs = np.vstack(
-            (h_0_mat, h_1_mat, h_2_mat, h_3_mat))  # p.asarray([[0.,1.],[0.,-1.]])
-        self.h_obs = np.vstack(
-            (h_0_vec, h_1_vec, h_2_vec, h_3_vec))  # np.array([.6,.6]).reshape(2,1)
+        self.h_mat_obs = np.vstack((h_0_mat, h_1_mat, h_2_mat, h_3_mat))  # p.asarray([[0.,1.],[0.,-1.]])
+        self.h_obs = np.vstack((h_0_vec, h_1_vec, h_2_vec, h_3_vec))  # np.array([.6,.6]).reshape(2,1)
 
         # arrange the corner points such that it can be ploted via a line plot
-        self.corners_polygon = np.array([[-max_dtheta, max_rad],
-                                         [max_dtheta, 0.0],
-                                         [max_dtheta, -max_rad],
-                                         [-max_dtheta, 0.0],
+        self.corners_polygon = np.array([[-max_dtheta, max_rad],  #
+                                         [max_dtheta, 0.0],  #
+                                         [max_dtheta, -max_rad],  #
+                                         [-max_dtheta, 0.0],  #
                                          [-max_dtheta, max_rad]])
 
     def get_safety_constraints(self, normalize=True):
@@ -1103,8 +1078,7 @@ class CartPole(Environment):
         """
 
         velocity_pend = state_obs[2]
-        state_trafo = vertcat(self._single_pend_top_pos(state_obs).reshape((2, 1)),
-                              velocity_pend.reshape((1, 1)))
+        state_trafo = vertcat(self._single_pend_top_pos(state_obs).reshape((2, 1)), velocity_pend.reshape((1, 1)))
         if variance is None:
             return state_trafo
         else:
@@ -1116,12 +1090,9 @@ class CartPole(Environment):
         img_coords = [0, 0]
         img_width = self.display_width
         img_height = self.display_height
-        img_coords[0] = float(
-            ((coords[0] - self.axis[0]) / float(self.axis[1] - self.axis[0])) * float(
-                img_width))
+        img_coords[0] = float(((coords[0] - self.axis[0]) / float(self.axis[1] - self.axis[0])) * float(img_width))
         img_coords[1] = img_height - float(
-            ((coords[1] - self.axis[2]) / float(self.axis[3] - self.axis[2])) * float(
-                img_height))
+            ((coords[1] - self.axis[2]) / float(self.axis[3] - self.axis[2])) * float(img_height))
         return tuple(img_coords)
 
 
@@ -1139,5 +1110,4 @@ if __name__ == "__main__":
 
     p = np.vstack((s.reshape((1, -1)), s_new.reshape((1, -1))))
     q = .1 * np.eye(2).reshape((1, -1))
-    q = np.stack((q, q))
-    # pend.plot_ellipsoid_trajectory(p,q,True)
+    q = np.stack((q, q))  # pend.plot_ellipsoid_trajectory(p,q,True)
