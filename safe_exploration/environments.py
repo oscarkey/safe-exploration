@@ -787,8 +787,11 @@ class CartPole(Environment):
         self.odesolver = ode(self._dynamics)
         self.name = name
 
-    def state_to_obs(self, state, add_noise=False):
+    def state_to_obs(self, state=None, add_noise=False):
         """ Normalize the state and add observation noise"""
+
+        if state is None:
+            state = self.current_state
 
         obs = np.copy(state)
         noise = 0.
