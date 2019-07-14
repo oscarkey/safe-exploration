@@ -7,6 +7,7 @@ Created on Mon Sep 25 17:16:45 2017
 import abc
 import math
 import warnings
+from abc import abstractmethod
 from typing import Tuple, Optional
 
 import numpy as np
@@ -84,38 +85,46 @@ class Environment(metaclass=abc.ABCMeta):
         if p_origin is None:
             self.p_origin = np.zeros((n_s,))
 
-    @abc.abstractmethod
     def reset(self, mean=None, std=None):
-        """ Reset the system."""
+        """ Reset the system and sample a new start state."""
         self.is_initialized = True
         self.iteration = 0
+        self.current_state = self._sample_start_state(mean=mean, std=std)
 
-    @abc.abstractmethod
+        self._reset()
+
+        return self.state_to_obs(self.current_state)
+
+    @abstractmethod
+    def _reset(self):
+        pass
+
+    @abstractmethod
     def _dynamics(self, t, state, action):
         """ Evaluate the system dynamics """
         pass
 
-    @abc.abstractmethod
-    def state_to_obs(self, current_state=None, add_noise=False):
+    @abstractmethod
+    def state_to_obs(self, state=None, add_noise=False):
         """ Transform the dynamics state to the state to be observed """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def random_action(self):
         """ Apply a random action to the system """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def plot_ellipsoid_trajectory(self, p, q, vis_safety_bounds=True):
         """ Visualize the reachability ellipsoid"""
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def jac_dynamics(self):
         """ The jacobian of the dynamics """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def _check_constraints(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
         """Check the state constraints
 
@@ -389,16 +398,8 @@ class InvertedPendulum(Environment):
 
         self._init_safety_constraints()
 
-    def reset(self, mean=None, std=None):
-        """ Reset the system and sample a new start state
-
-
-        """
-        super(InvertedPendulum, self).reset()
-        self.current_state = self._sample_start_state(mean=mean, std=std)
+    def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
-
-        return self.state_to_obs(self.current_state)
 
     def _check_constraints(self, state=None):
         if state is None:
@@ -800,14 +801,8 @@ class CartPole(Environment):
 
         return obs
 
-    def reset(self, mean=None, std=None):
-        self.current_state = self._sample_start_state(mean=mean, std=std)
-        self.iteration = 0
+    def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
-
-        self._vis_initialized = False
-
-        return self.state_to_obs(self.current_state)
 
     def _check_constraints(self, state=None) -> Tuple[bool, int]:
         """Checks the constraints.
