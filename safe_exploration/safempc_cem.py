@@ -173,6 +173,7 @@ class CemSafeMPC(SafeMPC):
         self._plot = conf.plot_cem_optimisation
         self._mpc_time_horizon = conf.mpc_time_horizon
         self._beta_safety = beta_safety
+        self._use_prior_model = conf.use_prior_model
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
@@ -287,9 +288,15 @@ class CemSafeMPC(SafeMPC):
     def _dynamics_func(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
         ps, qs = self._pq_flattener.unflatten(states)
 
+        if self._use_prior_model:
+            a = self._linearized_model_a
+            b = self._linearized_model_b
+        else:
+            a = torch.zeros_like(self._linearized_model_a)
+            b = torch.zeros_like(self._linearized_model_b)
+
         p_next, q_next, sigma = onestep_reachability(ps, self._ssm, actions, self._l_mu, self._l_sigma, qs,
-                                                     k_fb=self._lqr.get_control_matrix_pytorch(),
-                                                     a=self._linearized_model_a, b=self._linearized_model_b, verbose=0,
+                                                     k_fb=self._lqr.get_control_matrix_pytorch(), a=a, b=b, verbose=0,
                                                      c_safety=self._beta_safety)
 
         # Try to maximise the variance in the predictions so we explore as must as possible.
@@ -306,7 +313,10 @@ class CemSafeMPC(SafeMPC):
         x_s = x[:, :self.state_dimen]
         x_u = x[:, self.state_dimen:]
         y_prior = self.eval_prior(x_s, x_u)
-        y_error = y - y_prior
+        if self._use_prior_model:
+            y_error = y - y_prior
+        else:
+            y_error = y
 
         x = torch.tensor(x, device=self._l_mu.device)
         y_error = torch.tensor(y_error, device=self._l_mu.device)

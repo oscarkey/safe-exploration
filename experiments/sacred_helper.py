@@ -51,7 +51,8 @@ def base_config():
     plot_cem_optimisation = False
     # If True then constrain all the states, otherwise just the terminal state.
     use_state_constraint = True
-    cem_beta_safety = 4.0
+    cem_beta_safety = 3.0
+    use_prior_model = True
 
     # -- MC dropout SSM
     mc_dropout_code_version = 2
