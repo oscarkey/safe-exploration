@@ -302,9 +302,16 @@ class CemSafeMPC(SafeMPC):
         return np.dot(self._lqr.get_control_matrix(), state)
 
     def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
+        # The SSM learns the error between the prior model and the true y value, hence we remove the prior model.
+        x_s = x[:, :self.state_dimen]
+        x_u = x[:, self.state_dimen:]
+        y_prior = self.eval_prior(x_s, x_u)
+        y_error = y - y_prior
+
         x = torch.tensor(x, device=self._l_mu.device)
-        y = torch.tensor(y, device=self._l_mu.device)
-        self._ssm.update_model(x, y, opt_hyp, replace_old)
+        y_error = torch.tensor(y_error, device=self._l_mu.device)
+
+        self._ssm.update_model(x, y_error, opt_hyp, replace_old)
         self._has_training_data = True
 
     def information_gain(self) -> Union[ndarray, List[None]]:
