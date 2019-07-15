@@ -118,7 +118,7 @@ def _heteroscedastic_loss(true, mean, log_var):
     return torch.mean(torch.sum(precision * (true - mean) ** 2 + log_var, 1), 0)
 
 
-_batch_size = 20
+_batch_size = 32
 
 
 class GalConcreteDropoutSSM(CemSSM):
@@ -205,11 +205,10 @@ class GalConcreteDropoutSSM(CemSSM):
         optimizer = optim.Adam(model.parameters())
 
         for i in range(self._training_iterations):
-            old_batch = 0
             for batch in range(int(np.ceil(x_train.shape[0] / _batch_size))):
-                batch = (batch + 1)
-                x = x_train[old_batch: _batch_size * batch]
-                y = y_train[old_batch: _batch_size * batch]
+                batch_start = _batch_size * batch
+                x = x_train[batch_start:batch_start + _batch_size]
+                y = y_train[batch_start:batch_start + _batch_size]
 
                 mean, log_var, regularization = model(x)
 
