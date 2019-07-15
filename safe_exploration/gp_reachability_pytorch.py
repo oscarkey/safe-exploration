@@ -156,7 +156,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
                             text="accumulated uncertainty current step")
 
             print("volume of ellipsoid summed individually")
-            print((torch.det(torch.cholesky(q_1))).detach().cpu().numpy())
+            # print((torch.det(torch.cholesky(q_1))).detach().cpu().numpy())
 
         return p_1.detach(), q_1.detach(), sigm_0.detach()
 
