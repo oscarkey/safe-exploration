@@ -159,7 +159,7 @@ class CemSafeMPC(SafeMPC):
     """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
     def __init__(self, ssm: CemSSM, constraints: [Constraint], env: Environment, conf, opt_env, wx_feedback_cost,
-                 wu_feedback_cost, lqr: Optional[LqrFeedbackController] = None,
+                 beta_safety: float, wu_feedback_cost, lqr: Optional[LqrFeedbackController] = None,
                  mpc: Optional[ConstrainedCemMpc] = None) -> None:
         super().__init__()
 
@@ -172,6 +172,7 @@ class CemSafeMPC(SafeMPC):
         self._ssm = ssm
         self._plot = conf.plot_cem_optimisation
         self._mpc_time_horizon = conf.mpc_time_horizon
+        self._beta_safety = beta_safety
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
         self.lin_model = opt_env['lin_model']
@@ -288,7 +289,8 @@ class CemSafeMPC(SafeMPC):
 
         p_next, q_next, sigma = onestep_reachability(ps, self._ssm, actions, self._l_mu, self._l_sigma, qs,
                                                      k_fb=self._lqr.get_control_matrix_pytorch(),
-                                                     a=self._linearized_model_a, b=self._linearized_model_b, verbose=0)
+                                                     a=self._linearized_model_a, b=self._linearized_model_b, verbose=0,
+                                                     c_safety=self._beta_safety)
 
         # Try to maximise the variance in the predictions so we explore as must as possible.
         objective_cost = - torch.sum((sigma), dim=1)

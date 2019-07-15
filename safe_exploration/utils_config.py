@@ -107,7 +107,7 @@ def create_solver(conf, env: Environment):
         ssm = _create_cem_ssm(conf, env)
         constraints = safempc_cem.construct_constraints(conf, env)
         solver = CemSafeMPC(ssm, constraints=constraints, env=env, conf=conf, opt_env=env_opts_safempc,
-                            wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost)
+                            wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost, beta_safety=conf.cem_beta_safety)
     elif conf.solver_type == "cautious_mpc":
         T = conf.T
 
