@@ -17,8 +17,8 @@ from .environments import InvertedPendulum, CartPole, Environment
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
-from .ssm_cem.ssm_cem import CemSSM, McDropoutSSM
 from .ssm_cem.gp_ssm_cem import GpCemSSM
+from .ssm_cem.ssm_cem import CemSSM, McDropoutSSM
 from .utils import dlqr, unavailable
 
 try:
@@ -107,7 +107,8 @@ def create_solver(conf, env: Environment):
         ssm = _create_cem_ssm(conf, env)
         constraints = safempc_cem.construct_constraints(conf, env)
         solver = CemSafeMPC(ssm, constraints=constraints, env=env, conf=conf, opt_env=env_opts_safempc,
-                            wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost, beta_safety=conf.cem_beta_safety)
+                            wx_feedback_cost=wx_cost, wu_feedback_cost=wu_cost, beta_safety=conf.cem_beta_safety,
+                            safe_policy=safe_policy)
     elif conf.solver_type == "cautious_mpc":
         T = conf.T
 

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Tuple, Union, List, Dict
+from typing import Optional, Tuple, Union, List, Dict, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -159,8 +159,8 @@ class CemSafeMPC(SafeMPC):
     """Safe MPC implementation which uses the constrained CEM to optimise the trajectories."""
 
     def __init__(self, ssm: CemSSM, constraints: [Constraint], env: Environment, conf, opt_env, wx_feedback_cost,
-                 beta_safety: float, wu_feedback_cost, lqr: Optional[LqrFeedbackController] = None,
-                 mpc: Optional[ConstrainedCemMpc] = None) -> None:
+                 wu_feedback_cost, beta_safety: float, safe_policy: Callable[[ndarray], ndarray],
+                 lqr: Optional[LqrFeedbackController] = None, mpc: Optional[ConstrainedCemMpc] = None) -> None:
         super().__init__()
 
         self._state_dimen = env.n_s
@@ -173,6 +173,7 @@ class CemSafeMPC(SafeMPC):
         self._plot = conf.plot_cem_optimisation
         self._mpc_time_horizon = conf.mpc_time_horizon
         self._beta_safety = beta_safety
+        self._safe_policy = safe_policy
         self._use_prior_model = conf.use_prior_model
 
         linearized_model_a, linearized_model_b = opt_env['lin_model']
@@ -237,7 +238,7 @@ class CemSafeMPC(SafeMPC):
             mpc_actions = mpc_actions.detach().cpu().numpy() if mpc_actions is not None else mpc_actions
 
             if self._plot:
-                self._plot_rollouts(rollouts)
+                self._plot_optimisation_process(rollouts)
         else:
             print('No training data')
             mpc_actions = None
@@ -261,7 +262,7 @@ class CemSafeMPC(SafeMPC):
 
         else:
             print('Using safe controller')
-            action = self._get_safe_controller_action(state)
+            action = self._safe_policy(state)
             result = MpcResult.SAFE_CONTROLLER
 
         return action, result
@@ -269,7 +270,7 @@ class CemSafeMPC(SafeMPC):
     def get_action_verbose(self, state: ndarray):
         raise NotImplementedError
 
-    def _plot_rollouts(self, rollouts: List[Rollouts]):
+    def _plot_optimisation_process(self, rollouts: List[Rollouts]):
         """Plots the constraint, and the terminal states of the rollouts through the optimisation process."""
         tc = self._mpc._rollout_function._constraints[1]
         _plot_constraints_in_2d(tc._polytope_a.detach().cpu().numpy(), tc._polytope_b.detach().cpu().numpy(), None,
@@ -303,10 +304,6 @@ class CemSafeMPC(SafeMPC):
         objective_cost = - torch.sum((sigma), dim=1)
 
         return self._pq_flattener.flatten(p_next, q_next), objective_cost
-
-    def _get_safe_controller_action(self, state):
-        # TODO: Use the safe policy from the config (though I think this is actually always just lqr)
-        return np.dot(self._lqr.get_control_matrix(), state)
 
     def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
         # The SSM learns the error between the prior model and the true y value, hence we remove the prior model.
