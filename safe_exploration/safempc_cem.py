@@ -11,7 +11,7 @@ from polytope import Polytope
 from torch import Tensor
 
 from . import gp_reachability_pytorch
-from .environments import Environment
+from .environments.environments import Environment
 from .gp_reachability_pytorch import onestep_reachability
 from .safempc import SafeMPC
 from .safempc_simple import LqrFeedbackController

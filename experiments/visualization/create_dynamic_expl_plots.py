@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.cm import viridis
-from environments import InvertedPendulum
+from environments.environments import InvertedPendulum
 
 def plot_sample_set(x_train,z_all,env):
     """ plot the sample set"""

@@ -12,15 +12,11 @@ from casadi import reshape as cas_reshape
 from casadi import MX
 from numpy.testing import assert_allclose
 
-from ..environments import CartPole
+from ..environments.environments import CartPole
 from ..safempc_simple import SimpleSafeMPC
-from ..state_space_models import CasadiSSMEvaluator
 
-import safe_exploration.ssm_gpy
 from safe_exploration.state_space_models import StateSpaceModel
-from safe_exploration.ssm_gpy import SimpleGPModel
 from safe_exploration.gp_reachability_casadi import lin_ellipsoid_safety_distance
-from GPy.kern import RBF
 
 try:
     import safe_exploration.ssm_gpy

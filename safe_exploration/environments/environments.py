@@ -18,8 +18,8 @@ from scipy.integrate import ode, odeint
 from scipy.signal import cont2discrete
 from scipy.spatial import ConvexHull
 
-from .utils import unavailable
-from .visualization.utils_visualization import plot_ellipsoid_2D
+from ..utils import unavailable
+from ..visualization.utils_visualization import plot_ellipsoid_2D
 
 try:
     import matplotlib.pyplot as plt

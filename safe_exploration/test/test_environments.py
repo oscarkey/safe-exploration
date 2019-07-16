@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from scipy.optimize import approx_fprime
 
-from ..environments import InvertedPendulum, CartPole
+from ..environments.environments import InvertedPendulum, CartPole
 from ..utils import sample_inside_polytope
 
 np.random.seed(0)
@@ -36,26 +36,6 @@ def no_matplotlib(monkeypatch):
         return import_orig(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr(builtins, '__import__', mocked_import)
-
-
-@pytest.mark.usefixtures('no_matplotlib')
-def test_plotting_invpend_without_matplotlib_throws_error():
-    """ """
-
-    sys.modules.pop('safe_exploration.environments', None)
-    import safe_exploration.environments as env_plot
-
-    assert not env_plot._has_matplotlib
-
-    env = env_plot.InvertedPendulum()
-    with pytest.raises(ImportError) as e_info:
-        env.plot_safety_bounds()
-
-    with pytest.raises(ImportError) as e_info:
-        env.plot_state(None)
-
-    with pytest.raises(ImportError) as e_info:
-        env.plot_ellipsoid_trajectory(None, None)
 
 
 def test_normalization(before_test_inv_pend):

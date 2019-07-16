@@ -4,7 +4,7 @@ from constrained_cem_mpc import ActionConstraint
 from numpy import ndarray
 
 from .. import safempc_cem
-from ..environments import CartPole, InvertedPendulum
+from ..environments.environments import CartPole, InvertedPendulum
 from ..safempc_cem import PQFlattener, EllipsoidTerminalConstraint, CemSafeMPC, MpcResult
 
 

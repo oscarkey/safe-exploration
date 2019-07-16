@@ -10,7 +10,7 @@ from easydict import EasyDict
 from numpy import ndarray
 
 from experiments import sacred_helper
-from safe_exploration.environments import InvertedPendulum, Environment
+from safe_exploration.environments.environments import InvertedPendulum, Environment
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
 from safe_exploration.ssm_cem.ssm_cem import CemSSM, McDropoutSSM
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM

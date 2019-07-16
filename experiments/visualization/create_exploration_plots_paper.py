@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.cm import viridis
-from environments import InvertedPendulum
+from environments.environments import InvertedPendulum
 from utilities_plotting import adapt_figure_size_from_axes,set_figure_params
 
 plot_trainset = False

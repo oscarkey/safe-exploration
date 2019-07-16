@@ -13,7 +13,7 @@ import numpy as np
 from experiments.journal_experiment_configs.default_config import DefaultConfig
 from . import safempc_cem
 from .cautious_mpc import CautiousMPC
-from .environments import InvertedPendulum, CartPole, Environment
+from .environments.environments import InvertedPendulum, CartPole, Environment
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM

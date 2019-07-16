@@ -17,7 +17,7 @@ from casadi import reshape as cas_reshape
 from casadi import sum1, sum2, MX, vertcat, mtimes
 
 from .safempc_simple import SimpleSafeMPC
-from .environments import Environment
+from .environments.environments import Environment
 from .safempc import SafeMPC
 from .gp_reachability_casadi import lin_ellipsoid_safety_distance
 from .gp_reachability_casadi import multi_step_reachability as cas_multistep
