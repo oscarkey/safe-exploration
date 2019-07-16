@@ -56,11 +56,11 @@ def base_config():
 
     # -- MC dropout SSM
     mc_dropout_code_version = 2
-    mc_dropout_training_iterations = 3500
+    mc_dropout_training_iterations = 2001
     # List giving number of units in each hidden layer.
     mc_dropout_hidden_features = [64, 64]
     # Number of times we will sample the network during the forward pass, to compute the mean + var.
-    mc_dropout_num_samples = 40
+    mc_dropout_num_samples = 30
     # Whether to predict the aleatoric uncertainty as well as computing the epistemic uncertainty. (?)
     mc_dropout_predict_std = True
     # Whether to reinitialize the network weights before training.
