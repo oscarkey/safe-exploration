@@ -55,6 +55,21 @@ def test__construct_constraints__contains_one_action_constraint():
     assert len([c for c in constraints if isinstance(c, ActionConstraint)]) == 1
 
 
+def test__construct_constraints__action_constraint_correct():
+    env = CartPole(u_min=np.array([-4.0]), u_max=np.array([4.0]))
+
+    constraints = safempc_cem.construct_constraints(FakeConfig(), env)
+    constraint = [c for c in constraints if isinstance(c, ActionConstraint)][0]
+
+    N = 3
+    trajectory = torch.zeros((N, env.n_s), dtype=torch.double)
+    actions = torch.tensor([[0.2], [-5.], [6.]], dtype=torch.double)
+    penalty = constraint(trajectory, actions)
+
+    # Two constraints violated, each of cost 3.
+    assert penalty == 2 * 3
+
+
 class TestCemSafeMPC:
     @staticmethod
     def _safe_policy(x: ndarray) -> ndarray:
