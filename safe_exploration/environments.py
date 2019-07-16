@@ -95,6 +95,24 @@ class Environment(metaclass=abc.ABCMeta):
 
         return self.state_to_obs(self.current_state)
 
+    @property
+    @abstractmethod
+    def l_mu(self) -> ndarray:
+        """The Lipschitz constants for the gradients of the predictive mean.
+
+        TODO: should be somewhere else.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def l_sigm(self) -> ndarray:
+        """The Lipschitz constants for the predictive variance.
+
+        TODO: should be somewhere else.
+        """
+        pass
+
     @abstractmethod
     def _reset(self):
         pass
@@ -110,8 +128,8 @@ class Environment(metaclass=abc.ABCMeta):
         pass
 
     @abstractmethod
-    def random_action(self):
-        """ Apply a random action to the system """
+    def random_action(self) -> ndarray:
+        """ Returns a uniform randon action. """
         pass
 
     @abstractmethod
@@ -135,6 +153,7 @@ class Environment(metaclass=abc.ABCMeta):
         """
         pass
 
+    @abstractmethod
     def get_safety_constraints(self, normalize=True):
         """ Return the safety constraints
 
@@ -380,8 +399,6 @@ class InvertedPendulum(Environment):
         self.g = g
         self.b = b
         self.p_origin = np.array([0.0, 0.0])
-        self.l_mu = np.array([0.05, .02])  # TODO: This should be somewhere else
-        self.l_sigm = np.array([0.05, .02])
         self.target = target
         self.target_ilqr = init_m
 
@@ -397,6 +414,14 @@ class InvertedPendulum(Environment):
         self.inv_norm = [arr ** -1 for arr in self.norm]
 
         self._init_safety_constraints()
+
+    @property
+    def l_mu(self) -> ndarray:
+        return np.array([0.05, .02])
+
+    @property
+    def l_sigm(self) -> ndarray:
+        return np.array([0.05, .02])
 
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
@@ -622,15 +647,7 @@ class InvertedPendulum(Environment):
 
         return p_safe, width_safe, height_safe
 
-    def random_action(self):
-        """ Apply a random action to the system
-
-        Returns
-        -------
-        action: 1x0 1darray[float]
-            A (valid) random action applied to the system.
-
-        """
+    def random_action(self) -> ndarray:
         c = 0.5
         return c * (np.random.rand(self.n_u) * (self.u_max - self.u_min) + self.u_min)
 
@@ -758,9 +775,6 @@ class CartPole(Environment):
         self.g = g
         self.visualize = visualize
 
-        self.l_mu = np.array([.05, .05, .05, .05])  # TODO: This should be somewhere else
-        self.l_sigm = np.array([.05, .05, .05, .05])
-
         self.idx_angles = np.array([2])
         self.obs_angles_sin = np.array([3])
         self.obs_angles_cos = np.array([4])
@@ -786,6 +800,14 @@ class CartPole(Environment):
 
         self.odesolver = ode(self._dynamics)
         self.name = name
+
+    @property
+    def l_mu(self) -> ndarray:
+        return np.array([.05, .05, .05, .05])
+
+    @property
+    def l_sigm(self) -> ndarray:
+        return np.array([.05, .05, .05, .05])
 
     def state_to_obs(self, state=None, add_noise=False):
         """ Normalize the state and add observation noise"""
@@ -1038,11 +1060,7 @@ class CartPole(Environment):
 
         return h_mat_safe, self.h_safe, h_mat_obs, self.h_obs
 
-    def random_action(self):
-        """
-
-        """
-
+    def random_action(self) -> ndarray:
         return np.random.rand(self.n_u) * (self.u_max - self.u_min) + self.u_min
 
     def _single_pend_top_pos(self, state):
