@@ -73,7 +73,7 @@ def test__construct_constraints__action_constraint_correct():
 class TestCemSafeMPC:
     @staticmethod
     def _safe_policy(x: ndarray) -> ndarray:
-        return np.zeros((1,))
+        return np.dot(x, np.eye(2))
 
     @staticmethod
     def _get_opt_env():
