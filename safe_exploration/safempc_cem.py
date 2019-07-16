@@ -81,8 +81,8 @@ def _plot_constraints_in_2d(h_mat_safe, h_safe, h_mat_obs, h_obs) -> None:
     # Hacky way to test if cartpole or pendulum.
     num_cartpole_states = 4
     if h_mat_safe.shape[1] == num_cartpole_states:
-        Polytope(h_mat_obs[:, [0, 2]], h_obs).plot(ax=ax, color='blue')
-        Polytope(h_mat_safe[:, [0, 2]], h_safe).plot(ax=ax, color='red')
+        # Polytope(h_mat_obs[:, [0, 2]], h_obs).plot(ax=ax, color='blue')
+        Polytope(h_mat_safe[:, [0, 2]], h_safe).plot(ax=ax, color='grey')
     else:
         Polytope(h_mat_safe, h_safe).plot(ax=ax, color='grey')
 
