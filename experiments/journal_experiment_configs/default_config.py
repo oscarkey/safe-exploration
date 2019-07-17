@@ -48,7 +48,7 @@ class DefaultConfig(object):
             dirname_conf = dirname(file_path)
             copy("{}/{}.py".format(dirname_conf, conf_name), "{}/".format(res_path))
 
-    def add_sacred_config(self, config: Dict[str, Any]):
+    def add_sacred_config(self, config: Dict[str, Any]) -> None:
         """Adds all the given pairs in the given config dict as attributes to this config object.
 
         :raises ValueError: if the given config key already exists
