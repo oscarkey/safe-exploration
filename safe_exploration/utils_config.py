@@ -14,6 +14,7 @@ from experiments.journal_experiment_configs.default_config import DefaultConfig
 from . import safempc_cem
 from .cautious_mpc import CautiousMPC
 from .environments.environments import InvertedPendulum, CartPole, Environment
+from .environments.ndpendulum import NDPendulum
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
@@ -125,14 +126,22 @@ def create_solver(conf, env: Environment):
     return solver, safe_policy
 
 
-def create_env(env_name, env_options_dict=None):
+def create_env(conf, env_name, env_options_dict=None):
     """ Given a set of options, create an environment """
     if env_options_dict is None:
         env_options_dict = dict()
+
     if env_name == "InvertedPendulum":
-        return InvertedPendulum(**env_options_dict)
+        if not hasattr(conf, 'pendulum_dimensions') or conf.pendulum_dimensions == 2:
+            return InvertedPendulum(**env_options_dict)
+        elif conf.pendulum_dimensions > 2:
+            return NDPendulum(**env_options_dict)
+        else:
+            raise ValueError(f'Unknown pendulum dimensions {conf.pendulum_dimensions}')
+
     elif env_name == "CartPole":
         return CartPole(**env_options_dict)
+
     else:
         raise NotImplementedError("Unknown environment: {}".format(conf.env_name))
 
@@ -146,7 +155,7 @@ def get_prior_model_from_conf(conf, env_true):
         if not "norm_u" in conf.prior_model:
             conf.prior_model["norm_u"] = env_true.norm[1]
 
-        env_prior = create_env(conf.env_name, conf.prior_model)
+        env_prior = create_env(conf, conf.env_name, conf.prior_model)
 
         a_prior, b_prior = env_prior.linearize_discretize()
 

@@ -30,6 +30,9 @@ def base_config():
     # -- Environment
     render = True
     visualize = True
+    # Number of dimensions that the pendulum moves in, n>=2. If n=2 then InvertedPendulum environment will be used,
+    # otherwise NDPendulum. Currently only n=2 works properly.
+    pendulum_dimensions = 2
 
     # Type of state space model to use, one of exact_gp, mc_dropout, mc_dropout_gal.
     cem_ssm = 'mc_dropout'

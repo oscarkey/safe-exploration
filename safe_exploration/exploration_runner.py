@@ -62,7 +62,7 @@ def run_exploration(conf, visualize=False):
     l_x_next_prior = []
 
     for jj in range(n_experiments):
-        env = create_env(conf.env_name, conf.env_options)
+        env = create_env(conf, conf.env_name, conf.env_options)
         safempc, safe_policy = create_solver(conf, env)
         X, y = generate_initial_samples(env, conf, conf.relative_dynamics, safempc,
                                         safe_policy)

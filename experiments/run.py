@@ -70,7 +70,7 @@ def _run_scenario(_run, scenario_file: Optional[str]):
 
     metrics = SacredAggregatedMetrics(_run)
 
-    env = create_env(conf.env_name, conf.env_options)
+    env = create_env(conf, conf.env_name, conf.env_options)
 
     task = conf.task
     if task == "exploration":

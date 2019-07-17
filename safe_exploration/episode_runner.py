@@ -10,8 +10,8 @@ from collections import namedtuple
 
 import numpy as np
 
-from .safempc_cem import MpcResult
 from . import utils_ellipsoid
+from .safempc_cem import MpcResult
 from .sampling_models import MonteCarloSafetyVerification
 from .utils import generate_initial_samples, unavailable
 from .utils_config import create_solver, create_env
@@ -36,7 +36,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
     safety_failure_all = []
     for k in range(conf.n_scenarios):
 
-        env = create_env(conf.env_name, conf.env_options)
+        env = create_env(conf, conf.env_name, conf.env_options)
         solver, safe_policy = create_solver(conf, env)
 
         solver.init_solver(conf.cost)
