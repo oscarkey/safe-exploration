@@ -64,8 +64,9 @@ class Environment(metaclass=abc.ABCMeta):
         verbosity
     """
 
-    def __init__(self, name, n_s, n_u, dt, init_m, init_std, plant_noise, u_min, u_max, target, verbosity=0,
-                 p_origin=None):
+    def __init__(self, name: str, n_s: int, n_u: int, dt: float, init_m: ndarray, init_std: ndarray,
+                 plant_noise: ndarray, u_min: ndarray, u_max: ndarray, target: ndarray, verbosity: int = 0,
+                 p_origin: ndarray = None):
         self.name = name
         self.n_s = n_s
         self.n_u = n_u
@@ -81,9 +82,7 @@ class Environment(metaclass=abc.ABCMeta):
         self.verbosity = verbosity
         self._render_initialized = False
         self.delay = 20.0  # fps
-
-        if p_origin is None:
-            self.p_origin = np.zeros((n_s,))
+        self.p_origin = p_origin if p_origin is not None else np.zeros((n_s,))
 
     def reset(self, mean=None, std=None):
         """ Reset the system and sample a new start state."""
@@ -256,9 +255,9 @@ class Environment(metaclass=abc.ABCMeta):
 
         # unnormalize state and action
         state = state * self.norm[0]
-        action = action * self.norm[1]
+        action = action.reshape(-1) * self.norm[1]
 
-        sol = odeint(one_step_dyn, state, np.array([0.0, self.dt]), args=tuple(action))
+        sol = odeint(one_step_dyn, state, np.array([0.0, self.dt]), args=(action,))
         next_state = sol[1, :]
 
         return self.state_to_obs(next_state), self.state_to_obs(next_state, True)

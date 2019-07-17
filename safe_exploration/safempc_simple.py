@@ -1122,7 +1122,7 @@ class LqrFeedbackController:
                            r=self._wu_feedback_cost)
         k_fb = -k_lqr
 
-        return k_fb.reshape((1, self._n_s * self._n_u))
+        return k_fb
 
     @lru_cache()
     def get_control_matrix_pytorch(self):

@@ -51,7 +51,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
     assert_shape(q_shape, (N, ssm.num_states, ssm.num_states), ignore_if_none=True)
     assert_shape(k_fb, (ssm.num_actions, ssm.num_states), ignore_if_none=True)
     assert_shape(a, (ssm.num_states, ssm.num_states), ignore_if_none=True)
-    assert_shape(b, (ssm.num_states, 1), ignore_if_none=True)
+    assert_shape(b, (ssm.num_states, ssm.num_actions), ignore_if_none=True)
 
     n_s = ssm.num_states
     n_u = ssm.num_actions
