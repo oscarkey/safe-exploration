@@ -49,7 +49,7 @@ def check_config_conflicts(conf: DefaultConfig) -> Tuple[bool, str]:
 
 
 @ex.capture
-def _run_scenario(_run, scenario_file: Optional[str]):
+def _run_scenario(_run, scenario_file: Optional[str], environment: Optional[str]):
     """ Run the specified scenario
 
     Parameters
@@ -57,10 +57,12 @@ def _run_scenario(_run, scenario_file: Optional[str]):
     args:
         The parsed arguments (see create_parser for details)
     """
-    if scenario_file is None:
-        raise ValueError('Must provide a scenario file!')
-
-    conf = load_config(scenario_file)
+    if scenario_file is not None and environment is None:
+        conf = load_config(scenario_file)
+    elif scenario_file is None and environment is not None:
+        conf = load_config(_get_scenario_file_name(environment))
+    else:
+        raise ValueError('Must provide scenario file OR environment name')
 
     conf.add_sacred_config(_run.config)
 
@@ -80,6 +82,15 @@ def _run_scenario(_run, scenario_file: Optional[str]):
     elif task == "uncertainty_propagation":
         solver, safe_policy = create_solver(conf, env)
         run_uncertainty_propagation(env, solver, conf)
+
+
+def _get_scenario_file_name(environment_name: str) -> str:
+    if environment_name == 'pendulum':
+        return 'journal_experiment_configs/episodic_pendulum_cem.py'
+    elif environment_name == 'lander':
+        return 'journal_experiment_configs/episodic_lunar_lander_cem.py'
+    else:
+        raise ValueError(f'Unknown environment {environment_name}')
 
 
 @ex.automain

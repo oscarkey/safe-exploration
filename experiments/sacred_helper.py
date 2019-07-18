@@ -21,13 +21,15 @@ else:
 @ex.config
 def base_config():
     save_to_db = True
-    # File name of the base config file.
+    # File name of the base config file, or None to use the file associated with the environment below.
     scenario_file = None
 
     # Device to force Tensors to. None, or a valid pytorch device (e.g. cpu, cuda:0)
     device = None
 
     # -- Environment
+    # The environment to use. One of 'pendulum', 'lander' or None (to use the scenario file above).
+    environment = 'pendulum'
     render = True
     visualize = True
     # Number of dimensions that the pendulum moves in, n>=2. If n=2 then InvertedPendulum environment will be used,
