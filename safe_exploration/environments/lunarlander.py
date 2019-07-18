@@ -2,7 +2,6 @@ from enum import Enum
 from typing import Optional, Tuple
 
 import numpy as np
-import pygame
 from numpy import ndarray
 from pygame.rect import Rect
 from scipy.integrate import ode
@@ -10,6 +9,13 @@ from scipy.spatial.qhull import ConvexHull
 from torch import Tensor
 
 from .environments import Environment
+
+try:
+    import pygame
+
+    _has_pygame = True
+except:
+    _has_pygame = False
 
 
 class LunarLanderResult(Enum):
