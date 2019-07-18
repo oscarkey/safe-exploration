@@ -9,7 +9,7 @@ from polytope import polytope
 from scipy.integrate import ode
 from scipy.spatial.qhull import ConvexHull
 
-from utils import assert_shape
+from ..utils import assert_shape
 from .environments import Environment
 
 
