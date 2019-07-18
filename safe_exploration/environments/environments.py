@@ -142,13 +142,13 @@ class Environment(metaclass=abc.ABCMeta):
         pass
 
     @abstractmethod
-    def _check_constraints(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
-        """Check the state constraints
+    def _check_state(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
+        """Check the given or current state to see if the episode should end e.g. because of a constraint violation.
 
         :param state: Some (unnormalized) state or the current state, if None then the current state is used
         :returns:
-            satisfied: True if the constraints are satisfied, otherwise False,
-            failure code: -1 if no failiure, otherwise an error code defined by the subclass
+            done: True if the episode should end, otherwise false
+            result code: status code as defined by the subclass
         """
         pass
 
@@ -319,8 +319,7 @@ class Environment(metaclass=abc.ABCMeta):
         self.current_state = self.odesolver.integrate(self.odesolver.t + self.dt)
 
         self.iteration += 1
-        constr_sat, exit_code = self._check_constraints()
-        done = not constr_sat
+        done, exit_code = self._check_state()
 
         new_state_noise_obs = self.state_to_obs(np.copy(self.current_state), add_noise=True)
         new_state_obs = self.state_to_obs(np.copy(self.current_state))
@@ -425,15 +424,16 @@ class InvertedPendulum(Environment):
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
 
-    def _check_constraints(self, state=None):
+    def _check_state(self, state=None):
         if state is None:
             state = self.current_state
 
         # Check if the state lies inside the safe polytope i.e. A * x <= b.
         res = np.matmul(self.h_mat_safe, state) - self.h_safe.T
         satisfied = not (res > 0).any()
-        failure_code = -1 if satisfied else 1
-        return satisfied, failure_code
+        # We don't use the status code.
+        status_code = 0
+        return not satisfied, status_code
 
     def _dynamics(self, t, state, action):
         """ Evaluate the system dynamics
@@ -828,14 +828,14 @@ class CartPole(Environment):
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
 
-    def _check_constraints(self, state=None) -> Tuple[bool, int]:
+    def _check_state(self, state=None) -> Tuple[bool, int]:
         """Checks the constraints.
 
         For the cartpole environment the error codes are:
             1: obstacle constraint - lim_x violated;
             2: pole fell over - max_rad_theta violated
         """
-        failure_code = -1
+        status_code = -1
 
         if state is None:
             state = self.current_state
@@ -844,13 +844,13 @@ class CartPole(Environment):
 
         if state[0] > self.lim_x[1] or state[0] < self.lim_x[0]:
             sat = False
-            failure_code = 1
+            status_code = 1
 
         if -self.max_rad_theta > state[2] or state[2] > self.max_rad_theta:
             sat = False
-            failure_code = 2
+            status_code = 2
 
-        return sat, failure_code
+        return not sat, status_code
 
     def _render_env(self, screen, axis: [float], display_width: int, display_height: int):
         # blacken screen

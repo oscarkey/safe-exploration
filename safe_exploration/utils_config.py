@@ -13,8 +13,12 @@ import numpy as np
 from experiments.journal_experiment_configs.default_config import DefaultConfig
 from . import safempc_cem
 from .cautious_mpc import CautiousMPC
+<<<<<<< Updated upstream
 from .environments.environments import InvertedPendulum, CartPole, Environment
 from .environments.ndpendulum import NDPendulum
+=======
+from .environments import InvertedPendulum, CartPole, Environment, LunarLander
+>>>>>>> Stashed changes
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
@@ -67,9 +71,10 @@ def create_solver(conf, env: Environment):
 
     q = wx_cost
     r = wu_cost
-    k_lqr, _, _ = dlqr(a_true, b_true, q, r)
-    k_fb = -k_lqr
-    safe_policy = lambda x: np.dot(k_fb, x)
+    # k_lqr, _, _ = dlqr(a_true, b_true, q, r)
+    # k_fb = -k_lqr
+    # safe_policy = lambda x: np.dot(k_fb, x)
+    safe_policy = lambda x: np.zeros((x.shape[0], 2))
 
     dt = env.dt
     ctrl_bounds = np.hstack(
@@ -142,8 +147,11 @@ def create_env(conf, env_name, env_options_dict=None):
     elif env_name == "CartPole":
         return CartPole(**env_options_dict)
 
+    elif env_name == "LunarLander":
+        return LunarLander()
+
     else:
-        raise NotImplementedError("Unknown environment: {}".format(conf.env_name))
+        raise NotImplementedError("Unknown environment: {}".format(env_name))
 
 
 def get_prior_model_from_conf(conf, env_true):

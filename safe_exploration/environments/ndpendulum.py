@@ -100,15 +100,16 @@ class NDPendulum(Environment):
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
 
-    def _check_constraints(self, state=None):
+    def _check_state(self, state=None):
         if state is None:
             state = self.current_state
 
         # Check if the state lies inside the safe polytope i.e. A * x <= b.
         res = np.matmul(self.h_mat_safe, state) - self.h_safe.T
         satisfied = not (res > 0).any()
-        failure_code = -1 if satisfied else 1
-        return satisfied, failure_code
+        # We don't use the status code.
+        status_code = 0
+        return not satisfied, status_code
 
     def _dynamics(self, t, state, action):
         """ Evaluate the system dynamics
