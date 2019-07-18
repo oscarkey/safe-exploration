@@ -233,7 +233,7 @@ class Environment(metaclass=abc.ABCMeta):
         """Subclasses should implement this method to render the environment."""
         pass
 
-    def _sample_start_state(self, mean=None, std=None, n_samples=1):
+    def _sample_start_state(self, mean=None, std=None, n_samples=1, normalize=True):
         """ """
         init_std = self.init_std
         if not std is None:
@@ -244,6 +244,10 @@ class Environment(metaclass=abc.ABCMeta):
             init_m = self.init_m
 
         samples = (repmat(init_std, n_samples, 1) * np.random.randn(n_samples, self.n_s) + repmat(init_m, n_samples, 1))
+
+        if normalize:
+            samples = samples * self.inv_norm[0]
+
         return samples.T.squeeze()
 
     def normalize(self, state=None, action=None):
@@ -352,7 +356,8 @@ class Environment(metaclass=abc.ABCMeta):
                 print("===Next state unnormalized:")
                 print((self.current_state))
 
-            return action_clipped, new_state_obs, new_state_noise_obs, done
+            action_clipped_normalized = self.inv_norm[1] * action_clipped
+            return action_clipped_normalized, new_state_obs, new_state_noise_obs, done
         raise ValueError("Odesolver failed!")
 
     def get_target(self):
