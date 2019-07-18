@@ -87,7 +87,7 @@ class TestInvertedPendulum:
         # Set std=0 so we know exactly where we are.
         env.reset(mean=0, std=0)
 
-        _, _, _, done = env.step(np.array([10.]))
+        _, _, _, done, _ = env.step(np.array([10.]))
 
         assert done is True
 
@@ -96,6 +96,6 @@ class TestInvertedPendulum:
         # Set std=0 so we know exactly where we are.
         env.reset(mean=0, std=0)
 
-        _, _, _, done = env.step(np.array([0.1]))
+        _, _, _, done, _ = env.step(np.array([0.1]))
 
         assert done is False

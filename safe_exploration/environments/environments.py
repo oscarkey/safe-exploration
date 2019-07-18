@@ -341,7 +341,7 @@ class Environment(metaclass=abc.ABCMeta):
         self.current_state = self.odesolver.integrate(self.odesolver.t + self.dt)
 
         self.iteration += 1
-        done, exit_code = self._check_state()
+        done, result_code = self._check_state()
 
         new_state_noise_obs = self.state_to_obs(np.copy(self.current_state), add_noise=True)
         new_state_obs = self.state_to_obs(np.copy(self.current_state))
@@ -357,7 +357,7 @@ class Environment(metaclass=abc.ABCMeta):
                 print((self.current_state))
 
             action_clipped_normalized = self.inv_norm[1] * action_clipped
-            return action_clipped_normalized, new_state_obs, new_state_noise_obs, done
+            return action_clipped_normalized, new_state_obs, new_state_noise_obs, done, result_code
         raise ValueError("Odesolver failed!")
 
     def get_target(self):
@@ -1142,7 +1142,7 @@ if __name__ == "__main__":
     for i in range(200):
         a = pend.random_action()
         print(a)
-        _, s_new, _, _ = pend.step(a)
+        _, s_new, _, _, _ = pend.step(a)
         pend.render()
         print(s_new)
 

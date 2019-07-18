@@ -176,7 +176,7 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
             if verbosity > 0:
                 print(("total time solver in ms: {}".format(t_solver)))
 
-        action, next_state, observation, done = env.step(action)
+        action, next_state, observation, done, env_result = env.step(action)
         if not cost is None:
             c = [cost(next_state)]
             cc += c

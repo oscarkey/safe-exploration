@@ -171,7 +171,7 @@ def run_exploration(conf, visualize=False):
             if static_exploration:
                 x_next, x_next_obs = env.simulate_onestep(x_i.squeeze(), u_i.squeeze())
             else:
-                _, x_next, x_next_obs, _ = env.step(u_i.squeeze())
+                _, x_next, x_next_obs, _, _ = env.step(u_i.squeeze())
 
             x_next_obs_all[i, :] = x_next_obs
 

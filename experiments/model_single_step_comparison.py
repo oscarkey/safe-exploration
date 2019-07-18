@@ -24,7 +24,7 @@ def _sample(env: Environment, action: ndarray) -> ndarray:
     # Set std to zero so we end up exactly at the origin
     initial = env.reset(mean=np.array([0., 0.]), std=np.array([0., 0.]))
     assert np.allclose(initial, np.array([0., 0.]))
-    _, new_state, _, _ = env.step(action)
+    _, new_state, _, _, _ = env.step(action)
     return new_state
 
 
