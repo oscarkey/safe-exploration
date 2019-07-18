@@ -144,7 +144,7 @@ def create_env(conf, env_name, env_options_dict=None):
         return CartPole(**env_options_dict)
 
     elif env_name == "LunarLander":
-        return LunarLander()
+        return LunarLander(conf)
 
     else:
         raise NotImplementedError("Unknown environment: {}".format(env_name))

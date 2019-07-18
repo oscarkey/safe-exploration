@@ -27,7 +27,7 @@ class LunarLander(Environment):
 
     """
 
-    def __init__(self, dt=.05, verbosity=1):
+    def __init__(self, conf, dt=.05, verbosity=1):
         state_init_mean = np.array([0., 0., 0., 2.])
         state_init_std = np.array([2.0, 0.5, 0., .5])
         super().__init__(name='LunearLander', n_s=4, n_u=2, dt=dt, init_m=state_init_mean, init_std=state_init_std,
@@ -38,11 +38,11 @@ class LunarLander(Environment):
         self._g = 1.62
         self._m = 1.
         self._n_d = 2
-        self._width = 4.
+        self._width = conf.lander_env_width
         self._max_speed = 10.
         self._max_landing_speed = 0.5
         self._min_y = -1.
-        self._lunar_surface_y = 3
+        self._lunar_surface_y = conf.lander_surface_y
 
         norm_x = np.array([self._max_speed, self._max_speed, self._width / 2, self._lunar_surface_y - self._min_y])
         norm_u = np.array(self.u_max - self.u_min)

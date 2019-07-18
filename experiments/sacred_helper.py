@@ -34,6 +34,12 @@ def base_config():
     # otherwise NDPendulum. Currently only n=2 works properly.
     pendulum_dimensions = 2
 
+    # -- Lunar Lander environment
+    # The width of the environment, in metres.
+    lander_env_width = 3
+    # The distance from the origin to the surface of the moon, in metres
+    lander_surface_y = 2
+
     # Type of state space model to use, one of exact_gp, mc_dropout, mc_dropout_gal.
     cem_ssm = 'mc_dropout'
 
