@@ -56,7 +56,7 @@ def sample_inside_polytope(x, a, b):
 
     c = np.dot(a, x.T) - repmat(b, 1, k)
 
-    return np.all(c < 0, axis=0).squeeze()
+    return np.all(c <= 0, axis=0).squeeze()
 
 
 def feedback_ctrl(x, k_ff, k_fb=None, p=None):
