@@ -135,7 +135,7 @@ def single_step_compare_main(_run):
     env = InvertedPendulum(verbosity=0)
 
     x_train, y_train = _gather_samples(env)
-    x_test = np.expand_dims(np.arange(env.u_min, env.u_max, 0.2), 1)
+    x_test = np.expand_dims(np.arange(env.u_min_norm, env.u_max_norm, 0.2), 1)
 
     save_to_file = True
     run = functools.partial(_run_experiment, env, x_train, y_train, x_test, save_to_file)

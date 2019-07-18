@@ -13,12 +13,9 @@ import numpy as np
 from experiments.journal_experiment_configs.default_config import DefaultConfig
 from . import safempc_cem
 from .cautious_mpc import CautiousMPC
-<<<<<<< Updated upstream
 from .environments.environments import InvertedPendulum, CartPole, Environment
 from .environments.ndpendulum import NDPendulum
-=======
-from .environments import InvertedPendulum, CartPole, Environment, LunarLander
->>>>>>> Stashed changes
+from .environments.lunarlander import LunarLander
 from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
@@ -71,14 +68,13 @@ def create_solver(conf, env: Environment):
 
     q = wx_cost
     r = wu_cost
-    # k_lqr, _, _ = dlqr(a_true, b_true, q, r)
-    # k_fb = -k_lqr
-    # safe_policy = lambda x: np.dot(k_fb, x)
-    safe_policy = lambda x: np.zeros((x.shape[0], 2))
+    k_lqr, _, _ = dlqr(a_true, b_true, q, r)
+    k_fb = -k_lqr
+    safe_policy = lambda x: np.dot(k_fb, x)
 
     dt = env.dt
     ctrl_bounds = np.hstack(
-        (np.reshape(env.u_min, (-1, 1)), np.reshape(env.u_max, (-1, 1))))
+        (np.reshape(env.u_min_norm, (-1, 1)), np.reshape(env.u_max_norm, (-1, 1))))
 
     env_opts_safempc = dict()
 
@@ -168,7 +164,7 @@ def get_prior_model_from_conf(conf, env_true):
         a_prior, b_prior = env_prior.linearize_discretize()
 
     else:
-        a_prior, b_prior = (np.eye(env_true.n_s), np.zeros((env_true.n_s, env.n_u)))
+        a_prior, b_prior = (np.eye(env_true.n_s), np.zeros((env_true.n_s, env_true.n_u)))
 
     return a_prior, b_prior
 

@@ -113,6 +113,14 @@ class Environment(metaclass=abc.ABCMeta):
         """
         pass
 
+    @property
+    def u_min_norm(self) -> ndarray:
+        return self.inv_norm[1] * self.u_min
+
+    @property
+    def u_max_norm(self) -> ndarray:
+        return self.inv_norm[1] * self.u_max
+
     @abstractmethod
     def _reset(self):
         pass
@@ -658,7 +666,7 @@ class InvertedPendulum(Environment):
 
     def random_action(self) -> ndarray:
         c = 0.5
-        return c * (np.random.rand(self.n_u) * (self.u_max - self.u_min) + self.u_min)
+        return c * (np.random.rand(self.n_u) * (self.u_max_norm - self.u_min_norm) + self.u_min_norm)
 
     def _init_safety_constraints(self):
         """ Get state and safety constraints
@@ -1070,7 +1078,7 @@ class CartPole(Environment):
         return h_mat_safe, self.h_safe, h_mat_obs, self.h_obs
 
     def random_action(self) -> ndarray:
-        return np.random.rand(self.n_u) * (self.u_max - self.u_min) + self.u_min
+        return np.random.rand(self.n_u) * (self.u_max_norm - self.u_min_norm) + self.u_min_norm
 
     def _single_pend_top_pos(self, state):
         """

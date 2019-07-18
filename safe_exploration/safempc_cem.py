@@ -135,7 +135,7 @@ class EllipsoidStateConstraint(Constraint):
 def construct_constraints(conf, env: Environment):
     """Creates the polytopic constraints for the MPC problem from the values in the config file."""
     h_mat_safe, h_safe, h_mat_obs, h_obs = env.get_safety_constraints(normalize=True)
-    action_constraint_boxes = np.array([np.array(xs) for xs in zip(env.u_min, env.u_max)])
+    action_constraint_boxes = np.array([np.array(xs) for xs in zip(env.u_min_norm, env.u_max_norm)])
     action_constraint = ActionConstraint(box2torchpoly(action_constraint_boxes).to(get_device(conf)))
 
     if conf.use_state_constraint:
