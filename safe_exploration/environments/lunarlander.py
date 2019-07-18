@@ -15,8 +15,8 @@ from .environments import Environment
 class LunarLanderResult(Enum):
     """Describes the result of a step in the lunar lander environment."""
     FLYING = 0
-    CRASHED = 2
-    LANDED = 3
+    CRASHED = 1
+    LANDED = 2
 
 
 class LunarLander(Environment):
