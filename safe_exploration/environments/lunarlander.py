@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 
 import numpy as np
 from numpy import ndarray
-from pygame.rect import Rect
 from scipy.integrate import ode
 from scipy.spatial.qhull import ConvexHull
 from torch import Tensor
@@ -12,6 +11,7 @@ from .environments import Environment
 
 try:
     import pygame
+    from pygame.rect import Rect
 
     _has_pygame = True
 except:
