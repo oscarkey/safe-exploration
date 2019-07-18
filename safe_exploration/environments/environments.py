@@ -17,6 +17,7 @@ from numpy.matlib import repmat
 from scipy.integrate import ode, odeint
 from scipy.signal import cont2discrete
 from scipy.spatial import ConvexHull
+from torch import Tensor
 
 from ..utils import unavailable
 from ..visualization.utils_visualization import plot_ellipsoid_2D
@@ -130,6 +131,15 @@ class Environment(metaclass=abc.ABCMeta):
     def random_action(self) -> ndarray:
         """ Returns a uniform randon action. """
         pass
+
+    def objective_cost_function(self, ps: Tensor) -> Optional[Tensor]:
+        """Objective function which CEM MPC should optimise the trajectory with.
+
+        :param ps: [Nxn_s] batch of centers of ellipsoids for one step in a trajectory
+        :returns: [Nx0] cost of each of the centers, or None if the environment does not implement the cost and the mpc
+        should use a default cost
+        """
+        return None
 
     @abstractmethod
     def plot_ellipsoid_trajectory(self, p, q, vis_safety_bounds=True):
