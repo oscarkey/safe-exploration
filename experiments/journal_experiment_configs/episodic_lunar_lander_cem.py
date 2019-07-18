@@ -26,7 +26,7 @@ class Config(DefaultConfigEpisode):
     solver_type = "safempc_cem"
 
     lqr_wx_cost = np.diag([1., 2., 2., 2.])
-    lqr_wu_cost = 25 * np.eye(2)
+    lqr_wu_cost = 1 * np.eye(2)
 
     lin_prior = True
     prior_model = dict()
@@ -39,8 +39,8 @@ class Config(DefaultConfigEpisode):
     init_std = np.array([.05, .05])
     env_options["init_std"] = init_std
 
-    init_std_initial_data = np.array([0., 0., 0., 0.])
-    init_m_initial_data = np.array([0., 0., 0., 1.])
+    init_std_initial_data = np.array([1., 1., 1., 1.])
+    init_m_initial_data = np.array([0., 0., 0., 0.])
 
     plot_ellipsoids = False
     plot_trajectory = False
