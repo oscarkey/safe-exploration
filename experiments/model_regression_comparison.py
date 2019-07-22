@@ -1,6 +1,7 @@
 """Script to compare exact gp and mc dropout models on a simple regression task."""
 import functools
 import os
+from typing import List
 
 import gpytorch
 import matplotlib.pyplot as plt
@@ -39,7 +40,7 @@ def _plot(axes, x_train, y_train, x_test, preds, text: str):
 
     # Plot the base sin function.
     xs = np.arange(-12, 12, 0.05)
-    axes.plot(xs, _true_func(xs), color='C0')
+    axes.plot(xs, _true_func(xs), color='C0', linestyle='--')
 
     # Plot the trainin data.
     axes.scatter(x_train, y_train, zorder=10, s=4, color='C0')
@@ -115,19 +116,21 @@ def _dropout_conf(_run, i: int, impl: str, hidden_layer_size: int, training_iter
 
 
 @ex.capture
-def _gp_conf(_run):
+def _gp_conf(_run, i, kernel, nn_kernel_layers: List[int]):
     conf = EasyDict(_run.config)
     conf.cem_ssm = 'exact_gp'
-    conf.exact_gp_kernel = 'rbf'
+    conf.exact_gp_kernel = kernel
     conf.exact_gp_training_iterations = 1000
+    conf.nn_kernel_layers = nn_kernel_layers
 
-    conf.name = f'no_name'
+    layers_name = str(nn_kernel_layers).replace(' ', '')
+    conf.name = f'{kernel}_{layers_name}_{i}'
 
     return conf
 
 
 def _true_func(x):
-    return np.sin(x - 0.8) + 0.5  # return 0.2 * x + .5
+    return np.sin(x - 0.8)  # return 0.2 * x + .5
 
 
 @ex.automain
@@ -147,8 +150,34 @@ def regression_comparison_main(_run):
     y_train = y_train.to(get_device(conf))
     x_test = x_test.to(get_device(conf))
 
-    run = functools.partial(_run_experiment, x_train=x_train, y_train=y_train, x_test=x_test, save_to_file=False)
+    run = functools.partial(_run_experiment, x_train=x_train, y_train=y_train, x_test=x_test, save_to_file=True)
 
-    run(_gp_conf())
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 16, 1]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 16, 1]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 16, 1]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 16, 32]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 16, 32]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 16, 32]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 32, 64]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 32, 64]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 32, 64]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 32, 128]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 32, 128]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 32, 128]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 256]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 256]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 256]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 128, 256]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 128, 256]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 128, 256]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 256, 512]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 256, 512]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 256, 512]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[64, 128, 256, 512]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[64, 128, 256, 512]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[64, 128, 256, 512]))
+    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 256, 512, 1024]))
+    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 256, 512, 1024]))
+    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 256, 512, 1024]))
 
     return
