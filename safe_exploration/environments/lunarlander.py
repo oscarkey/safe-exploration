@@ -34,7 +34,7 @@ class LunarLander(Environment):
     """
 
     def __init__(self, conf, dt=.05, verbosity=1):
-        state_init_mean = np.array([0., 0., 0., 2.])
+        state_init_mean = np.array([0., 0., 0., .5])
         state_init_std = np.array([2.0, 0.5, 0., .5])
         super().__init__(name='LunearLander', n_s=4, n_u=2, dt=dt, init_m=state_init_mean, init_std=state_init_std,
                          plant_noise=np.array([0.001, 0.001, 0.001, 0.001]), u_min=np.array([-5., -5.]),
@@ -45,7 +45,7 @@ class LunarLander(Environment):
         self._m = 1.
         self._n_d = 2
         self._width = conf.lander_env_width
-        self._max_speed = 10.
+        self._max_speed = 5.
         self._max_landing_speed = 0.5
         self._min_y = -1.
         self._lunar_surface_y = conf.lander_surface_y
@@ -75,10 +75,15 @@ class LunarLander(Environment):
     def _dynamics(self, t, state, action):
         velocity = state[:self._n_d]
         position = state[self._n_d:]
-        # TODO: vary gravity based on location.
+
+        # Make the gravity vary based on x position. The task of the ssm is to learn this.
+        # Gravity is +ve because the vertical axis points downwards.
+        gravity = self._g  # + 5 * (np.sin(position[0]) + 1)
+        # print('gravity = ', gravity)
+
         dz = np.empty((4, 1))
         dz[0] = action[0] / self._m
-        dz[1] = action[1] / self._m + self._g
+        dz[1] = action[1] / self._m + gravity
         # The change in state is the velocity.
         dz[2] = velocity[0]
         dz[3] = velocity[1]
@@ -131,7 +136,8 @@ class LunarLander(Environment):
             print('Crashed!')
         elif landed:
             result_code = LunarLanderResult.LANDED.value
-            print('Landed!')
+            print('Landed! at velocity', state[1])
+            assert np.abs(state[-1]) <= 0.5, f'Landing velocity too high: {state[1]}'
         else:
             result_code = LunarLanderResult.FLYING.value
 
@@ -175,7 +181,7 @@ class LunarLander(Environment):
 
     def _init_safety_constraints(self):
         top = self._min_y
-        bottom = self._lunar_surface_y + 0.5
+        bottom = self._lunar_surface_y + 0.3
         left = - self._width / 2
         right = self._width / 2
 
@@ -184,7 +190,9 @@ class LunarLander(Environment):
 
         # Work out what the speed at the bottom (which is below the surface of the moon) should be so we achieve the
         # correct speed at the surface.
-        max_speed_bottom = (1 - self._lunar_surface_y / (bottom - top)) * self._max_landing_speed
+        # max_speed_bottom = (self._lunar_surface_y - top) / (bottom - top) * self._max_landing_speed
+        max_speed_bottom = self._max_landing_speed - ((max_speed_top - self._max_landing_speed) / (bottom - top)) * (
+                bottom - self._lunar_surface_y)
 
         vertices = []
         for vel_x in (max_speed_x, -max_speed_x):
