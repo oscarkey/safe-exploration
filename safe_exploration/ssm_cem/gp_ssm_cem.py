@@ -1,5 +1,6 @@
 """State space models for CEM MPC using gaussian processes."""
-from typing import Optional, Tuple, Dict
+from collections import OrderedDict
+from typing import Optional, Tuple, Dict, List
 
 import gpytorch
 import torch
@@ -44,7 +45,8 @@ class GpCemSSM(CemSSM):
         elif conf.exact_gp_kernel == 'linear':
             kernel = LinearKernel(batch_size=state_dimen)
         elif conf.exact_gp_kernel == 'nn':
-            kernel = NNFeatureKernel(batch_size=state_dimen, in_dimen=state_dimen + action_dimen)
+            kernel = NNFeatureKernel(batch_size=state_dimen, in_dimen=state_dimen + action_dimen,
+                                     layer_sizes=conf.nn_kernel_layers)
         else:
             raise ValueError(f'Unknown kernel {conf.exact_gp_kernel}')
 
@@ -131,21 +133,32 @@ class NNFeatureKernel(LinearKernel):
 
     Implements k(x, x') = v phi(x)^T phi(x'), where phi is a fully connected network of some size.
     """
-    def __init__(self, in_dimen: int, **kwargs):
+
+    def __init__(self, in_dimen: int, layer_sizes: List[int], **kwargs):
         super().__init__(**kwargs)
         self._in_dimen = in_dimen
-        self._net = nn.Sequential(  #
-            nn.Linear(in_dimen, 8),  #
-            nn.ReLU(),  #
-            nn.Linear(8, 8),  #
-            nn.ReLU(),  #
-            nn.Linear(8, in_dimen),  #
-            nn.PReLU())
+        self._out_dimen = layer_sizes[-1]
+        self._net = self._build_net(in_dimen, layer_sizes)
 
         for param_name, param_data in self._net.named_parameters():
             # GPyTorch param names can't contain ".".
             param_name = param_name.replace('.', '_')
             self.register_parameter(f'net_{param_name}', param_data)
+
+    @staticmethod
+    def _build_net(in_dimen: int, layer_sizes: List[int]) -> nn.Module:
+        """Returns a fully connected network with a ReLU after ever layer, except PReLU after the final layer."""
+        layers = []
+        prev_size = in_dimen
+        for i, layer_size in enumerate(layer_sizes):
+            if i != 0:
+                layers.append(nn.ReLU())
+            layers.append(nn.Linear(prev_size, layer_size))
+            prev_size = layer_size
+
+        layers.append(nn.PReLU())
+
+        return nn.Sequential(*layers)
 
     def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **kwargs):
         if last_dim_is_batch is not False:
@@ -155,7 +168,7 @@ class NNFeatureKernel(LinearKernel):
 
         x1_batched = x1.view(-1, self._in_dimen)
         x2_batched = x2.view(-1, self._in_dimen)
-        x1_features = self._net(x1_batched).view(x1.size())
-        x2_features = self._net(x2_batched).view(x2.size())
+        x1_features = self._net(x1_batched).view((x1.size(0), x1.size(1), self._out_dimen))
+        x2_features = self._net(x2_batched).view((x2.size(0), x2.size(1), self._out_dimen))
         # TODO: normalise features?
         return super().forward(x1_features, x2_features, diag, last_dim_is_batch, **kwargs)

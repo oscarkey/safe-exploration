@@ -91,6 +91,7 @@ def base_config():
     exact_gp_training_iterations = 200
     # Kernel for the gp. One of 'rbf', 'nn'.
     exact_gp_kernel = 'rbf'
+    nn_kernel_layers = [64, 128, 256, 512]
 
 
 @ex.named_config
