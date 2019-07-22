@@ -213,7 +213,7 @@ def is_ellipsoid_inside_polytope(p_center: Tensor, q_shape: Tensor, h_mat: Tenso
 
 def _fix_zeros_nans(x: Tensor) -> Tuple[Tensor, bool]:
     if torch.isnan(x).any():
-        return torch.empty(), False
+        return torch.empty_like(x), False
 
     if (x == 0).any():
         print('WARNING: found 0 in var but carried on')
