@@ -166,9 +166,7 @@ class NNFeatureKernel(LinearKernel):
         if diag is not False:
             raise NotImplementedError
 
-        x1_batched = x1.view(-1, self._in_dimen)
-        x2_batched = x2.view(-1, self._in_dimen)
-        x1_features = self._net(x1_batched).view((x1.size(0), x1.size(1), self._out_dimen))
-        x2_features = self._net(x2_batched).view((x2.size(0), x2.size(1), self._out_dimen))
+        x1_features = self._net(x1)
+        x2_features = self._net(x2)
         # TODO: normalise features?
         return super().forward(x1_features, x2_features, diag, last_dim_is_batch, **kwargs)
