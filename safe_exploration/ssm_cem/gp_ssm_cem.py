@@ -41,6 +41,8 @@ class GpCemSSM(CemSSM):
     def _create_kernel(self, conf, state_dimen: int, action_dimen: int) -> Kernel:
         if conf.exact_gp_kernel == 'rbf':
             kernel = RBFKernel(batch_size=state_dimen)
+        elif conf.exact_gp_kernel == 'linear':
+            kernel = LinearKernel(batch_size=state_dimen)
         elif conf.exact_gp_kernel == 'nn':
             kernel = NNFeatureKernel(batch_size=state_dimen, in_dimen=state_dimen + action_dimen)
         else:
@@ -98,7 +100,7 @@ class GpCemSSM(CemSSM):
         self._likelihood.train()
 
         # self._model.parameters() includes likelihood parameters
-        optimizer = torch.optim.Adam([{'params': self._model.parameters()}, ], lr=0.1)
+        optimizer = torch.optim.Adam([{'params': self._model.parameters()}, ], lr=0.01)
 
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self._likelihood, self._model)
 
@@ -155,4 +157,5 @@ class NNFeatureKernel(LinearKernel):
         x2_batched = x2.view(-1, self._in_dimen)
         x1_features = self._net(x1_batched).view(x1.size())
         x2_features = self._net(x2_batched).view(x2.size())
+        # TODO: normalise features?
         return super().forward(x1_features, x2_features, diag, last_dim_is_batch, **kwargs)
