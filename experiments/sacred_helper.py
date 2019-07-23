@@ -88,7 +88,7 @@ def base_config():
 
     # -- Exact GP SSM
     exact_gp_code_version = 2
-    exact_gp_training_iterations = 200
+    exact_gp_training_iterations = 1000
     # Kernel for the gp. One of 'rbf', 'nn'.
     exact_gp_kernel = 'rbf'
     nn_kernel_layers = [64, 128, 256, 512]
