@@ -75,6 +75,9 @@ class TestSacredAggregatedMetrics:
         metrics.log_scalar('metric1', 10.0, 2)
         metrics.log_scalar('metric1', 20.0, 2)
         metrics.log_scalar('metric2', 100.0, 1)
+        metrics.log_non_scalar('metric3', [1, 2], 1)
+        metrics.log_non_scalar('metric3', [3, 4], 1)
+        metrics.log_non_scalar('metric3', [5, 6], 2)
 
         metrics.flush()
 
@@ -85,8 +88,11 @@ class TestSacredAggregatedMetrics:
             },  #
             'metric2': {  #
                 1: [100.0]  #
-            }  #
-        }
+            },  #
+            'metric3': {  #
+                1: [[1, 2], [3, 4]],  #
+                2: [[5, 6]]  #
+            }}
 
         assert _run.info['all_metrics'] == expected_metrics
 
@@ -95,9 +101,11 @@ class TestSacredAggregatedMetrics:
         metrics = SacredAggregatedMetrics(_run)
 
         metrics.log_scalar('metric1', 0.0, 1)
+        metrics.log_non_scalar('metric2', 'abc', 1)
         metrics.flush()
-        metrics.log_scalar('metric2', 0.0, 1)
+        metrics.log_scalar('metric3', 0.0, 1)
         metrics.flush()
 
         # TODO: This probably isn't actually what we want, we want to append to the info dict, but it will do for now.
         assert 'metric1' not in _run.info['all_metrics']
+        assert 'metric2' not in _run.info['all_metrics']
