@@ -12,7 +12,8 @@ from numpy import ndarray
 from experiments import sacred_helper
 from safe_exploration.environments.environments import InvertedPendulum, Environment
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
-from safe_exploration.ssm_cem.ssm_cem import CemSSM, McDropoutSSM
+from safe_exploration.ssm_cem.ssm_cem import CemSSM
+from safe_exploration.ssm_cem.dropout_ssm_cem import McDropoutSSM
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
 from safe_exploration.utils import get_device
 from safe_exploration.visualization import utils_visualization

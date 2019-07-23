@@ -12,7 +12,8 @@ from easydict import EasyDict
 from experiments import sacred_helper
 from safe_exploration.ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
-from safe_exploration.ssm_cem.ssm_cem import McDropoutSSM, CemSSM
+from safe_exploration.ssm_cem.ssm_cem import CemSSM
+from safe_exploration.ssm_cem.dropout_ssm_cem import McDropoutSSM
 from safe_exploration.ssm_pytorch.gaussian_process import ZeroMeanWithGrad
 from safe_exploration.utils import get_device
 
