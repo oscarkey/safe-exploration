@@ -79,7 +79,12 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             exit_codes_k += [exit_codes_i]
             safety_failure_k += [safety_failure]
 
+            training_start_time = time.time()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True)
+            training_end_time = time.time()
+
+            metrics.log_scalar('training_time', training_end_time - training_start_time, i)
+            metrics.log_scalar('num_samples', X.shape[0], i)
 
         exit_codes_all += [exit_codes_k]
         safety_failure_all += [safety_failure_k]
