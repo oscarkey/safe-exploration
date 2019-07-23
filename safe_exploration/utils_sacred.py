@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Any
 
 
 class SacredAggregatedMetrics:
@@ -27,11 +27,23 @@ class SacredAggregatedMetrics:
             self.log_scalar(k, v, counter)
 
     def log_non_scalar(self, metric_name, value, counter):
-        """Logs metric_name=value at t=counter. As 'value' is non-scalar, it will not be aggregated across scenarios."""
+        """Logs metric_name=value at t=counter. As 'value' is non-scalar, it will not be aggregated across scenarios.
+
+        Does not send the logs to Sacred, call flush() for this.
+        """
         if metric_name in self._aggregated_metrics:
             raise ValueError(f'{metric_name} already logged as a scalar metric')
 
         self._non_aggregated_metrics[metric_name][counter].append(value)
+
+    def log_non_scalars(self, metrics: Dict[str, Any], counter):
+        """Logs a set of metric_name=value pairs at t=counter.
+
+        As 'value' is non-scalar, it will not be aggregated across scenarios.
+        Does not send the logs to Sacred, call flush() for this.
+        """
+        for k, v in metrics.items():
+            self.log_non_scalar(k, v, counter)
 
     def flush(self):
         """Uploads the metrics in the buffer, and their aggregation, to Sacred. Then clears the buffer."""

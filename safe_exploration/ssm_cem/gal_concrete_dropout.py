@@ -3,7 +3,7 @@
 Implementation taken from:
 https://github.com/yaringal/ConcreteDropout/blob/master/concrete-dropout-pytorch.ipynb
 """
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Any
 
 import numpy as np
 import torch
@@ -146,6 +146,8 @@ class GalConcreteDropoutSSM(CemSSM):
         # Use any value for weight_regularizer and dropout_regularizer as we don't yet have any data.
         self._model = self._model_constructor(weight_regularizer=1.0, dropout_regularizer=1.0)
 
+        self._last_training_losses = []
+
     def _get_model_constructor(self, state_dimen: int, action_dimen: int):
         in_features = state_dimen + action_dimen
         out_features = state_dimen
@@ -203,6 +205,7 @@ class GalConcreteDropoutSSM(CemSSM):
         model = self._model_constructor(weight_regularizer, dropout_regularizer)
         model.train()
         optimizer = optim.Adam(model.parameters())
+        losses = []
 
         for i in range(self._training_iterations):
             for batch in range(int(np.ceil(x_train.shape[0] / _batch_size))):
@@ -216,14 +219,16 @@ class GalConcreteDropoutSSM(CemSSM):
 
                 optimizer.zero_grad()
                 loss.backward()
+                losses.append(loss.item())
                 optimizer.step()
 
             if i % 500 == 0:
                 print(f'Training epoch {i}/{self._training_iterations - 1}, loss={loss.item()}')
 
+        self._last_training_losses = losses
         self._model = model
 
-    def collect_metrics(self) -> Dict[str, float]:
-        dropout_ps = self._model.get_dropout_probabilities()
-        metrics = {'dropout_p_' + k: v for k, v in dropout_ps.items()}
-        return metrics
+    def collect_metrics(self) -> Dict[str, Any]:
+        dropout_ps = {'dropout_p_' + k: v for k, v in self._model.get_dropout_probabilities().items()}
+        metrics = {'losses': self._last_training_losses}
+        return {**dropout_ps, **metrics}

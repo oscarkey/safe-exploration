@@ -1,6 +1,6 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
 from abc import abstractmethod, ABC
-from typing import Tuple, Optional, Dict, Callable
+from typing import Tuple, Optional, Dict, Callable, Any
 
 import torch
 from torch import Tensor
@@ -115,8 +115,10 @@ class CemSSM(ABC):
         return torch.cat((states, actions), dim=1)
 
     @abstractmethod
-    def collect_metrics(self) -> Dict[str, float]:
+    def collect_metrics(self) -> Dict[str, Any]:
         """Returns interesting metrics for the current state of the model.
+
+        The metrics may not be scalar, thus should be logged as non-scalar values.
 
         :returns: pairs (metric key, metric value) to log
         """
@@ -194,5 +196,5 @@ class JunkDimensionsSSM(CemSSM):
     def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
         pass
 
-    def collect_metrics(self) -> Dict[str, float]:
+    def collect_metrics(self) -> Dict[str, Any]:
         return self._ssm.collect_metrics()

@@ -6,7 +6,6 @@ Created on Fri Sep 29 11:11:23 2017
 """
 import time
 import warnings
-from collections import namedtuple
 
 import numpy as np
 
@@ -280,7 +279,7 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
     metrics.log_scalar('mean_time_in_solver', float(total_time_in_solver) / n_successful, episode_id)
     metrics.log_scalar('env_result', env_result, episode_id)
     if solver is not None:
-        metrics.log_scalars(solver.collect_metrics(), episode_id)
+        metrics.log_non_scalars(solver.collect_metrics(), episode_id)
 
     if n_successful == 0:
         warnings.warn("Agent survived 0 steps, cannot collect data")
@@ -301,10 +300,3 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
             print("\n======= percentage system steps inside safety bounds =======")
             print((float(n_inside) / n_test_safety))
     return xx, yy, cc, exit_codes, safety_failure
-
-
-if __name__ == "__main__":
-    env_options = namedtuple('conf', ['env_name'])
-    conf = env_options(env_name="InvertedPendulum")
-    print((conf.env_name))
-    run(data_safepath="inv_pend_no_rel_dyn", env_options=conf)  # )

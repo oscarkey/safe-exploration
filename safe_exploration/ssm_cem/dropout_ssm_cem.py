@@ -1,5 +1,5 @@
 import math
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Any
 
 import bnn
 import numpy as np
@@ -166,7 +166,7 @@ class McDropoutSSM(CemSSM):
         else:
             return - (deltas ** 2).sum(-1) * 0.5
 
-    def collect_metrics(self) -> Dict[str, float]:
+    def collect_metrics(self) -> Dict[str, Any]:
         dropout_ps = self._get_dropout_probabilities()
         return dropout_ps
 

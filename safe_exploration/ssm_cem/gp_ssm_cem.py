@@ -1,6 +1,6 @@
 """State space models for CEM MPC using gaussian processes."""
 from collections import OrderedDict
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List, Any
 
 import gpytorch
 import torch
@@ -38,6 +38,8 @@ class GpCemSSM(CemSSM):
             self._model = model
         self._model = self._model.to(get_device(conf))
         self._model.eval()
+
+        self._last_training_losses = []
 
     def _create_kernel(self, conf, state_dimen: int, action_dimen: int) -> Kernel:
         if conf.exact_gp_kernel == 'rbf':
@@ -120,12 +122,14 @@ class GpCemSSM(CemSSM):
             optimizer.step()
         print(f'Training complete. Final losses: {losses[-4]:.2f} {losses[-3]:.2f} {losses[-2]:.2f} {losses[-1]:.2f}')
 
+        self._last_training_losses = losses
+
         self._model.eval()
         self._likelihood.eval()
 
-    def collect_metrics(self) -> Dict[str, float]:
+    def collect_metrics(self) -> Dict[str, Any]:
         # Currently we don't have any metrics.
-        return {}
+        return {'losses': self._last_training_losses}
 
 
 class NNFeatureKernel(LinearKernel):
