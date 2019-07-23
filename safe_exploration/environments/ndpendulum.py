@@ -144,7 +144,7 @@ class NDPendulum(Environment):
 
         return np.concatenate((dvelocity.flat, dposition.flat))
 
-    def jac_dynamics(self):
+    def _jac_dynamics(self):
         """ Evaluate the jacobians of the system dynamics
 
         Returns

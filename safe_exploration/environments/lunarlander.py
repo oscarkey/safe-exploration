@@ -89,7 +89,7 @@ class LunarLander(Environment):
         dz[3] = velocity[1]
         return dz
 
-    def jac_dynamics(self):
+    def _jac_dynamics(self):
         jac_acl = np.array([[0., 0., 0., 0., 1. / self._m, 0.],  #
                             [0., 0., 0., 0., 0., 1. / self._m]])
         jac_vel = np.eye(self._n_d, self.n_s + self.n_u)
