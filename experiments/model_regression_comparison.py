@@ -133,6 +133,11 @@ def _true_func(x):
     return np.sin(x - 0.8)  # return 0.2 * x + .5
 
 
+def _repeat(run_func, conf_func):
+    for i in range(3):
+        run_func(conf_func(i=i))
+
+
 @ex.automain
 def regression_comparison_main(_run):
     torch.set_default_dtype(torch.double)
@@ -152,32 +157,28 @@ def regression_comparison_main(_run):
 
     run = functools.partial(_run_experiment, x_train=x_train, y_train=y_train, x_test=x_test, save_to_file=True)
 
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 16, 1]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 16, 1]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 16, 1]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 16, 32]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 16, 32]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 16, 32]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 32, 64]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 32, 64]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 32, 64]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[16, 32, 128]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[16, 32, 128]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[16, 32, 128]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 256]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 256]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 256]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 128, 256]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 128, 256]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 128, 256]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 256, 512]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 256, 512]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 256, 512]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[64, 128, 256, 512]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[64, 128, 256, 512]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[64, 128, 256, 512]))
-    run(_gp_conf(i=0, kernel='nn', nn_kernel_layers=[32, 64, 256, 512, 1024]))
-    run(_gp_conf(i=1, kernel='nn', nn_kernel_layers=[32, 64, 256, 512, 1024]))
-    run(_gp_conf(i=2, kernel='nn', nn_kernel_layers=[32, 64, 256, 512, 1024]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[16, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[32, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[64, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[128, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[256, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[512, ]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 4]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 8]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 16]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 32]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 64]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 128]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 256]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[4, 512]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, 8]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, 16]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, 32]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, 64]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, 128]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, 256]))
+    _repeat(run, functools.partial(_gp_conf, kernel='nn', nn_kernel_layers=[8, 512]))
 
     return
