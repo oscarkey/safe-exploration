@@ -1,6 +1,6 @@
 """Contains state space models for use with CemSafeMPC. These should all using PyTorch."""
 from abc import abstractmethod, ABC
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, Callable
 
 import torch
 from torch import Tensor
@@ -15,9 +15,9 @@ class CemSSM(ABC):
     for Casadi.
     """
 
-    def __init__(self, num_states: int, num_actions: int):
-        self.num_states = num_states
-        self.num_actions = num_actions
+    def __init__(self, state_dimen: int, action_dimen: int):
+        self.num_states = state_dimen
+        self.num_actions = action_dimen
 
         self._x_train = None
         self._y_train = None
@@ -42,7 +42,7 @@ class CemSSM(ABC):
         :returns:
             mean of next states [N x n_s],
             variance of next states [N x n_s],
-            jacobian of mean [N x n_s x n_s])
+            jacobian of mean wrt state and action [N x n_s x (n_s + n_u)])
         """
         pass
 
@@ -121,3 +121,78 @@ class CemSSM(ABC):
         :returns: pairs (metric key, metric value) to log
         """
         pass
+
+
+class JunkDimensionsSSM(CemSSM):
+    """Wraps an SSM, adding a set of junk dimensions to every call.
+
+    This is a convenient way to see how the ssm copes in a higher dimension environment, without actually implementing
+    a higher dimensional environment.
+    """
+
+    def __init__(self, constructor: Callable[[int, int], CemSSM], state_dimen: int, action_dimen: int, junk_states: int,
+                 junk_actions: int):
+        """Constructs a new instance wrapping the environment created by the given constructor.
+
+        :param constructor: partially evaluated constructor of the environment to wrap, which takes args state_dimen and
+         action_dimen
+        :param state_dimen: number of true states
+        :param action_dimen: number of true actions
+        :param junk_states: number of junk dimensions to add to state
+        :param junk_actions: number of junk dimensions to add to action
+        """
+        super().__init__(state_dimen, action_dimen)
+        total_states = state_dimen + junk_states
+        total_actions = action_dimen + junk_actions
+        self._junk_states = junk_states
+        self._junk_actions = junk_actions
+        self._ssm = constructor(state_dimen=total_states, action_dimen=total_actions)
+
+    def predict_with_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        expanded_states = self._expand(states, self.num_states, self._junk_states)
+        expanded_actions = self._expand(actions, self.num_actions, self._junk_actions)
+        expanded_means, expanded_vars, expanded_jacs = self._ssm.predict_with_jacobians(expanded_states,
+                                                                                        expanded_actions)
+        return (expanded_means[:, :self.num_states], expanded_vars[:, :self.num_states],
+                expanded_jacs[:, :self.num_states, :(self.num_states + self.num_actions)])
+
+    def predict_without_jacobians(self, states: Tensor, actions: Tensor) -> Tuple[Tensor, Tensor]:
+        expanded_states = self._expand(states, self.num_states, self._junk_states)
+        expanded_actions = self._expand(actions, self.num_actions, self._junk_actions)
+        expanded_means, expanded_vars = self._ssm.predict_without_jacobians(expanded_states, expanded_actions)
+        return expanded_means[:, :self.num_states], expanded_vars[:, :self.num_states]
+
+    def predict_raw(self, z: Tensor) -> Tuple[Tensor, Tensor]:
+        expanded_z = self._expand(z, self.num_states + self.num_actions, self._junk_states + self._junk_actions)
+        expanded_means, expanded_vars = self._ssm.predict_raw(expanded_z)
+        return expanded_means[:, :self.num_states], expanded_vars[:, :self.num_states]
+
+    def update_model(self, train_x: Tensor, train_y: Tensor, opt_hyp=False, replace_old=False) -> None:
+        super().update_model(train_x, train_y, opt_hyp, replace_old)
+        expanded_train_x = self._expand(train_x, self.num_states + self.num_actions,
+                                        self._junk_states + self._junk_actions)
+        expanded_train_y = self._expand(train_y, self.num_states, self._junk_states)
+        self._ssm.update_model(expanded_train_x, expanded_train_y, opt_hyp, replace_old)
+
+    @staticmethod
+    def _expand(x: Tensor, real_dimen: int, junk_dimen: int) -> Tensor:
+        N = x.size(0)
+        assert_shape(x, (N, real_dimen))
+
+        expanded = torch.empty((N, real_dimen + junk_dimen), device=x.device, dtype=x.dtype)
+        expanded[:, :real_dimen] = x
+
+        random = torch.zeros((N, junk_dimen), device=x.device, dtype=x.dtype)
+        random = random
+        expanded[:, real_dimen:] = random
+
+        return expanded
+
+    def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
+        pass
+
+    def _train_model(self, x_train: Tensor, y_train: Tensor) -> None:
+        pass
+
+    def collect_metrics(self) -> Dict[str, float]:
+        return self._ssm.collect_metrics()

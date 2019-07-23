@@ -4,6 +4,7 @@ Created on Tue Nov 21 09:44:58 2017
 
 @author: tkoller
 """
+import functools
 import warnings
 from importlib import import_module
 from os.path import abspath, exists, split
@@ -20,7 +21,7 @@ from .safempc_cem import CemSafeMPC
 from .safempc_simple import SimpleSafeMPC
 from .ssm_cem.gal_concrete_dropout import GalConcreteDropoutSSM
 from .ssm_cem.gp_ssm_cem import GpCemSSM
-from .ssm_cem.ssm_cem import CemSSM
+from .ssm_cem.ssm_cem import CemSSM, JunkDimensionsSSM
 from .ssm_cem.dropout_ssm_cem import McDropoutSSM
 from .utils import dlqr, unavailable
 
@@ -33,13 +34,19 @@ except:
 
 def _create_cem_ssm(conf: DefaultConfig, env: Environment) -> CemSSM:
     if conf.cem_ssm == 'exact_gp':
-        return GpCemSSM(conf, env.n_s, env.n_u)
+        ssm_constructor =  functools.partial(GpCemSSM, conf=conf)
     elif conf.cem_ssm == 'mc_dropout':
-        return McDropoutSSM(conf, env.n_s, env.n_u)
+        ssm_constructor =  functools.partial(McDropoutSSM, conf=conf)
     elif conf.cem_ssm == 'mc_dropout_gal':
-        return GalConcreteDropoutSSM(conf, env.n_s, env.n_u)
+        ssm_constructor =  functools.partial(GalConcreteDropoutSSM, conf=conf)
     else:
         raise ValueError(f'Unknown value for cem_ssm, {conf.cem_ssm}')
+
+    # If we want to add junk dimensions then we need to wrap the ssm.
+    if conf.junk_state_dimen > 0 or conf.junk_action_dimen > 0:
+        return JunkDimensionsSSM(ssm_constructor, env.n_s, env.n_u, conf.junk_state_dimen, conf.junk_action_dimen)
+    else:
+        return ssm_constructor(state_dimen=env.n_s, action_dimen=env.n_u)
 
 
 @unavailable(not _has_ssm_gpy, "ssm_gpy")

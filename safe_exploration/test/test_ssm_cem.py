@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from ..ssm_cem.dropout_ssm_cem import McDropoutSSM
+from ..ssm_cem.ssm_cem import JunkDimensionsSSM
 
 
 class TestMcDropoutSSM:
@@ -110,3 +111,54 @@ class TestMcDropoutSSM:
         random.seed(1)
         np.random.seed(1)
         torch.manual_seed(1)
+
+
+class TestJunkDimensionsSSM:
+    def test__predict_with_jacobians__expands_dimensions(self, mocker):
+        inner_ssm = mocker.Mock()
+        inner_ssm.predict_with_jacobians.return_value = (
+            torch.empty((3, 7)), torch.empty((3, 7)), torch.empty((3, 7, 28)))
+        constructor = mocker.Mock()
+        constructor.return_value = inner_ssm
+
+        ssm = JunkDimensionsSSM(constructor, state_dimen=2, action_dimen=1, junk_states=5, junk_actions=20)
+
+        means, vars, jacs = ssm.predict_with_jacobians(torch.empty((3, 2)), torch.empty((3, 1)))
+
+        assert means.size() == (3, 2)
+        assert vars.size() == (3, 2)
+        assert jacs.size() == (3, 2, 3)
+        (call_states, call_actions), _ = inner_ssm.predict_with_jacobians.call_args
+        assert call_states.size() == (3, 7)
+        assert call_actions.size() == (3, 21)
+
+    def test__predict_without_jacobians__expands_dimensions(self, mocker):
+        inner_ssm = mocker.Mock()
+        inner_ssm.predict_without_jacobians.return_value = (torch.empty((3, 7)), torch.empty((3, 7)))
+        constructor = mocker.Mock()
+        constructor.return_value = inner_ssm
+
+        ssm = JunkDimensionsSSM(constructor, state_dimen=2, action_dimen=1, junk_states=5, junk_actions=20)
+
+        means, vars = ssm.predict_without_jacobians(torch.empty((3, 2)), torch.empty((3, 1)))
+
+        assert means.size() == (3, 2)
+        assert vars.size() == (3, 2)
+        (call_states, call_actions), _ = inner_ssm.predict_without_jacobians.call_args
+        assert call_states.size() == (3, 7)
+        assert call_actions.size() == (3, 21)
+
+    def test__predict_raw__expands_dimensions(self, mocker):
+        inner_ssm = mocker.Mock()
+        inner_ssm.predict_raw.return_value = (torch.empty((3, 7)), torch.empty((3, 7)))
+        constructor = mocker.Mock()
+        constructor.return_value = inner_ssm
+
+        ssm = JunkDimensionsSSM(constructor, state_dimen=2, action_dimen=1, junk_states=5, junk_actions=20)
+
+        means, vars = ssm.predict_raw(torch.empty((3, 3)))
+
+        assert means.size() == (3, 2)
+        assert vars.size() == (3, 2)
+        (call_z,), _ = inner_ssm.predict_raw.call_args
+        assert call_z.size() == (3, 28)

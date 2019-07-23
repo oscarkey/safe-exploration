@@ -35,6 +35,8 @@ def base_config():
     # Number of dimensions that the pendulum moves in, n>=2. If n=2 then InvertedPendulum environment will be used,
     # otherwise NDPendulum. Currently only n=2 works properly.
     pendulum_dimensions = 2
+    junk_state_dimen = 0
+    junk_action_dimen = 0
 
     # -- Lunar Lander environment
     # The width of the environment, in metres.
