@@ -121,7 +121,7 @@ class LunarLander(Environment):
 
         return h_mat_safe, self.h_safe, self.h_mat_obs, self.h_obs
 
-    def _check_state(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
+    def _check_current_state(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
         if state is None:
             state = self.current_state
 

@@ -11,6 +11,7 @@ from abc import abstractmethod
 from typing import Tuple, Optional
 
 import numpy as np
+import torch
 from casadi import reshape as cas_reshape
 from numpy import ndarray
 from numpy.matlib import repmat
@@ -160,7 +161,7 @@ class Environment(metaclass=abc.ABCMeta):
         pass
 
     @abstractmethod
-    def _check_state(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
+    def _check_current_state(self, state: Optional[ndarray] = None) -> Tuple[bool, int]:
         """Check the given or current state to see if the episode should end e.g. because of a constraint violation.
 
         :param state: Some (unnormalized) state or the current state, if None then the current state is used
@@ -341,7 +342,7 @@ class Environment(metaclass=abc.ABCMeta):
         self.current_state = self.odesolver.integrate(self.odesolver.t + self.dt)
 
         self.iteration += 1
-        done, result_code = self._check_state()
+        done, result_code = self._check_current_state()
 
         new_state_noise_obs = self.state_to_obs(np.copy(self.current_state), add_noise=True)
         new_state_obs = self.state_to_obs(np.copy(self.current_state))
@@ -423,6 +424,11 @@ class InvertedPendulum(Environment):
         self.target = target
         self.target_ilqr = init_m
 
+        self._objective_thetas = [-0.1, -0.25, 0.05, -0.2, 0.28, 0.2]
+        self._current_objective_index = 0
+        self._objective_tolerance = 0.05
+        self._achieved_objectives = []
+
         warnings.warn("Normalization turned off for now. Need to look into it")
         max_deg = 30
         if norm_x is None:
@@ -447,9 +453,14 @@ class InvertedPendulum(Environment):
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
 
-    def _check_state(self, state=None):
-        if state is None:
-            state = self.current_state
+    def _check_current_state(self):
+        state = self.current_state
+
+        if np.abs(state[1] - self._current_objective) <= self._objective_tolerance:
+            self._current_objective_index += 1
+            self._achieved_objectives.append(self._current_objective)
+            print(f'Reached objective, advancing to next one '
+                  f'({self._current_objective_index}: {self._current_objective})')
 
         # Check if the state lies inside the safe polytope i.e. A * x <= b.
         res = np.matmul(self.h_mat_safe, state) - self.h_safe.T
@@ -457,6 +468,15 @@ class InvertedPendulum(Environment):
         # We don't use the status code.
         status_code = 0
         return not satisfied, status_code
+
+    def objective_cost_function(self, ps: Tensor) -> Optional[Tensor]:
+        objective = torch.full_like(ps[:, 1], self._current_objective)
+        return torch.abs(objective - ps[:, 1])
+
+    @property
+    def _current_objective(self) -> float:
+        index = self._current_objective_index % len(self._objective_thetas)
+        return self._objective_thetas[index]
 
     def _dynamics(self, t, state, action):
         """ Evaluate the system dynamics
@@ -857,7 +877,7 @@ class CartPole(Environment):
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
 
-    def _check_state(self, state=None) -> Tuple[bool, int]:
+    def _check_current_state(self, state=None) -> Tuple[bool, int]:
         """Checks the constraints.
 
         For the cartpole environment the error codes are:
@@ -911,22 +931,6 @@ class CartPole(Environment):
 
         pole_color = (0, 255, 255)
         pygame.draw.line(screen, pole_color, img_coords_pole_0, img_coords_pole_1, 4)
-
-    def _get_step_cost(self, state, u):
-        """Return the cost of the current step as a function of distance to target."""
-        idx_angle_velocity = 3
-
-        pos = self._single_pend_top_pos(state)
-        state_target_trafo = np.append(pos, [state[idx_angle_velocity]])
-
-        diff_pos_vec = (self.target - state_target_trafo)[:, None]
-        cost_xy = np.dot(diff_pos_vec.T, np.dot(np.diag(self.D_cost), diff_pos_vec))
-        u_eval = u.reshape(-1, 1)
-        cost_u = np.dot(u.T, np.dot(np.diag(self.R_cost), u))
-        cost = cost_xy + cost_u
-        warnings.warn("Accumulated system cost not implement! Returning 0")
-
-        return cost
 
     def plot_ellipsoid_trajectory(self, p, q, vis_safety_bounds=True):
         """Visualize the reachability ellipsoid"""

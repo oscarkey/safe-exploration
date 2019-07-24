@@ -100,7 +100,7 @@ class NDPendulum(Environment):
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
 
-    def _check_state(self, state=None):
+    def _check_current_state(self, state=None):
         if state is None:
             state = self.current_state
 
