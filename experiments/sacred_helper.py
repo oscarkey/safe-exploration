@@ -32,6 +32,7 @@ def base_config():
     environment = 'pendulum'
     render = True
     visualize = True
+    plot_episode_trajectory = False
     # Number of dimensions that the pendulum moves in, n>=2. If n=2 then InvertedPendulum environment will be used,
     # otherwise NDPendulum. Currently only n=2 works properly.
     pendulum_dimensions = 2

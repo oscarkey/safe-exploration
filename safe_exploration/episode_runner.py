@@ -57,11 +57,12 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             print(f'Starting episode {i+1}/{conf.n_ep} in scenario {k+1}/{conf.n_scenarios}')
 
             xx, yy, cc, exit_codes_i, safety_failure = do_rollout(
-                env, conf.n_steps, episode_id=i, metrics=metrics,
+                env, conf.n_steps, scenario_id=k, episode_id=i, metrics=metrics,
                 cost=conf.rl_immediate_cost,
                 solver=solver,
                 plot_ellipsoids=conf.plot_ellipsoids,
                 plot_trajectory=conf.plot_trajectory,
+                plot_episode_trajectory=conf.plot_episode_trajectory,
                 render=conf.render,
                 obs_frequency=conf.obs_frequency)
 
@@ -121,11 +122,12 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
 
 
 @unavailable(not _has_matplotlib, "matplotlib", conditionals=["plot_ellipsoids,plot_trajectory"])
-def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, solver=None, relative_dynamics=False,
+def do_rollout(env, n_steps, scenario_id: int, episode_id: int, metrics: SacredAggregatedMetrics, solver=None,
+               relative_dynamics=False,
                cost=None,
                plot_trajectory=True,
                verbosity=1, sampling_verification=False,
-               plot_ellipsoids=False, render=False,
+               plot_ellipsoids=False, plot_episode_trajectory=False, render=False,
                check_system_safety=False, savedir_trajectory_plots=None, mean=None,
                std=None, obs_frequency=1):
     """ Perform a rollout on the system
@@ -281,6 +283,17 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
     metrics.log_non_scalars(env.collect_metrics(), episode_id)
     if solver is not None:
         metrics.log_non_scalars(solver.collect_metrics(), episode_id)
+
+    if plot_episode_trajectory:
+        axes = plt.axes()
+        plotted = env.plot_current_trajectory(axes)
+        if plotted:
+            save_fig = True
+            if save_fig:
+                metrics.save_figure(plt.gcf(), f'trajectories_{scenario_id}_{episode_id}')
+                plt.clf()
+            else:
+                plt.show()
 
     if n_successful == 0:
         warnings.warn("Agent survived 0 steps, cannot collect data")

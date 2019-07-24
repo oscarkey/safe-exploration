@@ -13,8 +13,10 @@ from typing import Tuple, Optional, Dict, Any
 import numpy as np
 import torch
 from casadi import reshape as cas_reshape
+from matplotlib.axes import Axes
 from numpy import ndarray
 from numpy.matlib import repmat
+from polytope import Polytope
 from scipy.integrate import ode, odeint
 from scipy.signal import cont2discrete
 from scipy.spatial import ConvexHull
@@ -85,12 +87,14 @@ class Environment(metaclass=abc.ABCMeta):
         self._render_initialized = False
         self.delay = 20.0  # fps
         self.p_origin = p_origin if p_origin is not None else np.zeros((n_s,))
+        self.current_episode_trajectory = []
 
     def reset(self, mean=None, std=None):
         """ Reset the system and sample a new start state."""
         self.is_initialized = True
         self.iteration = 0
         self.current_state = self._sample_start_state(mean=mean, std=std)
+        self.current_episode_trajectory = [self.current_state]
 
         self._reset()
 
@@ -154,6 +158,13 @@ class Environment(metaclass=abc.ABCMeta):
     def plot_ellipsoid_trajectory(self, p, q, vis_safety_bounds=True):
         """ Visualize the reachability ellipsoid"""
         pass
+
+    def plot_current_trajectory(self, axes: Axes) -> bool:
+        """Plots the current episode trajectory to the given axes, if implemented by the subclass.
+
+        :returns: True if something was plotted, otherwise False
+        """
+        return False
 
     @abstractmethod
     def _jac_dynamics(self):
@@ -344,6 +355,7 @@ class Environment(metaclass=abc.ABCMeta):
         self.odesolver.set_f_params(action)
         old_state = np.copy(self.current_state)
         self.current_state = self.odesolver.integrate(self.odesolver.t + self.dt)
+        self.current_episode_trajectory.append(self.current_state)
 
         self.iteration += 1
         done, result_code = self._check_current_state()
@@ -430,7 +442,8 @@ class InvertedPendulum(Environment):
 
         self._objective_thetas = [-0.1, -0.25, 0.05, -0.2, 0.28, 0.2]
         self._current_objective_index = 0
-        self._objective_tolerance = 0.05
+        self._objective_tolerance = 0.01
+        self._current_achieved_objective_states = []
         self._achieved_objectives = []
 
         warnings.warn("Normalization turned off for now. Need to look into it")
@@ -456,6 +469,7 @@ class InvertedPendulum(Environment):
 
     def _reset(self):
         self.odesolver.set_initial_value(self.current_state, 0.0)
+        self._current_achieved_objective_states = []
 
     def _check_current_state(self):
         state = self.current_state
@@ -463,6 +477,7 @@ class InvertedPendulum(Environment):
         if np.abs(state[1] - self._current_objective) <= self._objective_tolerance:
             self._current_objective_index += 1
             self._achieved_objectives.append(self._current_objective)
+            self._current_achieved_objective_states.append(state)
             print(f'Reached objective, advancing to next one '
                   f'({self._current_objective_index}: {self._current_objective})')
 
@@ -557,6 +572,25 @@ class InvertedPendulum(Environment):
         state_norm = state_noise * self.inv_norm[0]
 
         return state_norm
+
+    def plot_current_trajectory(self, axes: Axes) -> bool:
+        constraints = Polytope(self.h_mat_safe, self.h_safe)
+        constraints.plot(axes, color='lightgrey')
+
+        thetads = [x[0] for x in self.current_episode_trajectory]
+        thetas = [x[1] for x in self.current_episode_trajectory]
+        axes.plot(thetads, thetas)
+        axes.scatter(thetads[0], thetas[0], label='start')
+
+        objective_thetads = [x[0] for x in self._current_achieved_objective_states]
+        objective_thetas = [x[1] for x in self._current_achieved_objective_states]
+        axes.scatter(objective_thetads, objective_thetas, label='objectives')
+
+        axes.legend()
+        axes.set_xlabel('angular velocity (rad/s)')
+        axes.set_ylabel('angle to vertical (rad)')
+
+        return True
 
     @unavailable(not _has_matplotlib, "matplotlib")
     def plot_state(self, ax, x=None, color="b", normalize=True):
