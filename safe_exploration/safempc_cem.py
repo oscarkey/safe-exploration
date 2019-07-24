@@ -171,7 +171,8 @@ class CemSafeMPC(SafeMPC):
         self._get_random_action = env.random_action
         self._pq_flattener = PQFlattener(env.n_s)
         self._ssm = ssm
-        self._plot = conf.plot_cem_optimisation
+        self._plot_optimisation = conf.plot_cem_optimisation
+        self._plot_terminal_states = conf.plot_cem_terminal_states
         self._mpc_time_horizon = conf.mpc_time_horizon
         self._beta_safety = beta_safety
         self._safe_policy = safe_policy
@@ -239,7 +240,7 @@ class CemSafeMPC(SafeMPC):
             mpc_actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
             mpc_actions = mpc_actions.detach().cpu().numpy() if mpc_actions is not None else mpc_actions
 
-            if self._plot:
+            if self._plot_optimisation or self._plot_terminal_states:
                 self._plot_optimisation_process(rollouts)
         else:
             print('No training data')
@@ -277,6 +278,10 @@ class CemSafeMPC(SafeMPC):
         tc = self._mpc._rollout_function._constraints[1]
         _plot_constraints_in_2d(tc._polytope_a.detach().cpu().numpy(), tc._polytope_b.detach().cpu().numpy(), None,
                                 None)
+
+        if self._plot_terminal_states:
+            rollouts = rollouts[-1:]
+
         for i in range(len(rollouts)):
             ps, qs = self._pq_flattener.unflatten(rollouts[i].trajectories[:, -1, :])
             for j in range(ps.size(0)):
