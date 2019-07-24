@@ -8,10 +8,12 @@ from typing import Tuple, Optional
 import torch
 from torch import Tensor
 
+from .ssm_cem.gp_ssm_cem import GpCemSSM
 from .ssm_cem.ssm_cem import CemSSM
 from .utils import print_ellipsoid, assert_shape, compute_remainder_overapproximations_pytorch, batch_vector_matrix_mul
 from .utils_ellipsoid import ellipsoid_from_rectangle_pytorch, sum_two_ellipsoids_pytorch
 
+_noise_params = []
 
 def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tensor, l_sigma: Tensor,
                          q_shape: Optional[Tensor] = None, k_fb: Tensor = None, c_safety: float = 1., verbose: int = 1,
@@ -128,9 +130,15 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0) + ub_sigma)
 
         b_sigma_eps, fix_success = _fix_zeros_nans(b_sigma_eps)
+
+        # Temporary logging of gp likelihood noise, to check if it's collapsing to zero.
+        if isinstance(ssm, GpCemSSM):
+            _noise_params.append(next(ssm._likelihood.parameters()).data)
+
         if not fix_success:
+            torch.save(_noise_params, 'gp_lik_noise.pt')
             raise ValueError(f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
-                             f'q_shape={q_shape}, jac_mu={jac_mu}')
+                             f'q_shape={q_shape}, jac_mu={jac_mu} lik_noise={next(ssm._likelihood.parameters()).data}')
 
         Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps.squeeze(1))
         p_lagrange_sigm = torch.zeros((N, n_s), device=Q_lagrange_sigm.device)
