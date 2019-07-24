@@ -307,13 +307,17 @@ class CemSafeMPC(SafeMPC):
                                                      k_fb=self._lqr.get_control_matrix_pytorch(), a=a, b=b, verbose=0,
                                                      c_safety=self._beta_safety)
 
+        return self._pq_flattener.flatten(p_next, q_next), self._compute_objective_cost(p_next, sigma)
+
+    def _compute_objective_cost(self, p_next: Tensor, sigma: Tensor) -> Tensor:
         # If the environment has a cost function then use that, otherwise use a default.
         objective_cost = self._env_objective_cost_func(p_next)
+
         if objective_cost is None:
             # Try to maximise the variance in the predictions so we explore as must as possible.
             objective_cost = - torch.sum((sigma), dim=1)
 
-        return self._pq_flattener.flatten(p_next, q_next), objective_cost
+        return objective_cost
 
     def update_model(self, x: ndarray, y: ndarray, opt_hyp=False, replace_old=True, reinitialize_solver=True) -> None:
         # The SSM learns the error between the prior model and the true y value, hence we remove the prior model.
