@@ -278,6 +278,7 @@ def do_rollout(env, n_steps, episode_id: int, metrics: SacredAggregatedMetrics, 
     metrics.log_scalar('safe_controller_fallback_count', mpc_results.count(MpcResult.SAFE_CONTROLLER), episode_id)
     metrics.log_scalar('mean_time_in_solver', float(total_time_in_solver) / n_successful, episode_id)
     metrics.log_scalar('env_result', env_result, episode_id)
+    metrics.log_non_scalars(env.collect_metrics(), episode_id)
     if solver is not None:
         metrics.log_non_scalars(solver.collect_metrics(), episode_id)
 

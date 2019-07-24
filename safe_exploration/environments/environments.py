@@ -8,7 +8,7 @@ import abc
 import math
 import warnings
 from abc import abstractmethod
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any
 
 import numpy as np
 import torch
@@ -209,6 +209,10 @@ class Environment(metaclass=abc.ABCMeta):
         pygame.display.flip()
         pygame.event.get()
         self._delay_render()
+
+    def collect_metrics(self) -> Dict[str, Any]:
+        """Returns metrics from the current episode, if the subclass implements it."""
+        return {}
 
     def _init_render(self):
         if self._render_initialized:
