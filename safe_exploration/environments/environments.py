@@ -385,7 +385,7 @@ class InvertedPendulum(Environment):
 
     def __init__(self, name="InvertedPendulum", l=.5, m=.15, g=9.82, b=0., dt=.05, init_m=0., init_std=.01,
                  plant_noise=np.array([0.01, 0.01]) ** 2, u_min=np.array([-1.]), u_max=np.array([1.]),
-                 target=np.array([0.0, 0.0]), verbosity=1, norm_x=None, norm_u=None):
+                 target=np.array([0.0, 0.0]), verbosity=1, norm_x=None, norm_u=None, simple_constraints=True):
         """
         Parameters
         ----------
@@ -434,7 +434,7 @@ class InvertedPendulum(Environment):
         self.norm = [norm_x, norm_u]
         self.inv_norm = [arr ** -1 for arr in self.norm]
 
-        self._init_safety_constraints()
+        self._init_safety_constraints(simple_constraints)
 
     @property
     def l_mu(self) -> ndarray:
@@ -673,7 +673,7 @@ class InvertedPendulum(Environment):
         c = 0.5
         return c * (np.random.rand(self.n_u) * (self.u_max_norm - self.u_min_norm) + self.u_min_norm)
 
-    def _init_safety_constraints(self):
+    def _init_safety_constraints(self, simple_constraints: bool):
         """ Get state and safety constraints
 
         We define the state constraints as:
@@ -698,10 +698,16 @@ class InvertedPendulum(Environment):
         # 2*max_dtheta + c*max_rad <= 1
         # => c = (1+2*max_dtheta) / max_rad
         # for max_deg = 30, max_dtheta = 1.5 => c \approx 7.62
-        corners_polygon = np.array([[-max_dtheta, max_rad],  #
-                                    [max_dtheta_theta_0, 0.0],  #
-                                    [max_dtheta, -max_rad],  #
-                                    [-max_dtheta_theta_0, 0.0]])
+        if simple_constraints:
+            corners_polygon = np.array([[-max_dtheta_theta_0, max_rad],  #
+                                        [max_dtheta_theta_0, max_rad],  #
+                                        [max_dtheta_theta_0, -max_rad],  #
+                                        [-max_dtheta_theta_0, -max_rad]])
+        else:
+            corners_polygon = np.array([[-max_dtheta, max_rad],  #
+                                        [max_dtheta_theta_0, 0.0],  #
+                                        [max_dtheta, -max_rad],  #
+                                        [-max_dtheta_theta_0, 0.0]])
 
         ch = ConvexHull(corners_polygon)
 
