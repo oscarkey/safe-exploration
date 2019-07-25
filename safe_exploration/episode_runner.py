@@ -88,6 +88,8 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             exit_codes_k += [exit_codes_i]
             safety_failure_k += [safety_failure]
 
+            metrics.log_non_scalar('states_actions', xx.tolist(), i)
+
             if have_initial_samples:
                 states_excl_initial_samples = np.vstack(X_list[1:])[:, :env.n_s]
             else:
