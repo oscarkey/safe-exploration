@@ -27,6 +27,10 @@ def base_config():
     # Device to force Tensors to. None, or a valid pytorch device (e.g. cpu, cuda:0)
     device = None
 
+    # When True, plots created by plot_episode_trajectory, plot_states will be saved to sacred. Otherwise they will be
+    # displayed using plt.show().
+    save_plots_to_sacred = True
+
     # -- Environment
     # The environment to use. One of 'pendulum', 'lander' or None (to use the scenario file above).
     environment = 'pendulum'
@@ -64,6 +68,8 @@ def base_config():
     init_mode = 'safe_samples'
     # Whether to plot the locations of the initial samples given to the ssm.
     plot_initial_samples = False
+    # When True, at the end of each episode will plot all the states samples so far.
+    plot_states = False
 
     # -- CemSafeMPC
     mpc_time_horizon = 2

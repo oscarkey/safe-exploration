@@ -45,13 +45,11 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             y = None
         else:
             X, y = generate_initial_samples(env, conf, conf.relative_dynamics, solver,
-                                        safe_policy)
+                                            safe_policy)
             if conf.plot_initial_samples:
-                axes = plt.axes()
-                hmat_safe, h_safe, _, _ = env.get_safety_constraints()
-                Polytope(hmat_safe, h_safe).plot(axes, color='lightgrey')
-                axes.scatter(X[:, 0], X[:, 1])
-                plt.show()
+                plotted = env.plot_states(axes, X[:, :2])
+                if plotted:
+                    plt.show()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)
 
         X_list = [X]
@@ -69,6 +67,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
                 solver=solver,
                 plot_ellipsoids=conf.plot_ellipsoids,
                 plot_trajectory=conf.plot_trajectory,
+                save_plots_to_sacred=conf.save_plots_to_sacred,
                 plot_episode_trajectory=conf.plot_episode_trajectory,
                 render=conf.render,
                 obs_frequency=conf.obs_frequency)
@@ -85,6 +84,16 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             cc_k += [cc]
             exit_codes_k += [exit_codes_i]
             safety_failure_k += [safety_failure]
+
+            if conf.plot_states:
+                axes = plt.axes()
+                plotted = env.plot_states(axes, X[:, :2])
+                if plotted:
+                    if conf.save_plots_to_sacred:
+                        metrics.save_figure(plt.gcf(), f'training_points_{k}_{i}')
+                        plt.clf()
+                    else:
+                        plt.show()
 
             training_start_time = time.time()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True)
@@ -132,7 +141,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
 def do_rollout(env, n_steps, scenario_id: int, episode_id: int, metrics: SacredAggregatedMetrics, solver=None,
                relative_dynamics=False,
                cost=None,
-               plot_trajectory=True,
+               plot_trajectory=True, save_plots_to_sacred=False,
                verbosity=1, sampling_verification=False,
                plot_ellipsoids=False, plot_episode_trajectory=False, render=False,
                check_system_safety=False, savedir_trajectory_plots=None, mean=None,
@@ -295,8 +304,7 @@ def do_rollout(env, n_steps, scenario_id: int, episode_id: int, metrics: SacredA
         axes = plt.axes()
         plotted = env.plot_current_trajectory(axes)
         if plotted:
-            save_fig = True
-            if save_fig:
+            if save_plots_to_sacred:
                 metrics.save_figure(plt.gcf(), f'trajectories_{scenario_id}_{episode_id}')
                 plt.clf()
             else:

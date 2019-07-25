@@ -22,7 +22,7 @@ from scipy.signal import cont2discrete
 from scipy.spatial import ConvexHull
 from torch import Tensor
 
-from ..utils import unavailable
+from ..utils import unavailable, assert_shape
 from ..visualization.utils_visualization import plot_ellipsoid_2D
 
 try:
@@ -161,6 +161,13 @@ class Environment(metaclass=abc.ABCMeta):
 
     def plot_current_trajectory(self, axes: Axes) -> bool:
         """Plots the current episode trajectory to the given axes, if implemented by the subclass.
+
+        :returns: True if something was plotted, otherwise False
+        """
+        return False
+
+    def plot_states(self, axes: Axes, states: ndarray) -> bool:
+        """Plots the given set of states on the constraints to the given axes, if implemented by the subclass.
 
         :returns: True if something was plotted, otherwise False
         """
@@ -587,6 +594,22 @@ class InvertedPendulum(Environment):
         axes.scatter(objective_thetads, objective_thetas, label='objectives')
 
         axes.legend()
+        axes.set_xlabel('angular velocity (rad/s)')
+        axes.set_ylabel('angle to vertical (rad)')
+
+        return True
+
+    def plot_states(self, axes: Axes, states: ndarray) -> bool:
+        N = states.shape[0]
+        assert_shape(states, (N, 2))
+
+        constraints = Polytope(self.h_mat_safe, self.h_safe)
+        constraints.plot(axes, color='lightgrey')
+
+        thetads = [x[0] for x in states]
+        thetas = [x[1] for x in states]
+        axes.scatter(thetads, thetas, color='C2')
+
         axes.set_xlabel('angular velocity (rad/s)')
         axes.set_ylabel('angle to vertical (rad)')
 
