@@ -1,11 +1,15 @@
+import os
 from collections import defaultdict
 from typing import Dict, List, Any
+
+from matplotlib.figure import Figure
+from sacred.run import Run
 
 
 class SacredAggregatedMetrics:
     """Collects metrics over a series of experiments. Logs the complete metrics, and the mean to Sacred."""
 
-    def __init__(self, _run):
+    def __init__(self, _run: Run):
         self._run = _run
         # Values are a [key][counter] = list of values
         self._aggregated_metrics = defaultdict(lambda: defaultdict(lambda: []))
@@ -73,3 +77,12 @@ class SacredAggregatedMetrics:
             return {k: SacredAggregatedMetrics._default_dict_to_dict(v) for k, v in d.items()}
         else:
             return d
+
+    def save_figure(self, figure: Figure, name: str):
+        dir_name = 'safe_exploration_results/figures'
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+        file_name = f'{self._run._id}_{name}.png'
+        file_path = os.path.join(dir_name, file_name)
+        figure.savefig(file_path)
+        self._run.add_artifact(file_path)
