@@ -47,7 +47,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             X, y = generate_initial_samples(env, conf, conf.relative_dynamics, solver,
                                             safe_policy)
             if conf.plot_initial_samples:
-                plotted = env.plot_states(axes, X[:, :2])
+                plotted = env.plot_states(axes, X[:, :env.n_s])
                 if plotted:
                     plt.show()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)
@@ -87,7 +87,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
 
             if conf.plot_states:
                 axes = plt.axes()
-                plotted = env.plot_states(axes, X[:, :2])
+                plotted = env.plot_states(axes, X[:, :env.n_s])
                 if plotted:
                     if conf.save_plots_to_sacred:
                         metrics.save_figure(plt.gcf(), f'training_points_{k}_{i}')
