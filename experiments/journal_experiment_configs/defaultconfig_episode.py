@@ -86,8 +86,6 @@ class DefaultConfigEpisode(DefaultConfig):
     cost_func = None
 
     # episode settings
-
-    n_safe_samples = 25
     c_max_probing_init = 4
     c_max_probing_next_state = 2
 

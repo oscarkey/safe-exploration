@@ -68,6 +68,10 @@ def base_config():
     # Whether to initialise the ssm with no data, random data or safe data.
     # One of None, 'random_rollouts' or 'safe_samples'.
     init_mode = 'safe_samples'
+    # How many initial samples to give to the ssm.
+    n_safe_samples = 10
+    # Standard deviation of the initial samples.
+    init_sample_std = 0.01
     # Whether to plot the locations of the initial samples given to the ssm.
     plot_initial_samples = False
     # When True, at the end of each episode will plot all the states samples so far.
