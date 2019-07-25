@@ -41,7 +41,7 @@ def base_config():
     # otherwise NDPendulum. Currently only n=2 works properly.
     pendulum_dimensions = 2
     # When True, constraints will specify constant velocity requirements, instead of different at different angles.
-    pendulum_simple_constraints = True
+    pendulum_simple_constraints = False
     # Number of random dimensions to add to the state before passing to the SSM.
     junk_state_dimen = 0
     # Number of random dimensions to add to the action before passing to the SSM.
