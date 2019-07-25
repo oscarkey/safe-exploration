@@ -142,7 +142,8 @@ def create_env(conf, env_name, env_options_dict=None):
 
     if env_name == "InvertedPendulum":
         if not hasattr(conf, 'pendulum_dimensions') or conf.pendulum_dimensions == 2:
-            return InvertedPendulum(**env_options_dict, simple_constraints=conf.pendulum_simple_constraints)
+            return InvertedPendulum(**env_options_dict, simple_constraints=conf.pendulum_simple_constraints,
+                                    enable_objectives=conf.enable_objectives)
         elif conf.pendulum_dimensions > 2:
             return NDPendulum(**env_options_dict)
         else:

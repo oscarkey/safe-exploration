@@ -46,6 +46,8 @@ def base_config():
     junk_state_dimen = 0
     # Number of random dimensions to add to the action before passing to the SSM.
     junk_action_dimen = 0
+    # Whether to enable the environment objectives, otherwise the default objective of maximum variance is used.
+    enable_objectives = False
 
     # -- Lunar Lander environment
     # The width of the environment, in metres.

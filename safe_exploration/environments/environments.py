@@ -409,7 +409,8 @@ class InvertedPendulum(Environment):
 
     def __init__(self, name="InvertedPendulum", l=.5, m=.15, g=9.82, b=0., dt=.05, init_m=0., init_std=.01,
                  plant_noise=np.array([0.01, 0.01]) ** 2, u_min=np.array([-1.]), u_max=np.array([1.]),
-                 target=np.array([0.0, 0.0]), verbosity=1, norm_x=None, norm_u=None, simple_constraints=True):
+                 target=np.array([0.0, 0.0]), verbosity=1, norm_x=None, norm_u=None, simple_constraints=True,
+                 enable_objectives=False):
         """
         Parameters
         ----------
@@ -447,6 +448,7 @@ class InvertedPendulum(Environment):
         self.target = target
         self.target_ilqr = init_m
 
+        self._enable_objectives = enable_objectives
         self._objective_thetas = [-0.1, -0.25, 0.05, -0.2, 0.28, 0.2]
         self._current_objective_index = 0
         self._objective_tolerance = 0.01
@@ -496,6 +498,9 @@ class InvertedPendulum(Environment):
         return not satisfied, status_code
 
     def objective_cost_function(self, ps: Tensor) -> Optional[Tensor]:
+        if not self._enable_objectives:
+            return None
+
         objective = torch.full_like(ps[:, 1], self._current_objective)
         return torch.abs(objective - ps[:, 1])
 
@@ -589,9 +594,10 @@ class InvertedPendulum(Environment):
         axes.plot(thetads, thetas)
         axes.scatter(thetads[0], thetas[0], label='start')
 
-        objective_thetads = [x[0] for x in self._current_achieved_objective_states]
-        objective_thetas = [x[1] for x in self._current_achieved_objective_states]
-        axes.scatter(objective_thetads, objective_thetas, label='objectives')
+        if self._enable_objectives:
+            objective_thetads = [x[0] for x in self._current_achieved_objective_states]
+            objective_thetas = [x[1] for x in self._current_achieved_objective_states]
+            axes.scatter(objective_thetads, objective_thetas, label='objectives')
 
         axes.legend()
         axes.set_xlabel('angular velocity (rad/s)')
