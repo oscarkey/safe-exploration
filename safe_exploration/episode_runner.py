@@ -48,7 +48,8 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             X, y = generate_initial_samples(env, conf, conf.relative_dynamics, solver,
                                             safe_policy)
             if conf.plot_initial_samples:
-                plotted = env.plot_states(axes, X[:, :env.n_s])
+                axes = plt.axes()
+                plotted = env.plot_states(axes, [X[:, :env.n_s]], includes_initial_samples=True)
                 if plotted:
                     plt.show()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)

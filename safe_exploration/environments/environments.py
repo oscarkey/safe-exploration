@@ -614,12 +614,22 @@ class InvertedPendulum(Environment):
         constraints = Polytope(self.h_mat_safe, self.h_safe)
         constraints.plot(axes, color='lightgrey')
 
-        initial_thetads = states[0][:, 0]
-        initial_thetas = states[0][:, 1]
-        thetads = np.vstack(itertools.chain(states[1:]))[:, 0]
-        thetas = np.vstack(itertools.chain(states[1:]))[:, 1]
-        axes.scatter(initial_thetads, initial_thetas, label='initial samples')
-        axes.scatter(thetads, thetas, label='explored samples')
+        if includes_initial_samples:
+            initial_samples = states[0]
+            explored_samples = states[1:]
+        else:
+            initial_samples = None
+            explored_samples = states
+
+        if initial_samples is not None:
+            initial_thetads = initial_samples[:, 0]
+            initial_thetas = initial_samples[:, 1]
+            axes.scatter(initial_thetads, initial_thetas, label='initial samples')
+
+        if len(explored_samples) > 0:
+            thetads = np.vstack(itertools.chain(explored_samples))[:, 0]
+            thetas = np.vstack(itertools.chain(explored_samples))[:, 1]
+            axes.scatter(thetads, thetas, label='explored samples')
 
         axes.legend()
         axes.set_xlabel('angular velocity (rad/s)')
