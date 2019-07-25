@@ -22,4 +22,5 @@ class TestGalConcreteDropoutSSM:
 
         metrics = ssm.collect_metrics()
 
-        assert len(metrics.keys()) == 4
+        dropout_keys = [key for key in metrics.keys() if key.startswith('dropout_p')]
+        assert len(dropout_keys) == 4

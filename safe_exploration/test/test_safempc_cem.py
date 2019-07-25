@@ -14,6 +14,7 @@ class FakeConfig:
     cem_num_elites = 3
     cem_num_iterations = 8
     plot_cem_optimisation = False
+    plot_cem_terminal_states = False
     device = None
     use_state_constraint = False
     use_prior_model = True
