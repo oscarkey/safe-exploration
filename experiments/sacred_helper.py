@@ -56,7 +56,7 @@ def base_config():
     lander_surface_y = 2
 
     # Type of state space model to use, one of exact_gp, mc_dropout, mc_dropout_gal.
-    cem_ssm = 'mc_dropout'
+    cem_ssm = 'exact_gp'
 
     # -- Episodic
     # The number of repeats of the experiment, over which we will average the metrics.
