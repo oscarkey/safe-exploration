@@ -8,6 +8,7 @@ import time
 import warnings
 
 import numpy as np
+from polytope import Polytope
 
 from . import utils_ellipsoid
 from .safempc_cem import MpcResult
@@ -45,6 +46,12 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
         else:
             X, y = generate_initial_samples(env, conf, conf.relative_dynamics, solver,
                                         safe_policy)
+            if conf.plot_initial_samples:
+                axes = plt.axes()
+                hmat_safe, h_safe, _, _ = env.get_safety_constraints()
+                Polytope(hmat_safe, h_safe).plot(axes, color='lightgrey')
+                axes.scatter(X[:, 0], X[:, 1])
+                plt.show()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)
 
         X_list = [X]

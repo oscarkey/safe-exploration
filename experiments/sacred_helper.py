@@ -59,6 +59,11 @@ def base_config():
     n_ep = 8
     # Maximum number of steps in a single episode.
     n_steps = 50
+    # Whether to initialise the ssm with no data, random data or safe data.
+    # One of None, 'random_rollouts' or 'safe_samples'.
+    init_mode = 'safe_samples'
+    # Whether to plot the locations of the initial samples given to the ssm.
+    plot_initial_samples = False
 
     # -- CemSafeMPC
     mpc_time_horizon = 2
