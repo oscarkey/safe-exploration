@@ -8,6 +8,7 @@ import time
 import warnings
 
 import numpy as np
+from scipy.spatial.qhull import ConvexHull
 
 from . import utils_ellipsoid
 from .safempc_cem import MpcResult
@@ -42,6 +43,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
         if conf.init_mode is None:
             X = None
             y = None
+            have_initial_samples = False
         else:
             X, y = generate_initial_samples(env, conf, conf.relative_dynamics, solver,
                                             safe_policy)
@@ -50,6 +52,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
                 if plotted:
                     plt.show()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)
+            have_initial_samples = True
 
         X_list = [X]
         y_list = [y]
@@ -83,6 +86,13 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             cc_k += [cc]
             exit_codes_k += [exit_codes_i]
             safety_failure_k += [safety_failure]
+
+            if have_initial_samples:
+                states_excl_initial_samples = np.vstack(X_list[1:])[:, :env.n_s]
+            else:
+                states_excl_initial_samples = np.vstack(X_list)[:, :env.n_s]
+            metrics.log_scalar('sample_variance', states_excl_initial_samples.var(), i)
+            metrics.log_scalar('sample_volume', ConvexHull(states_excl_initial_samples).volume, i)
 
             if conf.plot_states:
                 axes = plt.axes()
