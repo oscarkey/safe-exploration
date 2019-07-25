@@ -96,7 +96,8 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
 
             if conf.plot_states:
                 axes = plt.axes()
-                plotted = env.plot_states(axes, X[:, :env.n_s])
+                states = [x[:, :env.n_s] for x in X_list]
+                plotted = env.plot_states(axes, states, have_initial_samples)
                 if plotted:
                     if conf.save_plots_to_sacred:
                         metrics.save_figure(plt.gcf(), f'training_points_{k}_{i}')

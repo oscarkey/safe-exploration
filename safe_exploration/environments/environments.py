@@ -5,10 +5,11 @@ Created on Mon Sep 25 17:16:45 2017
 @author: tkoller
 """
 import abc
+import itertools
 import math
 import warnings
 from abc import abstractmethod
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, List
 
 import numpy as np
 import torch
@@ -166,9 +167,13 @@ class Environment(metaclass=abc.ABCMeta):
         """
         return False
 
-    def plot_states(self, axes: Axes, states: ndarray) -> bool:
-        """Plots the given set of states on the constraints to the given axes, if implemented by the subclass.
+    def plot_states(self, axes: Axes, states: List[ndarray], includes_initial_samples: bool) -> bool:
+        """Plots the given list of states on the constraints.
 
+        Each element in the list is the states visited in a particular episode, where the first may be the initial
+        samples (if enabled).
+
+        :param includes_initial_samples: whether the first element of the list is the initial samples
         :returns: True if something was plotted, otherwise False
         """
         return False
@@ -605,17 +610,18 @@ class InvertedPendulum(Environment):
 
         return True
 
-    def plot_states(self, axes: Axes, states: ndarray) -> bool:
-        N = states.shape[0]
-        assert_shape(states, (N, 2))
-
+    def plot_states(self, axes: Axes, states: List[ndarray], includes_initial_samples: bool) -> bool:
         constraints = Polytope(self.h_mat_safe, self.h_safe)
         constraints.plot(axes, color='lightgrey')
 
-        thetads = [x[0] for x in states]
-        thetas = [x[1] for x in states]
-        axes.scatter(thetads, thetas, color='C2')
+        initial_thetads = states[0][:, 0]
+        initial_thetas = states[0][:, 1]
+        thetads = np.vstack(itertools.chain(states[1:]))[:, 0]
+        thetas = np.vstack(itertools.chain(states[1:]))[:, 1]
+        axes.scatter(initial_thetads, initial_thetas, label='initial samples')
+        axes.scatter(thetads, thetas, label='explored samples')
 
+        axes.legend()
         axes.set_xlabel('angular velocity (rad/s)')
         axes.set_ylabel('angle to vertical (rad)')
 
