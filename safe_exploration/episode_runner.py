@@ -8,7 +8,6 @@ import time
 import warnings
 
 import numpy as np
-from polytope import Polytope
 
 from . import utils_ellipsoid
 from .safempc_cem import MpcResult
@@ -139,7 +138,6 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
 
 @unavailable(not _has_matplotlib, "matplotlib", conditionals=["plot_ellipsoids,plot_trajectory"])
 def do_rollout(env, n_steps, scenario_id: int, episode_id: int, metrics: SacredAggregatedMetrics, solver=None,
-               relative_dynamics=False,
                cost=None,
                plot_trajectory=True, save_plots_to_sacred=False,
                verbosity=1, sampling_verification=False,
@@ -277,11 +275,7 @@ def do_rollout(env, n_steps, scenario_id: int, episode_id: int, metrics: SacredA
 
         state_action = np.hstack((state, action))
         xx = np.vstack((xx, state_action))
-        if relative_dynamics:
-            yy = np.vstack((xx, observation - state))
-
-        else:
-            yy = np.vstack((yy, observation))
+        yy = np.vstack((yy, observation))
 
         exit_codes = np.vstack((exit_codes, exit_code))
         n_successful += 1
