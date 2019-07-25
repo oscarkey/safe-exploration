@@ -36,7 +36,7 @@ def base_config():
     environment = 'pendulum'
     render = True
     visualize = True
-    plot_episode_trajectory = False
+    plot_episode_trajectory = True
     # Number of dimensions that the pendulum moves in, n>=2. If n=2 then InvertedPendulum environment will be used,
     # otherwise NDPendulum. Currently only n=2 works properly.
     pendulum_dimensions = 2
@@ -75,7 +75,7 @@ def base_config():
     # Whether to plot the locations of the initial samples given to the ssm.
     plot_initial_samples = False
     # When True, at the end of each episode will plot all the states samples so far.
-    plot_states = False
+    plot_states = True
 
     # -- CemSafeMPC
     mpc_time_horizon = 2
