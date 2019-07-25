@@ -15,6 +15,7 @@ from .utils_ellipsoid import ellipsoid_from_rectangle_pytorch, sum_two_ellipsoid
 
 _noise_params = []
 
+
 def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tensor, l_sigma: Tensor,
                          q_shape: Optional[Tensor] = None, k_fb: Tensor = None, c_safety: float = 1., verbose: int = 1,
                          a: Tensor = None, b: Tensor = None) -> Tuple[Tensor, Tensor, Tensor]:
@@ -77,7 +78,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         rkhs_bounds, fix_success = _fix_zeros_nans(rkhs_bounds)
         if not fix_success:
             raise ValueError(f'nan/zero in rkhs_bounds: rkhs_bounds={rkhs_bounds} sigm_0={sigm_0} p_center={p_center}, '
-                             f'u_p={u_p}')
+                             f'u_p={u_p} lik_noise={_get_likelihood(ssm)}')
 
         q_1 = ellipsoid_from_rectangle_pytorch(rkhs_bounds)
 
@@ -138,7 +139,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         if not fix_success:
             torch.save(_noise_params, 'gp_lik_noise.pt')
             raise ValueError(f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
-                             f'q_shape={q_shape}, jac_mu={jac_mu} lik_noise={next(ssm._likelihood.parameters()).data}')
+                             f'q_shape={q_shape}, jac_mu={jac_mu} lik_noise={_get_likelihood(ssm)}')
 
         Q_lagrange_sigm = ellipsoid_from_rectangle_pytorch(b_sigma_eps.squeeze(1))
         p_lagrange_sigm = torch.zeros((N, n_s), device=Q_lagrange_sigm.device)
@@ -163,10 +164,17 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print_ellipsoid(p_1.detach().cpu().numpy(), q_1.detach().cpu().numpy(),
                             text="accumulated uncertainty current step")
 
-            print("volume of ellipsoid summed individually")
             # print((torch.det(torch.cholesky(q_1))).detach().cpu().numpy())
+            print("volume of ellipsoid summed individually")
 
         return p_1.detach(), q_1.detach(), sigm_0.detach()
+
+
+def _get_likelihood(ssm: CemSSM) -> str:
+    if isinstance(ssm, GpCemSSM):
+        return str(next(ssm._likelihood.parameters()).data)
+    else:
+        return '?'
 
 
 def lin_ellipsoid_safety_distance(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor,
