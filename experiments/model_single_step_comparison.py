@@ -12,9 +12,9 @@ from numpy import ndarray
 from experiments import sacred_helper
 from safe_exploration.environments.environments import InvertedPendulum, Environment
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
-from safe_exploration.ssm_cem.ssm_cem import CemSSM
 from safe_exploration.ssm_cem.dropout_ssm_cem import McDropoutSSM
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
+from safe_exploration.ssm_cem.ssm_cem import CemSSM
 from safe_exploration.utils import get_device
 from safe_exploration.visualization import utils_visualization
 
@@ -63,8 +63,11 @@ def _train_and_plot_for_ssm(conf, env: Environment, ssm: CemSSM, x_train, y_trai
     states = torch.zeros((x_test.shape[0], env.n_s)).to(device)
     actions = torch.tensor(x_test).to(device)
 
+    a = torch.zeros((env.n_s, env.n_s), device=device)
+    b = torch.zeros((env.n_s, env.n_u), device=device)
     ps, qs, _ = onestep_reachability(states, ssm, actions, torch.tensor(env.l_mu).to(device),
-                                     torch.tensor(env.l_sigm).to(device), verbose=0)
+                                     torch.tensor(env.l_sigm).to(device), c_safety=conf.cem_beta_safety, verbose=0, a=a,
+                                     b=b)
 
     for i in range(ps.size(0)):
         p = ps[i].unsqueeze(1).detach().cpu().numpy()
