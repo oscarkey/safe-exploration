@@ -196,8 +196,6 @@ class CemSafeMPC(SafeMPC):
                                     num_elites=conf.cem_num_elites, num_iterations=conf.cem_num_iterations)
         self._mpc = mpc
 
-        self._has_training_data = False
-
         self._last_mpc_actions = np.empty((0, self.action_dimen))
         self._mpc_actions_executed = 0
 
@@ -233,18 +231,12 @@ class CemSafeMPC(SafeMPC):
     def get_action(self, state: ndarray) -> Tuple[ndarray, MpcResult]:
         assert_shape(state, (self._state_dimen,))
 
-        # If we don't have training data we skip solving the mpc as it won't be any use.
-        # This makes the first episode much faster (during which we gather training data)
-        if self._has_training_data:
-            state_batch = torch.tensor(state, device=self._l_mu.device).unsqueeze(0)
-            mpc_actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
-            mpc_actions = mpc_actions.detach().cpu().numpy() if mpc_actions is not None else mpc_actions
+        state_batch = torch.tensor(state, device=self._l_mu.device).unsqueeze(0)
+        mpc_actions, rollouts = self._mpc.get_actions(self._pq_flattener.flatten(state_batch, None))
+        mpc_actions = mpc_actions.detach().cpu().numpy() if mpc_actions is not None else mpc_actions
 
-            if self._plot_optimisation or self._plot_terminal_states:
-                self._plot_optimisation_process(rollouts)
-        else:
-            print('No training data')
-            mpc_actions = None
+        if self._plot_optimisation or self._plot_terminal_states:
+            self._plot_optimisation_process(rollouts)
 
         # TODO: Need to maintain a queue of previously safe actions to fully implement SafeMPC.
 
@@ -333,7 +325,6 @@ class CemSafeMPC(SafeMPC):
         y_error = torch.tensor(y_error, device=self._l_mu.device)
 
         self._ssm.update_model(x, y_error, opt_hyp, replace_old)
-        self._has_training_data = True
 
     def information_gain(self) -> Union[ndarray, List[None]]:
         print('Not implemented')
