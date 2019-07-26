@@ -1,5 +1,4 @@
 """State space models for CEM MPC using gaussian processes."""
-from collections import OrderedDict
 from typing import Optional, Tuple, Dict, List, Any
 
 import gpytorch
@@ -167,10 +166,8 @@ class NNFeatureKernel(LinearKernel):
     def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **kwargs):
         if last_dim_is_batch is not False:
             raise NotImplementedError
-        if diag is not False:
-            raise NotImplementedError
 
         x1_features = self._net(x1)
         x2_features = self._net(x2)
         # TODO: normalise features?
-        return super().forward(x1_features, x2_features, diag, last_dim_is_batch, **kwargs)
+        return super().forward(x1_features, x2_features, diag, last_dim_is_batch, diag=diag, **kwargs)
