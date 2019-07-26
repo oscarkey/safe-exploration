@@ -53,6 +53,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
                 if plotted:
                     plt.show()
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)
+            metrics.save_array(X, f'initial_samples_{k}')
             have_initial_samples = True
 
         X_list = [X]
@@ -88,7 +89,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             exit_codes_k += [exit_codes_i]
             safety_failure_k += [safety_failure]
 
-            metrics.log_non_scalar('states_actions', xx.tolist(), i)
+            metrics.save_array(xx, f'states_actions_{k}_{i}')
 
             if have_initial_samples:
                 states_excl_initial_samples = np.vstack(X_list[1:])[:, :env.n_s]

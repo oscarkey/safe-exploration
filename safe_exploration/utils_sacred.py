@@ -2,7 +2,9 @@ import os
 from collections import defaultdict
 from typing import Dict, List, Any
 
+import numpy as np
 from matplotlib.figure import Figure
+from numpy import ndarray
 from sacred.run import Run
 
 
@@ -79,10 +81,24 @@ class SacredAggregatedMetrics:
             return d
 
     def save_figure(self, figure: Figure, name: str):
-        dir_name = 'safe_exploration_results/figures'
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
+        """Saves the given figure to a file, and adds it as an artifact to sacred."""
+        dir_name = self._get_artifacts_dir()
         file_name = f'{self._run._id}_{name}.png'
         file_path = os.path.join(dir_name, file_name)
         figure.savefig(file_path)
         self._run.add_artifact(file_path)
+
+    def save_array(self, array: ndarray, name: str):
+        """Saves the given array as a ffile, and adds it as an artifact to sacred."""
+        dir_name = self._get_artifacts_dir()
+        file_name = f'{self._run._id}_{name}'
+        file_path = os.path.join(dir_name, file_name)
+        np.save(file_path, array)
+        self._run.add_artifact(file_path)
+
+    @staticmethod
+    def _get_artifacts_dir() -> str:
+        dir_name = 'safe_exploration_results/artifacts'
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+        return dir_name
