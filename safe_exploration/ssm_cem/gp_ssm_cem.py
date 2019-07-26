@@ -170,4 +170,4 @@ class NNFeatureKernel(LinearKernel):
         x1_features = self._net(x1)
         x2_features = self._net(x2)
         # TODO: normalise features?
-        return super().forward(x1_features, x2_features, diag, last_dim_is_batch, diag=diag, **kwargs)
+        return super().forward(x1_features, x2_features, diag, last_dim_is_batch, **kwargs)
