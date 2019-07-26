@@ -85,26 +85,11 @@ class GpCemSSM(CemSSM):
 
         return pred_mean, pred_var
 
-    def predict_raw(self, z: Tensor, neg_var_repeat=False) -> Tuple[Tensor, Tensor]:
+    def predict_raw(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         N = z.size(0)
         assert_shape(z, (N, self.num_states + self.num_actions))
         pred = self._likelihood(self._model(z))
-
-        variance = pred.variance
-        if (variance <= 0.).any():
-            if neg_var_repeat:
-                print('Negative variance, but already retried', variance)
-
-            # There may be a bug where variance can be negative. If this happens, toggle train/eval to clear caches and
-            # retry once. https://github.com/cornellius-gp/gpytorch/issues/635
-            self._model.train()
-            self._likelihood.train()
-            self._model.eval()
-            self._likelihood.eval()
-            print('Negative variance, retrying', variance)
-            return self.predict_raw(z, neg_var_repeat=True)
-
-        return pred.mean, variance
+        return pred.mean, pred.variance
 
     def _update_model(self, x_train: Tensor, y_train: Tensor) -> None:
         # Hack because set_train_data() does not work if previous data was None.
