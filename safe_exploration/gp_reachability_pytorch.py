@@ -6,14 +6,13 @@ uses PyTorch.
 from typing import Tuple, Optional
 
 import torch
+from gpytorch.likelihoods import GaussianLikelihood
 from torch import Tensor
 
 from .ssm_cem.gp_ssm_cem import GpCemSSM
 from .ssm_cem.ssm_cem import CemSSM
 from .utils import print_ellipsoid, assert_shape, compute_remainder_overapproximations_pytorch, batch_vector_matrix_mul
 from .utils_ellipsoid import ellipsoid_from_rectangle_pytorch, sum_two_ellipsoids_pytorch
-
-_noise_params = []
 
 
 def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tensor, l_sigma: Tensor,
@@ -77,6 +76,7 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         rkhs_bounds, fix_success = _fix_zeros_nans(rkhs_bounds)
         if not fix_success:
+            _save_model(ssm, p_center, u_p)
             raise ValueError(f'nan/zero in rkhs_bounds: rkhs_bounds={rkhs_bounds} sigm_0={sigm_0} p_center={p_center}, '
                              f'u_p={u_p} lik_noise={_get_likelihood(ssm)}')
 
@@ -132,12 +132,8 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         b_sigma_eps, fix_success = _fix_zeros_nans(b_sigma_eps)
 
-        # Temporary logging of gp likelihood noise, to check if it's collapsing to zero.
-        if isinstance(ssm, GpCemSSM):
-            _noise_params.append(next(ssm._likelihood.parameters()).data)
-
         if not fix_success:
-            torch.save(_noise_params, 'gp_lik_noise.pt')
+            _save_model(ssm, p_center, u_bar)
             raise ValueError(f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
                              f'q_shape={q_shape}, jac_mu={jac_mu} lik_noise={_get_likelihood(ssm)}')
 
@@ -168,13 +164,6 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
             print("volume of ellipsoid summed individually")
 
         return p_1.detach(), q_1.detach(), sigm_0.detach()
-
-
-def _get_likelihood(ssm: CemSSM) -> str:
-    if isinstance(ssm, GpCemSSM):
-        return str(next(ssm._likelihood.parameters()).data)
-    else:
-        return '?'
 
 
 def lin_ellipsoid_safety_distance(p_center: Tensor, q_shape: Tensor, h_mat: Tensor, h_vec: Tensor,
@@ -237,3 +226,20 @@ def _fix_zeros_nans(x: Tensor) -> Tuple[Tensor, bool]:
         return x, True
 
     return x, True
+
+
+def _get_likelihood(ssm: CemSSM) -> str:
+    if isinstance(ssm, GpCemSSM):
+        likelihood: GaussianLikelihood = ssm._likelihood
+        noise = likelihood.noise
+        noise_raw = likelihood.raw_noise
+        return f'noise={noise}, raw={noise_raw}'
+    else:
+        return '?'
+
+
+def _save_model(ssm: GpCemSSM, state: Tensor, action: Tensor):
+    gp_model_state = ssm._model.state_dict()
+    gp_likelihood_state = ssm._likelihood.state_dict()
+    state = {'gp_model': gp_model_state, 'gp_likelihood': gp_likelihood_state, 'state': state, 'action': action}
+    torch.save(state, 'negative_variance_state.pt')
