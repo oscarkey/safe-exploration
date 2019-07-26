@@ -94,7 +94,7 @@ class SacredAggregatedMetrics:
         file_name = f'{self._run._id}_{name}'
         file_path = os.path.join(dir_name, file_name)
         np.save(file_path, array)
-        self._run.add_artifact(file_path)
+        self._run.add_artifact(f'{file_path}.npy')
 
     @staticmethod
     def _get_artifacts_dir() -> str:
