@@ -96,7 +96,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             else:
                 states_excl_initial_samples = np.vstack(X_list)[:, :env.n_s]
             metrics.log_scalar('sample_variance', states_excl_initial_samples.var(), i)
-            if states_excl_initial_samples.shape[0] > 0:
+            if states_excl_initial_samples.shape[0] >= 3:
                 sample_volume = ConvexHull(states_excl_initial_samples).volume
             else:
                 sample_volume = 0.
