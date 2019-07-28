@@ -72,9 +72,17 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
 
         mu_0, sigm_0 = ssm.predict_without_jacobians(p_center, u_p)
 
+        # Hack to correct NaNs, zeros or negatives, probably due to numeric instability.
+        sigm_0, fix_success = _fix_zeros_nans(sigm_0, 'sigm_0')
+        if not fix_success:
+            _save_model(ssm, p_center, u_p)
+            raise ValueError(f'nan in sigm_0: mu_0={mu_0} sigm_0={sigm_0} p_center={p_center}, u_p={u_p} '
+                             f'lik_noise={_get_likelihood(ssm)}')
+
         rkhs_bounds = c_safety * torch.sqrt(sigm_0)
 
-        rkhs_bounds, fix_success = _fix_zeros_nans(rkhs_bounds)
+        # Hack to correct NaNs, zeros or negatives, probably due to numeric instability.
+        rkhs_bounds, fix_success = _fix_zeros_nans(rkhs_bounds, 'rkhs_bounds')
         if not fix_success:
             _save_model(ssm, p_center, u_p)
             raise ValueError(f'nan/zero in rkhs_bounds: rkhs_bounds={rkhs_bounds} sigm_0={sigm_0} p_center={p_center}, '
@@ -105,6 +113,13 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         # compute the zero and first order matrices
         mu_0, sigm_0, jac_mu = ssm.predict_with_jacobians(x_bar, u_bar)
 
+        # Hack to correct NaNs, zeros or negatives, probably due to numeric instability.
+        sigm_0, fix_success = _fix_zeros_nans(sigm_0, 'sigm_0')
+        if not fix_success:
+            _save_model(ssm, p_center, u_bar)
+            raise ValueError(f'nan in sigm_0: mu_0={mu_0} sigm_0={sigm_0} jac_mu={jac_mu}, '
+                             f'lik_noise={_get_likelihood(ssm)}')
+
         if verbose > 0:
             print_ellipsoid(mu_0.detach().cpu().numpy(), torch.diag(sigm_0.squeeze()).detach().cpu().numpy(),
                             text="predictive distribution")
@@ -130,8 +145,8 @@ def onestep_reachability(p_center: Tensor, ssm: CemSSM, k_ff: Tensor, l_mu: Tens
         ub_mean, ub_sigma = compute_remainder_overapproximations_pytorch(q_shape, k_fb_batch, l_mu_batch, l_sigma_batch)
         b_sigma_eps = c_safety * (torch.sqrt(sigm_0) + ub_sigma)
 
-        b_sigma_eps, fix_success = _fix_zeros_nans(b_sigma_eps)
-
+        # Hack to correct NaNs, zeros or negatives, probably due to numeric instability.
+        b_sigma_eps, fix_success = _fix_zeros_nans(b_sigma_eps, 'b_sigma_eps')
         if not fix_success:
             _save_model(ssm, p_center, u_bar)
             raise ValueError(f'nan in b_sigma_eps: b_sigma_eps={b_sigma_eps} sigm_0={sigm_0} ub_sigma={ub_sigma}, '
@@ -216,12 +231,12 @@ def is_ellipsoid_inside_polytope(p_center: Tensor, q_shape: Tensor, h_mat: Tenso
     return (d_safety >= 0).sum(dim=1) == 0
 
 
-def _fix_zeros_nans(x: Tensor) -> Tuple[Tensor, bool]:
+def _fix_zeros_nans(x: Tensor, var_name: str) -> Tuple[Tensor, bool]:
     if torch.isnan(x).any():
         return torch.empty_like(x), False
 
     if (x <= 0).any():
-        print('WARNING: found 0 or negative in var but carried on', x)
+        print(f'WARNING: found 0 or negative in {var_name} but carried on', x)
         x[x <= 0] = 1e-5
         return x, True
 
