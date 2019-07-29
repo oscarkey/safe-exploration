@@ -171,5 +171,11 @@ class NNFeatureKernel(LinearKernel):
 
         x1_features = self._net(x1)
         x2_features = self._net(x2)
-        # TODO: normalise features?
-        return super().forward(x1_features, x2_features, diag, last_dim_is_batch, **kwargs)
+
+        # Normalize the features between 0 and 1.
+        x1_scaled = x1_features - x1_features.min(2, keepdim=True)[0]
+        x1_scaled = 2 * (x1_scaled / x1_features.max(2, keepdim=True)[0]) - 1
+        x2_scaled = x2_features - x2_features.min(2, keepdim=True)[0]
+        x2_scaled = 2 * (x2_scaled / x2_features.max(2, keepdim=True)[0]) - 1
+
+        return super().forward(x1_scaled, x2_scaled, diag, last_dim_is_batch, **kwargs)
