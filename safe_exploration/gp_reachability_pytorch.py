@@ -256,5 +256,11 @@ def _get_likelihood(ssm: CemSSM) -> str:
 def _save_model(ssm: GpCemSSM, state: Tensor, action: Tensor):
     gp_model_state = ssm._model.state_dict()
     gp_likelihood_state = ssm._likelihood.state_dict()
-    state = {'gp_model': gp_model_state, 'gp_likelihood': gp_likelihood_state, 'state': state, 'action': action}
+    state = {  #
+        'gp_model': gp_model_state,  #
+        'gp_likelihood': gp_likelihood_state,  #
+        'state': state,  #
+        'action': action,  #
+        'x_train': ssm.x_train,  #
+        'y_train': ssm.y_train}
     torch.save(state, 'negative_variance_state.pt')
