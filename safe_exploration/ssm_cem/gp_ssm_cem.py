@@ -4,7 +4,9 @@ from typing import Optional, Tuple, Dict, List, Any
 import gpytorch
 import torch
 import torch.nn as nn
+from gpytorch import ExactMarginalLogLikelihood
 from gpytorch.kernels import ScaleKernel, RBFKernel, LinearKernel, Kernel
+from gpytorch.likelihoods import GaussianLikelihood
 from torch import Tensor
 
 from .ssm_cem import CemSSM
@@ -16,7 +18,7 @@ class GpCemSSM(CemSSM):
     """A SSM using an exact GP from GPyTorch, for the CEM implementation of SafeMPC.
 
     Compared to GPyTorchSSM, this uses PyTorch tensors all the way through, rather than converting to Numpy. It also
-    does not implement the linearization and differentation functions which are only require for Casadi.
+    does not implement the linearization and differentiation functions which are only require for Casadi.
     """
 
     def __init__(self, conf, state_dimen: int, action_dimen: int, model: Optional[MultiOutputGP] = None):
@@ -28,7 +30,7 @@ class GpCemSSM(CemSSM):
 
         self._training_iterations = conf.exact_gp_training_iterations
 
-        self._likelihood = gpytorch.likelihoods.GaussianLikelihood(batch_size=state_dimen)
+        self._likelihood = GaussianLikelihood(batch_size=state_dimen)
         if model is None:
             self._model = MultiOutputGP(train_x=None, train_y=None, likelihood=self._likelihood,
                                         kernel=self._create_kernel(conf, state_dimen, action_dimen),
@@ -105,7 +107,7 @@ class GpCemSSM(CemSSM):
         # self._model.parameters() includes likelihood parameters
         optimizer = torch.optim.Adam([{'params': self._model.parameters()}, ], lr=0.01)
 
-        mll = gpytorch.mlls.ExactMarginalLogLikelihood(self._likelihood, self._model)
+        mll = ExactMarginalLogLikelihood(self._likelihood, self._model)
 
         print(f'Training GP on {self.x_train.size(0)} data points for {self._training_iterations} iterations...')
         losses = []
