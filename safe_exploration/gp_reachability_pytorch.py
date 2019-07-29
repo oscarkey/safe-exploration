@@ -235,8 +235,8 @@ def _fix_zeros_nans(x: Tensor, var_name: str) -> Tuple[Tensor, bool]:
     if torch.isnan(x).any():
         return torch.empty_like(x), False
 
-    if (x <= 0).any():
-        print(f'WARNING: found 0 or negative in {var_name} but carried on', x)
+    if (x == 0).any():
+        print(f'WARNING: found 0 in {var_name} but carried on', x)
         x[x <= 0] = 1e-5
         return x, True
 
