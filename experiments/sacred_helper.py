@@ -61,8 +61,8 @@ def base_config():
     # -- Episodic
     # The number of repeats of the experiment, over which we will average the metrics.
     n_scenarios = 6
-    # Number of episodes in each repeat. Each episode lasts until there is a safety failure, up to n_steps
-    n_ep = 8
+    # Total number of steps to run each repeat for. Will start new episodes until this number is reached.
+    total_steps = 400
     # Maximum number of steps in a single episode.
     n_steps = 50
     # Whether to initialise the ssm with no data, random data or safe data.

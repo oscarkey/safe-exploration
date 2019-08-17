@@ -62,11 +62,17 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
         safety_failure_k = []
         cc_k = []
 
-        for i in range(conf.n_ep):
-            print(f'Starting episode {i+1}/{conf.n_ep} in scenario {k+1}/{conf.n_scenarios}')
+        episode = 0
+        total_steps = 0
+        while total_steps < conf.total_steps:
+            print(f'Starting episode {episode+1} in scenario {k+1}/{conf.n_scenarios} '
+                  f'after {total_steps}/{conf.total_steps} steps')
+
+            # If we have nearly reached the maximum number of desired steps, restrict the episode length.
+            max_episode_steps = min(conf.n_steps, conf.total_steps - total_steps)
 
             xx, yy, cc, exit_codes_i, safety_failure = do_rollout(
-                env, conf.n_steps, scenario_id=k, episode_id=i, metrics=metrics,
+                env, max_episode_steps, scenario_id=k, episode_id=episode, metrics=metrics,
                 cost=conf.rl_immediate_cost,
                 solver=solver,
                 plot_ellipsoids=conf.plot_ellipsoids,
@@ -89,18 +95,18 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             exit_codes_k += [exit_codes_i]
             safety_failure_k += [safety_failure]
 
-            metrics.save_array(xx, f'states_actions_{k}_{i}')
+            metrics.save_array(xx, f'states_actions_{k}_{episode}')
 
             if have_initial_samples:
                 states_excl_initial_samples = np.vstack(X_list[1:])[:, :env.n_s]
             else:
                 states_excl_initial_samples = np.vstack(X_list)[:, :env.n_s]
-            metrics.log_scalar('sample_variance', states_excl_initial_samples.var(), i)
+            metrics.log_scalar('sample_variance', states_excl_initial_samples.var(), episode)
             if states_excl_initial_samples.shape[0] >= 3:
                 sample_volume = ConvexHull(states_excl_initial_samples).volume
             else:
                 sample_volume = 0.
-            metrics.log_scalar('sample_volume', sample_volume, i)
+            metrics.log_scalar('sample_volume', sample_volume, episode)
 
             if conf.plot_states:
                 axes = plt.axes()
@@ -108,7 +114,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
                 plotted = env.plot_states(axes, states, have_initial_samples)
                 if plotted:
                     if conf.save_plots_to_sacred:
-                        metrics.save_figure(plt.gcf(), f'training_points_{k}_{i}')
+                        metrics.save_figure(plt.gcf(), f'training_points_{k}_{episode}')
                         plt.clf()
                     else:
                         plt.show()
@@ -117,8 +123,12 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
             solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True)
             training_end_time = time.time()
 
-            metrics.log_scalar('training_time', training_end_time - training_start_time, i)
-            metrics.log_scalar('num_samples', X.shape[0], i)
+            metrics.log_scalar('training_time', training_end_time - training_start_time, episode)
+            metrics.log_scalar('num_samples', X.shape[0], episode)
+
+            # Returned states does not include initial state (why?).
+            total_steps += xx.shape[0] + 1
+            episode += 1
 
         exit_codes_all += [exit_codes_k]
         safety_failure_all += [safety_failure_k]
