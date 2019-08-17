@@ -44,7 +44,7 @@ class GpCemSSM(CemSSM):
 
     def _create_kernel(self, conf, state_dimen: int, action_dimen: int) -> Kernel:
         if conf.exact_gp_kernel == 'rbf':
-            kernel = RBFKernel(batch_size=state_dimen)
+            kernel = RBFKernel(batch_size=state_dimen, ard_num_dims=state_dimen+action_dimen)
         elif conf.exact_gp_kernel == 'linear':
             kernel = LinearKernel(batch_size=state_dimen)
         elif conf.exact_gp_kernel == 'nn':
