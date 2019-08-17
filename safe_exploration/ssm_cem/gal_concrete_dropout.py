@@ -232,3 +232,7 @@ class GalConcreteDropoutSSM(CemSSM):
         dropout_ps = {'dropout_p_' + k: v for k, v in self._model.get_dropout_probabilities().items()}
         metrics = {'losses': self._last_training_losses}
         return {**dropout_ps, **metrics}
+
+    @property
+    def parametric(self) -> bool:
+        True

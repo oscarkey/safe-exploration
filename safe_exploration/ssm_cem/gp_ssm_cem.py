@@ -132,6 +132,10 @@ class GpCemSSM(CemSSM):
         # Currently we don't have any metrics.
         return {'losses': self._last_training_losses}
 
+    @property
+    def parametric(self) -> bool:
+        return False
+
 
 class NNFeatureKernel(LinearKernel):
     """A dot product kernel, where the input points are transformed by a neural network.

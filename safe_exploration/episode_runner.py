@@ -52,7 +52,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
                 plotted = env.plot_states(axes, [X[:, :env.n_s]], includes_initial_samples=True)
                 if plotted:
                     plt.show()
-            solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True, replace_old=False)
+            solver.update_model(X, y, opt_hyp=True, reinitialize_solver=True, replace_old=False)
             metrics.save_array(X, f'initial_samples_{k}')
             have_initial_samples = True
 
@@ -120,7 +120,7 @@ def run_episodic(conf, metrics: SacredAggregatedMetrics, visualize=False):
                         plt.show()
 
             training_start_time = time.time()
-            solver.update_model(X, y, opt_hyp=conf.train_gp, reinitialize_solver=True)
+            solver.update_model(X, y, opt_hyp=conf.opt_hyp, reinitialize_solver=True)
             training_end_time = time.time()
 
             metrics.log_scalar('training_time', training_end_time - training_start_time, episode)

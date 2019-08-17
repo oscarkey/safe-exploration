@@ -95,7 +95,7 @@ class CemSSM(ABC):
 
         self._update_model(x_new, y_new)
 
-        if opt_hyp:
+        if self.parametric or opt_hyp:
             self._train_model(x_new, y_new)
 
     @abstractmethod
@@ -122,6 +122,12 @@ class CemSSM(ABC):
 
         :returns: pairs (metric key, metric value) to log
         """
+        pass
+
+    @property
+    @abstractmethod
+    def parametric(self) -> bool:
+        """Whether this is a parametric or non-parametric model."""
         pass
 
 
@@ -198,3 +204,7 @@ class JunkDimensionsSSM(CemSSM):
 
     def collect_metrics(self) -> Dict[str, Any]:
         return self._ssm.collect_metrics()
+
+    @property
+    def parametric(self) -> bool:
+        return self._ssm.parametric

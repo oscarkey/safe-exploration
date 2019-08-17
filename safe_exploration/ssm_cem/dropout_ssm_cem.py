@@ -177,3 +177,7 @@ class McDropoutSSM(CemSSM):
                 # p is the inverse of the dropout rate.
                 ps[f'dropout_p_layer_{i}'] = 1 - layer.p.item()
         return ps
+
+    @property
+    def parametric(self) -> bool:
+        return True
