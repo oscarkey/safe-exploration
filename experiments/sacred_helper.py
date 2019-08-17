@@ -76,6 +76,9 @@ def base_config():
     plot_initial_samples = False
     # When True, at the end of each episode will plot all the states samples so far.
     plot_states = False
+    # Whether to optimize the hyperparameters of a non-parametric model every episode, or just after the initial
+    # episode.
+    opt_hyp = True
 
     # -- CemSafeMPC
     mpc_time_horizon = 2
